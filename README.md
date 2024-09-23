@@ -1,40 +1,4 @@
 # Bigquery
-package jb.co.f_scratch.bdash2.zelda.apigateway.web.service.bigquery;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
-
-import jb.co.f_scratch.bdash2.zelda.apigateway.exception.SystemException;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.bean.ExportColumnInfo;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.controller.ApiParameter;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.controller.ExportApiParameter;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.datasources.AbstractJdbc;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.datasources.ConnectionFactory;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.datasources.DatasourceJdbcFactory;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.service.AbstractCdataReportExportService;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.utils.StringUtil;
 
 /**
  * BigQueryReportExportService Class
@@ -545,36 +509,10 @@ public class BigQueryReportExportService extends AbstractCdataReportExportServic
   }
 }
 
-
+=============================================
 
 
 # GoogleSheet
-package jb.co.f_scratch.bdash2.zelda.apigateway.web.service.googlesheets;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.controller.ApiParameter;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.controller.ExportApiParameter;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.datasources.AbstractJdbc;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.datasources.ConnectionFactory;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.datasources.DatasourceJdbcFactory;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.service.AbstractCdataReportExportService;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.utils.LogUtil;
-import jb.co.f_scratch.bdash2.zelda.apigateway.web.utils.StopWatch;
 
 /**
  * GoogleSheetsReportExportService Class
