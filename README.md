@@ -1,5 +1,130 @@
-
+# ascending and descending
 ![image](https://github.com/user-attachments/assets/efe10b5f-c527-4048-9d43-8f5cc5a9724c)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sortable Table</title>
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #000;
+    background-color: #333;
+    color: #fff;
+    cursor: pointer;
+}
+
+th:hover {
+    background-color: #555;
+}
+
+th::after {
+    content: " ▼"; /* Default arrow (descending) */
+}
+
+th[data-order="asc"]::after {
+    content: " ▲"; /* Ascending arrow */
+}
+
+    </style>
+</head>
+<body>
+    <table id="sortable-table">
+        <thead>
+            <tr>
+                <th data-column="projectName" data-order="desc">プロジェクト名称</th>
+                <th data-column="pjCode" data-order="desc">PJコード</th>
+                <th data-column="branchName" data-order="desc">支店名</th>
+                <th data-column="reporterName" data-order="desc">報告者名</th>
+                <th data-column="organizationName" data-order="desc">投稿者組織名</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be injected here from API -->
+        </tbody>
+    </table>
+
+    <script>
+        // Mock API call to get table data
+const fetchData = async () => {
+    return [
+        { projectName: "プロジェクトA", pjCode: "PJ001", branchName: "東京", reporterName: "田中", organizationName: "本社" },
+        { projectName: "プロジェクトB", pjCode: "PJ002", branchName: "大阪", reporterName: "佐藤", organizationName: "支社" },
+        { projectName: "プロジェクトC", pjCode: "PJ003", branchName: "名古屋", reporterName: "鈴木", organizationName: "地方" }
+    ];
+};
+
+// Sort the table by the column clicked
+const sortTable = (column, order) => {
+    const table = document.querySelector('#sortable-table tbody');
+    const rows = Array.from(table.rows);
+
+    const sortedRows = rows.sort((rowA, rowB) => {
+        const cellA = rowA.querySelector(`td[data-column="${column}"]`).innerText.toLowerCase();
+        const cellB = rowB.querySelector(`td[data-column="${column}"]`).innerText.toLowerCase();
+
+        if (cellA < cellB) return order === 'asc' ? -1 : 1;
+        if (cellA > cellB) return order === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    // Reorder the rows in the table
+    table.append(...sortedRows);
+};
+
+// Populate table with data from API
+const populateTable = async () => {
+    const data = await fetchData();
+    const tableBody = document.querySelector('#sortable-table tbody');
+
+    data.forEach(item => {
+        const row = document.createElement('tr');
+
+        Object.keys(item).forEach(key => {
+            const cell = document.createElement('td');
+            cell.innerText = item[key];
+            cell.setAttribute('data-column', key); // Add this for sorting purpose
+            row.appendChild(cell);
+        });
+
+        tableBody.appendChild(row);
+    });
+};
+
+// Event listener for sorting
+document.querySelectorAll('th').forEach(header => {
+    header.addEventListener('click', () => {
+        const column = header.getAttribute('data-column');
+        const currentOrder = header.getAttribute('data-order');
+        const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+
+        // Update the order attribute
+        header.setAttribute('data-order', newOrder);
+
+        // Sort the table
+        sortTable(column, newOrder);
+    });
+});
+
+// Call the function to populate the table on page load
+populateTable();
+
+    </script>
+</body>
+</html>
+
+
 
 # Bigquery
 
