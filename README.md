@@ -1,3 +1,293 @@
+#tab3
+$(document).ready(function () {
+    slectAllCompanyName();
+});
+
+export async function LoadAllPartnerCompany() {
+    try {
+        const response = await fetch(url_prefix + "/partnerMgmt/getAllPartnerCompany", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF_TOKEN
+            },
+            body: JSON.stringify({ _token: CSRF_TOKEN })
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json(); // Assuming the response is JSON
+
+        if (data != null && data !== '') {
+            ShowPartnerCompanyList(data);
+        }
+    } catch (err) {
+        alert("データロードに失敗しました。\n管理者に問い合わせてください。");
+    }
+}
+
+function ShowPartnerCompanyList(data) {
+    $.each(data, function (tname, tdata) {
+        var row = "<tr data-id='" + tdata['company_id'] + "'><td class='company-cell'><input type='checkbox' class='company-checkbox' data-id='" + tdata['company_id'] + "' data-name='" + tdata['company_name'] + "'></td><td>" + tdata['company_name'] + "</td></tr>";
+        $("#companyNameList tbody").append(row);
+    });
+    // $.each(data, function (tname, tdata) {
+    //     var row = "<tr data-id='" + tdata['company_id'] + "'><td class='company-cell'><input type='checkbox' class='company-checkbox' data-id='" + tdata['company_id'] + "' data-name='" + tdata['company_name'] + "'>" + tdata['company_name'] + "</td></tr>";
+    //     $("#companyNameList tbody").append(row);
+    // });
+
+    // Add click event to each company checkbox
+    $(".company-checkbox").change(function () {
+        var companyName = $(this).data("name");
+        var companyId = $(this).data("id");
+        if (this.checked) {
+            // selectedCompanies.push(companyId);
+            getPartnerCompanyInfo(companyId, companyName, true); // Pass true for selection
+            $(this).closest('td').addClass("selected");
+        } else {
+            updateTotalModelCount(selectedCompaniesData[companyId], false); // Use stored data for deselection
+            removeCompanyInfo(companyId);
+            delete selectedCompaniesData[companyId]; // Remove stored data
+            $(this).closest('td').removeClass("selected");
+        }
+    });
+
+    // Add search functionality
+    $("#searchBox").on("keyup", function () {
+        var value = $(this).val().toLowerCase();
+        $("#companyNameList tbody tr").filter(function () {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+    });
+}
+
+
+// Add event listener to the "Select All" checkbox
+function slectAllCompanyName() {
+    $("#selectAllCheckbox").change(function () {
+        if (this.checked) {
+            $(".company-checkbox").each(function () {
+                if (!this.checked) {
+                    this.checked = true;
+                    $(this).trigger('change');
+                }
+            });
+        } else {
+            $(".company-checkbox").each(function () {
+                if (this.checked) {
+                    this.checked = false;
+                    $(this).trigger('change');
+                }
+            });
+        }
+    });
+}
+
+function getPartnerCompanyInfo(id, company_name, isSelected) {
+    ShowLoading1();
+    var company_id = id ? id : $("#companyName").val();
+    if (company_id == 0) {
+        alert("会社名を選択してください。");
+        return;
+    } else {
+        $.ajax({
+            url: url_prefix + "/partnerMgmt/getModelCount",
+            type: 'post',
+            data: { _token: CSRF_TOKEN, company_id: company_id },
+            success: function (data) {
+                if (data == 'no company') {
+                    alert("Error");
+                } else {
+                    if (isSelected) {
+                        showCompanyInfo(data, company_name, company_id);
+                        selectedCompaniesData[company_id] = data; // Store data for deselection
+                    }
+                    updateTotalModelCount(data, isSelected); // Pass isSelected flag
+                }
+                // HideLoading();
+                checkAllRequestsCompleted(); // Check if all requests are completed
+            },
+            error: function (err) {
+                console.log(err);
+                checkAllRequestsCompleted(); // Ensure to check even on error
+            }
+        });
+    }
+}
+
+function showCompanyInfo(data, name, id) {
+    const tableBody = document.querySelector('#companyInfoTable tbody');
+    const groupedData = {};
+    let totalCreate = 0;
+    let totalCreateModify = 0;
+    let totalModify = 0;
+    let totalCost = 0;
+
+    // Group data by model_type
+    data.forEach(item => {
+        if (!groupedData[item.model_type]) {
+            groupedData[item.model_type] = { 作成: 0, 作成・修正: 0, 修正: 0 };
+        }
+        groupedData[item.model_type][item.model_value] = item.model_count;
+        totalCost = item.total_cost;
+    });
+
+    const row1 = document.createElement('tr');
+    row1.setAttribute('data-id', id);
+    row1.classList.add('company-info-row');
+    const r1c1 = document.createElement('td');
+    r1c1.setAttribute("rowSpan", "3");
+    r1c1.textContent = name;
+    row1.appendChild(r1c1);
+
+    const r1c2 = document.createElement('td');
+    r1c2.classList.add('create');
+    r1c2.textContent = "作成";
+    row1.appendChild(r1c2);
+
+    const row2 = document.createElement('tr');
+    row2.setAttribute('data-id', id);
+    row2.classList.add('company-info-row');
+    const r2c2 = document.createElement('td');
+    r2c2.classList.add('createModify');
+    r2c2.textContent = "作成・修正";
+    row2.appendChild(r2c2);
+
+    const row3 = document.createElement('tr');
+    row3.setAttribute('data-id', id);
+    row3.classList.add('company-info-row');
+    const r3c2 = document.createElement('td');
+    r3c2.classList.add('modify');
+    r3c2.textContent = "修正";
+    row3.appendChild(r3c2);
+
+    if (data.length === 0) {
+        for (var col = 0; col < 12; col++) {
+            const r1c3 = document.createElement('td');
+            r1c3.textContent = "";
+            row1.append(r1c3);
+
+            const r2c3 = document.createElement('td');
+            r2c3.textContent = "";
+            row2.append(r2c3);
+
+            const r3c3 = document.createElement('td');
+            r3c3.textContent = "";
+            row3.append(r3c3);
+        }
+    } else {
+        Object.keys(groupedData).forEach(model_type => {
+            const r1c3 = document.createElement('td');
+            const createCount = groupedData[model_type]["作成"];
+            r1c3.textContent = createCount ? createCount : "";
+            row1.appendChild(r1c3);
+            if (createCount) totalCreate += createCount;
+
+            const r2c3 = document.createElement('td');
+            const createModifyCount = groupedData[model_type]["作成・修正"];
+            r2c3.textContent = createModifyCount ? createModifyCount : "";
+            row2.appendChild(r2c3);
+            if (createModifyCount) totalCreateModify += createModifyCount;
+
+            const r3c3 = document.createElement('td');
+            const modifyCount = groupedData[model_type]["修正"];
+            r3c3.textContent = modifyCount ? modifyCount : "";
+            row3.appendChild(r3c3);
+            if (modifyCount) totalModify += modifyCount;
+        });
+
+        const totalCreateCell = document.createElement('td');
+        totalCreateCell.textContent = totalCreate || "";
+        row1.appendChild(totalCreateCell);
+
+        const totalCreateModifyCell = document.createElement('td');
+        totalCreateModifyCell.textContent = totalCreateModify || "";
+        row2.appendChild(totalCreateModifyCell);
+
+        const totalModifyCell = document.createElement('td');
+        totalModifyCell.textContent = totalModify || "";
+        row3.appendChild(totalModifyCell);
+    }
+
+    const totalCostRow = document.createElement('td');
+    totalCostRow.setAttribute("rowSpan", "3");
+    totalCostRow.textContent = totalCost || "";
+    row1.appendChild(totalCostRow);
+
+    tableBody.appendChild(row1);
+    tableBody.appendChild(row2);
+    tableBody.appendChild(row3);
+}
+
+function removeCompanyInfo(company_id) {
+    const rows = document.querySelectorAll('#companyInfoTable tbody tr');
+    rows.forEach(row => {
+        const aa = row.getAttribute('data-id');
+        if (aa === String(company_id)) {
+            row.remove();
+        }
+    });
+}
+
+function updateTotalModelCount(data, isSelected) {
+    if (isSelected && data.length > 0) {
+        totalAllCost += Number(data[0].total_cost);
+    } else if (data.length > 0) {
+        totalAllCost -= Number(data[0].total_cost);
+    }
+    data.forEach(item => {
+        console.log("Each data = " + item.total_cost);
+
+        if (isSelected) {
+            totalModelCounts[item.model_type] += item.model_count;
+        } else {
+            totalModelCounts[item.model_type] -= item.model_count;
+        }
+    });
+
+    const totalTable = document.querySelector('#total-table tbody');
+    totalTable.innerHTML = '';
+    const row1 = document.createElement('tr');
+    const r1c1 = document.createElement('td');
+    r1c1.textContent = "合計";
+    row1.appendChild(r1c1);
+    Object.keys(totalModelCounts).forEach(modelType => {
+        const cell = document.createElement('td');
+        cell.textContent = totalModelCounts[modelType];
+        row1.appendChild(cell);
+    });
+
+    const totalModelCountCell = document.createElement('td');
+    totalModelCountCell.textContent = Object.values(totalModelCounts).reduce((a, b) => a + b, 0);
+    row1.appendChild(totalModelCountCell);
+
+    const totalCostCell = document.createElement('td');
+    totalCostCell.textContent = totalAllCost;
+    row1.appendChild(totalCostCell);
+    totalTable.appendChild(row1);
+}
+
+function ShowLoading1() {
+    $(".loading").removeClass("hide");
+    $(".loading").addClass("show");
+    totalRequests++;
+}
+
+function HideLoading1() {
+    $(".loading").removeClass("show");
+    $(".loading").addClass("hide");
+}
+
+function checkAllRequestsCompleted() {
+    completedRequests++;
+    if (completedRequests >= totalRequests) {
+        HideLoading1();
+        totalRequests = 0; // Reset counters
+        completedRequests = 0;
+    }
+}
 # ascending and descending
 ![image](https://github.com/user-attachments/assets/efe10b5f-c527-4048-9d43-8f5cc5a9724c)
 <!DOCTYPE html>
