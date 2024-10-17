@@ -1,4 +1,107 @@
 ### Excel table
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Filter</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Custom styles for the filter popup */
+        .filter-popup {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 250px;
+            z-index: 1000;
+            padding: 10px;
+            display: none;
+        }
+        .filter-popup .filter-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .filter-popup input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .filter-popup .filter-footer {
+            margin-top: 10px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Property Name <span class="filter-icon">&#9660;</span></th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Property 1</td>
+                <td>Value 1</td>
+            </tr>
+            <tr>
+                <td>Property 2</td>
+                <td>Value 2</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Filter Popup HTML -->
+<div class="filter-popup" id="filterPopup">
+    <div class="filter-header">Select Property Name</div>
+    <input type="checkbox" id="selectAll" checked> Select All<br>
+    <input type="checkbox" class="filter-option" checked> Property 1<br>
+    <input type="checkbox" class="filter-option" checked> Property 2<br>
+    <input type="checkbox" class="filter-option" checked> Property 3<br>
+
+    <div class="filter-footer">
+        <button class="btn btn-primary btn-sm" id="applyFilter">OK</button>
+        <button class="btn btn-secondary btn-sm" id="cancelFilter">Cancel</button>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+    // Show the filter popup when clicking the filter icon
+    $('.filter-icon').on('click', function(e) {
+        let filterPopup = $('#filterPopup');
+        filterPopup.css({ top: e.pageY, left: e.pageX }).toggle();
+    });
+
+    // Close the filter popup when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.filter-popup, .filter-icon').length) {
+            $('#filterPopup').hide();
+        }
+    });
+
+    // Select/Deselect all checkboxes
+    $('#selectAll').on('change', function() {
+        $('.filter-option').prop('checked', this.checked);
+    });
+
+    // Apply filter logic
+    $('#applyFilter').on('click', function() {
+        // Implement filter logic here (e.g., hide/show table rows)
+        $('#filterPopup').hide();
+    });
+
+    // Cancel filter (just hides the popup)
+    $('#cancelFilter').on('click', function() {
+        $('#filterPopup').hide();
+    });
+</script>
+
+</body>
+</html>
 I want to create table filter that like excel table filter when click filter icon show popup box that below image
 with html,css, and js can use require library
 ![image](https://github.com/user-attachments/assets/dea3106e-6902-4f60-8d33-8557f41440da)
