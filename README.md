@@ -1,4 +1,171 @@
-### Excel table
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Filter with Sorting and Search</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Custom styles for the filter popup */
+        .filter-popup {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 250px;
+            z-index: 1000;
+            padding: 10px;
+            display: none;
+        }
+        .filter-popup .filter-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .filter-popup input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .filter-popup .filter-footer {
+            margin-top: 10px;
+            text-align: right;
+        }
+        .sort-options {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        .search-box {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Property Name <span class="filter-icon">&#9660;</span></th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Property 1</td>
+                <td>Value 1</td>
+            </tr>
+            <tr>
+                <td>Property 2</td>
+                <td>Value 2</td>
+            </tr>
+            <tr>
+                <td>Property 3</td>
+                <td>Value 3</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Filter Popup HTML -->
+<div class="filter-popup" id="filterPopup">
+    <div class="sort-options">
+        <label><input type="radio" name="sortOrder" value="asc" checked> Ascending</label><br>
+        <label><input type="radio" name="sortOrder" value="desc"> Descending</label>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="searchInput" class="form-control" placeholder="Search...">
+    </div>
+
+    <div class="filter-header">Select Property Name</div>
+    <input type="checkbox" id="selectAll" checked> Select All<br>
+    <div class="filter-options">
+        <input type="checkbox" class="filter-option" checked> Property 1<br>
+        <input type="checkbox" class="filter-option" checked> Property 2<br>
+        <input type="checkbox" class="filter-option" checked> Property 3<br>
+    </div>
+
+    <div class="filter-footer">
+        <button class="btn btn-primary btn-sm" id="applyFilter">OK</button>
+        <button class="btn btn-secondary btn-sm" id="cancelFilter">Cancel</button>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+    // Show the filter popup when clicking the filter icon
+    $('.filter-icon').on('click', function(e) {
+        let filterPopup = $('#filterPopup');
+        filterPopup.css({ top: e.pageY, left: e.pageX }).toggle();
+    });
+
+    // Close the filter popup when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.filter-popup, .filter-icon').length) {
+            $('#filterPopup').hide();
+        }
+    });
+
+    // Select/Deselect all checkboxes
+    $('#selectAll').on('change', function() {
+        $('.filter-option').prop('checked', this.checked);
+    });
+
+    // Search function to filter checkboxes
+    $('#searchInput').on('keyup', function() {
+        let searchValue = $(this).val().toLowerCase();
+        $('.filter-option').each(function() {
+            let optionText = $(this).parent().text().toLowerCase();
+            if (optionText.indexOf(searchValue) > -1) {
+                $(this).parent().show();
+            } else {
+                $(this).parent().hide();
+            }
+        });
+    });
+
+    // Apply filter logic
+    $('#applyFilter').on('click', function() {
+        // Get the selected sorting order
+        let sortOrder = $('input[name="sortOrder"]:checked').val();
+        
+        // Sort the table based on selected sorting order
+        let rows = $('table tbody tr').get();
+        rows.sort(function(a, b) {
+            let keyA = $(a).children('td').eq(0).text();
+            let keyB = $(b).children('td').eq(0).text();
+            if (sortOrder === 'asc') {
+                return keyA.localeCompare(keyB);
+            } else {
+                return keyB.localeCompare(keyA);
+            }
+        });
+
+        // Re-append the sorted rows to the table body
+        $.each(rows, function(index, row) {
+            $('table tbody').append(row);
+        });
+
+        // Filter logic (to hide/show rows based on checkboxes)
+        $('.filter-option').each(function(index) {
+            if (!$(this).is(':checked')) {
+                $('table tbody tr').eq(index).hide();
+            } else {
+                $('table tbody tr').eq(index).show();
+            }
+        });
+
+        // Hide the filter popup
+        $('#filterPopup').hide();
+    });
+
+    // Cancel filter (just hides the popup)
+    $('#cancelFilter').on('click', function() {
+        $('#filterPopup').hide();
+    });
+</script>
+
+</body>
+</html>### Excel table
 <!DOCTYPE html>
 <html lang="en">
 <head>
