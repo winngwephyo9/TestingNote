@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Table Filter with Sorting and Search</title>
+    <title>Dynamic Table Filter with Sorting</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        /* Custom styles for the filter popup */
         .filter-popup {
             position: absolute;
             background-color: white;
@@ -36,6 +35,19 @@
         .search-box {
             margin-bottom: 10px;
         }
+        .cost-filter {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        .cost-filter input {
+            width: 80px;
+            margin-right: 5px;
+        }
+        .filter-icon {
+            cursor: pointer;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -45,27 +57,31 @@
         <thead>
             <tr>
                 <th>Property Name <span class="filter-icon">&#9660;</span></th>
-                <th>Value</th>
+                <th>Cost <span class="filter-icon">&#9660;</span></th>
+                <th>Value <span class="filter-icon">&#9660;</span></th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td>Property 1</td>
+                <td>100</td>
                 <td>Value 1</td>
             </tr>
             <tr>
                 <td>Property 2</td>
+                <td>250</td>
                 <td>Value 2</td>
             </tr>
             <tr>
                 <td>Property 3</td>
+                <td>150</td>
                 <td>Value 3</td>
             </tr>
         </tbody>
     </table>
 </div>
 
-<!-- Filter Popup HTML -->
+<!-- Filter Popup for Property Name and Cost -->
 <div class="filter-popup" id="filterPopup">
     <div class="sort-options">
         <label><input type="radio" name="sortOrder" value="asc" checked> Ascending</label><br>
@@ -76,12 +92,16 @@
         <input type="text" id="searchInput" class="form-control" placeholder="Search...">
     </div>
 
-    <div class="filter-header">Select Property Name</div>
+    <div class="filter-header">Select Options</div>
     <input type="checkbox" id="selectAll" checked> Select All<br>
     <div class="filter-options">
-        <input type="checkbox" class="filter-option" checked> Property 1<br>
-        <input type="checkbox" class="filter-option" checked> Property 2<br>
-        <input type="checkbox" class="filter-option" checked> Property 3<br>
+        <!-- Filter options will be dynamically populated -->
+    </div>
+
+    <div class="cost-filter" style="display: none;">
+        <label>Cost Filter:</label><br>
+        <input type="number" id="costMin" placeholder="Greater than or equal"> 
+        <input type="number" id="costMax" placeholder="Less than">
     </div>
 
     <div class="filter-footer">
@@ -92,10 +112,26 @@
 
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 <script>
-    // Show the filter popup when clicking the filter icon
+    let currentColumnIndex = 0; // Track the current column being filtered
+
+    // Show the filter popup when clicking the filter icon for any column
     $('.filter-icon').on('click', function(e) {
+        let headerCell = $(this).closest('th');
+        currentColumnIndex = headerCell.index(); // Get the index of the clicked column
+
+        // Determine if the clicked column is "Cost" and show cost range inputs
+        if (headerCell.text().trim().includes('Cost')) {
+            $('.cost-filter').show(); // Show the cost filter for the Cost column
+        } else {
+            $('.cost-filter').hide(); // Hide the cost filter for other columns
+        }
+
+        // Position and show the filter popup
         let filterPopup = $('#filterPopup');
         filterPopup.css({ top: e.pageY, left: e.pageX }).toggle();
+
+        // Populate the filter options dynamically based on the column
+        populateFilterOptions(currentColumnIndex);
     });
 
     // Close the filter popup when clicking outside
@@ -110,33 +146,57 @@
         $('.filter-option').prop('checked', this.checked);
     });
 
-    // Search function to filter checkboxes
+    // Search function to filter checkboxes dynamically
     $('#searchInput').on('keyup', function() {
         let searchValue = $(this).val().toLowerCase();
+
+        // Search and filter the checkboxes based on the text next to the checkboxes
         $('.filter-option').each(function() {
-            let optionText = $(this).parent().text().toLowerCase();
-            if (optionText.indexOf(searchValue) > -1) {
-                $(this).parent().show();
+            let checkboxLabel = $(this).parent().text().toLowerCase(); // Get the text next to the checkbox
+            if (checkboxLabel.indexOf(searchValue) > -1) {
+                $(this).parent().show(); // Show the checkbox and its label
             } else {
-                $(this).parent().hide();
+                $(this).parent().hide(); // Hide the checkbox and its label
             }
         });
     });
 
-    // Apply filter logic
+    // Populate filter options dynamically based on the column clicked
+    function populateFilterOptions(columnIndex) {
+        let filterOptionsContainer = $('.filter-options');
+        filterOptionsContainer.empty(); // Clear any previous options
+
+        $('table tbody tr').each(function() {
+            let cellText = $(this).children('td').eq(columnIndex).text();
+            filterOptionsContainer.append(`<div><input type="checkbox" class="filter-option" checked> ${cellText}</div>`);
+        });
+    }
+
+    // Apply filter and sorting logic
     $('#applyFilter').on('click', function() {
         // Get the selected sorting order
         let sortOrder = $('input[name="sortOrder"]:checked').val();
-        
-        // Sort the table based on selected sorting order
+
+        // Get the cost range values (if applicable)
+        let costMin = parseFloat($('#costMin').val()) || -Infinity;
+        let costMax = parseFloat($('#costMax').val()) || Infinity;
+
+        // Sort the table based on the selected column and sorting order
         let rows = $('table tbody tr').get();
         rows.sort(function(a, b) {
-            let keyA = $(a).children('td').eq(0).text();
-            let keyB = $(b).children('td').eq(0).text();
+            let keyA = $(a).children('td').eq(currentColumnIndex).text();
+            let keyB = $(b).children('td').eq(currentColumnIndex).text();
+
+            // Check if the sorting column is numeric (for Cost)
+            if (currentColumnIndex === 1) { // Assuming "Cost" is in the second column
+                keyA = parseFloat(keyA);
+                keyB = parseFloat(keyB);
+            }
+
             if (sortOrder === 'asc') {
-                return keyA.localeCompare(keyB);
+                return keyA > keyB ? 1 : -1;
             } else {
-                return keyB.localeCompare(keyA);
+                return keyA < keyB ? 1 : -1;
             }
         });
 
@@ -145,158 +205,19 @@
             $('table tbody').append(row);
         });
 
-        // Filter logic (to hide/show rows based on checkboxes)
-        $('.filter-option').each(function(index) {
-            if (!$(this).is(':checked')) {
-                $('table tbody tr').eq(index).hide();
+        // Filter logic based on selected checkboxes and cost rangez
+        $('table tbody tr').each(function(index) {
+            let row = $(this);
+            let cellValue = row.children('td').eq(currentColumnIndex).text();
+            let isChecked = $('.filter-option').eq(index).is(':checked');
+
+            let costValue = parseFloat(row.children('td').eq(1).text()); // Get the cost value
+
+            // Show/hide the row based on cost filter and checkboxes
+            if (isChecked && (currentColumnIndex !== 1 || (costValue >= costMin && costValue <= costMax))) {
+                row.show();
             } else {
-                $('table tbody tr').eq(index).show();
-            }
-        });
-
-        // Hide the filter popup
-        $('#filterPopup').hide();
-    });
-
-    // Cancel filter (just hides the popup)
-    $('#cancelFilter').on('click', function() {
-        $('#filterPopup').hide();
-    });
-</script>
-
-</body>
-</html>### Excel table
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Table Filter with Sorting</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        /* Custom styles for the filter popup */
-        .filter-popup {
-            position: absolute;
-            background-color: white;
-            border: 1px solid #ccc;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 250px;
-            z-index: 1000;
-            padding: 10px;
-            display: none;
-        }
-        .filter-popup .filter-header {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .filter-popup input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        .filter-popup .filter-footer {
-            margin-top: 10px;
-            text-align: right;
-        }
-        .sort-options {
-            margin-bottom: 10px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 10px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container mt-5">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Property Name <span class="filter-icon">&#9660;</span></th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Property 1</td>
-                <td>Value 1</td>
-            </tr>
-            <tr>
-                <td>Property 2</td>
-                <td>Value 2</td>
-            </tr>
-            <tr>
-                <td>Property 3</td>
-                <td>Value 3</td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- Filter Popup HTML -->
-<div class="filter-popup" id="filterPopup">
-    <div class="sort-options">
-        <label><input type="radio" name="sortOrder" value="asc" checked> Ascending</label><br>
-        <label><input type="radio" name="sortOrder" value="desc"> Descending</label>
-    </div>
-
-    <div class="filter-header">Select Property Name</div>
-    <input type="checkbox" id="selectAll" checked> Select All<br>
-    <input type="checkbox" class="filter-option" checked> Property 1<br>
-    <input type="checkbox" class="filter-option" checked> Property 2<br>
-    <input type="checkbox" class="filter-option" checked> Property 3<br>
-
-    <div class="filter-footer">
-        <button class="btn btn-primary btn-sm" id="applyFilter">OK</button>
-        <button class="btn btn-secondary btn-sm" id="cancelFilter">Cancel</button>
-    </div>
-</div>
-
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script>
-    // Show the filter popup when clicking the filter icon
-    $('.filter-icon').on('click', function(e) {
-        let filterPopup = $('#filterPopup');
-        filterPopup.css({ top: e.pageY, left: e.pageX }).toggle();
-    });
-
-    // Close the filter popup when clicking outside
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('.filter-popup, .filter-icon').length) {
-            $('#filterPopup').hide();
-        }
-    });
-
-    // Select/Deselect all checkboxes
-    $('#selectAll').on('change', function() {
-        $('.filter-option').prop('checked', this.checked);
-    });
-
-    // Apply filter logic
-    $('#applyFilter').on('click', function() {
-        // Get the selected sorting order
-        let sortOrder = $('input[name="sortOrder"]:checked').val();
-        
-        // Sort the table based on selected sorting order
-        let rows = $('table tbody tr').get();
-        rows.sort(function(a, b) {
-            let keyA = $(a).children('td').eq(0).text();
-            let keyB = $(b).children('td').eq(0).text();
-            if (sortOrder === 'asc') {
-                return keyA.localeCompare(keyB);
-            } else {
-                return keyB.localeCompare(keyA);
-            }
-        });
-
-        // Re-append the sorted rows to the table body
-        $.each(rows, function(index, row) {
-            $('table tbody').append(row);
-        });
-
-        // Filter logic (to hide/show rows based on checkboxes)
-        $('.filter-option').each(function(index) {
-            if (!$(this).is(':checked')) {
-                $('table tbody tr').eq(index).hide();
-            } else {
-                $('table tbody tr').eq(index).show();
+                row.hide();
             }
         });
 
@@ -313,805 +234,6 @@
 </body>
 </html>
 
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Table Filter</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        /* Custom styles for the filter popup */
-        .filter-popup {
-            position: absolute;
-            background-color: white;
-            border: 1px solid #ccc;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 250px;
-            z-index: 1000;
-            padding: 10px;
-            display: none;
-        }
-        .filter-popup .filter-header {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .filter-popup input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        .filter-popup .filter-footer {
-            margin-top: 10px;
-            text-align: right;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container mt-5">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Property Name <span class="filter-icon">&#9660;</span></th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Property 1</td>
-                <td>Value 1</td>
-            </tr>
-            <tr>
-                <td>Property 2</td>
-                <td>Value 2</td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- Filter Popup HTML -->
-<div class="filter-popup" id="filterPopup">
-    <div class="filter-header">Select Property Name</div>
-    <input type="checkbox" id="selectAll" checked> Select All<br>
-    <input type="checkbox" class="filter-option" checked> Property 1<br>
-    <input type="checkbox" class="filter-option" checked> Property 2<br>
-    <input type="checkbox" class="filter-option" checked> Property 3<br>
-
-    <div class="filter-footer">
-        <button class="btn btn-primary btn-sm" id="applyFilter">OK</button>
-        <button class="btn btn-secondary btn-sm" id="cancelFilter">Cancel</button>
-    </div>
-</div>
-
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script>
-    // Show the filter popup when clicking the filter icon
-    $('.filter-icon').on('click', function(e) {
-        let filterPopup = $('#filterPopup');
-        filterPopup.css({ top: e.pageY, left: e.pageX }).toggle();
-    });
-
-    // Close the filter popup when clicking outside
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('.filter-popup, .filter-icon').length) {
-            $('#filterPopup').hide();
-        }
-    });
-
-    // Select/Deselect all checkboxes
-    $('#selectAll').on('change', function() {
-        $('.filter-option').prop('checked', this.checked);
-    });
-
-    // Apply filter logic
-    $('#applyFilter').on('click', function() {
-        // Implement filter logic here (e.g., hide/show table rows)
-        $('#filterPopup').hide();
-    });
-
-    // Cancel filter (just hides the popup)
-    $('#cancelFilter').on('click', function() {
-        $('#filterPopup').hide();
-    });
-</script>
-
-</body>
-</html>
-I want to create table filter that like excel table filter when click filter icon show popup box that below image
-with html,css, and js can use require library
-![image](https://github.com/user-attachments/assets/dea3106e-6902-4f60-8d33-8557f41440da)
-
-
-
-###
-$(document).ready(function () {
-    slectAllCompanyName();
-    LoadAllPartnerCompany(); // Ensure this is called when the page loads
-});
-
-export async function LoadAllPartnerCompany() {
-    try {
-        const response = await fetch(url_prefix + "/partnerMgmt/getAllPartnerCompany", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF_TOKEN
-            },
-            body: JSON.stringify({ _token: CSRF_TOKEN })
-        });
-
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json(); // Assuming the response is JSON
-
-        if (data != null && data !== '') {
-            ShowPartnerCompanyList(data);
-        }
-    } catch (err) {
-        alert("データロードに失敗しました。\n管理者に問い合わせてください。");
-    }
-}
-
-function ShowPartnerCompanyList(data) {
-    $.each(data, function (tname, tdata) {
-        var hasData = tdata.model_data && tdata.model_data.length > 0; // Check if company has data
-
-        var row = "<tr data-id='" + tdata['company_id'] + "'><td class='company-cell'>" +
-            "<input type='checkbox' class='company-checkbox' data-id='" + tdata['company_id'] + "' data-name='" + tdata['company_name'] + "'" + 
-            (hasData ? " checked" : "") + // Pre-check the checkbox if the company has data
-            "></td><td>" + tdata['company_name'] + "</td></tr>";
-
-        $("#companyNameList tbody").append(row);
-
-        // If the company has data, preselect and load the info
-        if (hasData) {
-            getPartnerCompanyInfo(tdata['company_id'], tdata['company_name'], true); // Pass true for selection
-            selectedCompaniesData[tdata['company_id']] = tdata.model_data; // Store the data
-            $("input[data-id='" + tdata['company_id'] + "']").closest('td').addClass("selected"); // Add selected class
-        }
-    });
-
-    // Add change event to each company checkbox
-    $(".company-checkbox").change(function () {
-        var companyName = $(this).data("name");
-        var companyId = $(this).data("id");
-
-        if (this.checked) {
-            getPartnerCompanyInfo(companyId, companyName, true); // Pass true for selection
-            $(this).closest('td').addClass("selected");
-        } else {
-            updateTotalModelCount(selectedCompaniesData[companyId], false); // Use stored data for deselection
-            removeCompanyInfo(companyId);
-            delete selectedCompaniesData[companyId]; // Remove stored data
-            $(this).closest('td').removeClass("selected");
-        }
-    });
-
-    // Add search functionality
-    $("#searchBox").on("keyup", function () {
-        var value = $(this).val().toLowerCase();
-        $("#companyNameList tbody tr").filter(function () {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
-        });
-    });
-}
-
-// Add event listener to the "Select All" checkbox
-function slectAllCompanyName() {
-    $("#selectAllCheckbox").change(function () {
-        if (this.checked) {
-            $(".company-checkbox").each(function () {
-                if (!this.checked) {
-                    this.checked = true;
-                    $(this).trigger('change');
-                }
-            });
-        } else {
-            $(".company-checkbox").each(function () {
-                if (this.checked) {
-                    this.checked = false;
-                    $(this).trigger('change');
-                }
-            });
-        }
-    });
-}
-
-function getPartnerCompanyInfo(id, company_name, isSelected) {
-    ShowLoading1();
-    var company_id = id ? id : $("#companyName").val();
-    if (company_id == 0) {
-        alert("会社名を選択してください。");
-        return;
-    } else {
-        $.ajax({
-            url: url_prefix + "/partnerMgmt/getModelCount",
-            type: 'post',
-            data: { _token: CSRF_TOKEN, company_id: company_id },
-            success: function (data) {
-                if (data == 'no company') {
-                    alert("Error");
-                } else {
-                    if (isSelected) {
-                        showCompanyInfo(data, company_name, company_id);
-                        selectedCompaniesData[company_id] = data; // Store data for deselection
-                    }
-                    updateTotalModelCount(data, isSelected); // Pass isSelected flag
-                }
-                checkAllRequestsCompleted(); // Check if all requests are completed
-            },
-            error: function (err) {
-                console.log(err);
-                checkAllRequestsCompleted(); // Ensure to check even on error
-            }
-        });
-    }
-}
-
-function showCompanyInfo(data, name, id) {
-    const tableBody = document.querySelector('#companyInfoTable tbody');
-    const groupedData = {};
-    let totalCreate = 0;
-    let totalCreateModify = 0;
-    let totalModify = 0;
-    let totalCost = 0;
-
-    // Group data by model_type
-    data.forEach(item => {
-        if (!groupedData[item.model_type]) {
-            groupedData[item.model_type] = { 作成: 0, 作成・修正: 0, 修正: 0 };
-        }
-        groupedData[item.model_type][item.model_value] = item.model_count;
-        totalCost = item.total_cost;
-    });
-
-    const row1 = document.createElement('tr');
-    row1.setAttribute('data-id', id);
-    row1.classList.add('company-info-row');
-    const r1c1 = document.createElement('td');
-    r1c1.setAttribute("rowSpan", "3");
-    r1c1.textContent = name;
-    row1.appendChild(r1c1);
-
-    const r1c2 = document.createElement('td');
-    r1c2.classList.add('create');
-    r1c2.textContent = "作成";
-    row1.appendChild(r1c2);
-
-    const row2 = document.createElement('tr');
-    row2.setAttribute('data-id', id);
-    row2.classList.add('company-info-row');
-    const r2c2 = document.createElement('td');
-    r2c2.classList.add('createModify');
-    r2c2.textContent = "作成・修正";
-    row2.appendChild(r2c2);
-
-    const row3 = document.createElement('tr');
-    row3.setAttribute('data-id', id);
-    row3.classList.add('company-info-row');
-    const r3c2 = document.createElement('td');
-    r3c2.classList.add('modify');
-    r3c2.textContent = "修正";
-    row3.appendChild(r3c2);
-
-    if (data.length === 0) {
-        for (var col = 0; col < 12; col++) {
-            const r1c3 = document.createElement('td');
-            r1c3.textContent = "";
-            row1.append(r1c3);
-
-            const r2c3 = document.createElement('td');
-            r2c3.textContent = "";
-            row2.append(r2c3);
-
-            const r3c3 = document.createElement('td');
-            r3c3.textContent = "";
-            row3.append(r3c3);
-        }
-    } else {
-        Object.keys(groupedData).forEach(model_type => {
-            const r1c3 = document.createElement('td');
-            const createCount = groupedData[model_type]["作成"];
-            r1c3.textContent = createCount ? createCount : "";
-            row1.appendChild(r1c3);
-            if (createCount) totalCreate += createCount;
-
-            const r2c3 = document.createElement('td');
-            const createModifyCount = groupedData[model_type]["作成・修正"];
-            r2c3.textContent = createModifyCount ? createModifyCount : "";
-            row2.appendChild(r2c3);
-            if (createModifyCount) totalCreateModify += createModifyCount;
-
-            const r3c3 = document.createElement('td');
-            const modifyCount = groupedData[model_type]["修正"];
-            r3c3.textContent = modifyCount ? modifyCount : "";
-            row3.appendChild(r3c3);
-            if (modifyCount) totalModify += modifyCount;
-        });
-
-        const totalCreateCell = document.createElement('td');
-        totalCreateCell.textContent = totalCreate || "";
-        row1.appendChild(totalCreateCell);
-
-        const totalCreateModifyCell = document.createElement('td');
-        totalCreateModifyCell.textContent = totalCreateModify || "";
-        row2.appendChild(totalCreateModifyCell);
-
-        const totalModifyCell = document.createElement('td');
-        totalModifyCell.textContent = totalModify || "";
-        row3.appendChild(totalModifyCell);
-    }
-
-    const totalCostRow = document.createElement('td');
-    totalCostRow.setAttribute("rowSpan", "3");
-    totalCostRow.textContent = totalCost || "";
-    row1.appendChild(totalCostRow);
-
-    tableBody.appendChild(row1);
-    tableBody.appendChild(row2);
-    tableBody.appendChild(row3);
-}
-
-function removeCompanyInfo(company_id) {
-    const rows = document.querySelectorAll('#companyInfoTable tbody tr');
-    rows.forEach(row => {
-        if (row.getAttribute('data-id') == company_id) {
-            row.remove();
-        }
-    });
-}
-
-function updateTotalModelCount(data, isSelected) {
-    let totalCreate = 0;
-    let totalCreateModify = 0;
-    let totalModify = 0;
-    let totalCost = 0;
-
-    data.forEach(item => {
-        if (item.model_value === '作成') totalCreate += item.model_count;
-        if (item.model_value === '作成・修正') totalCreateModify += item.model_count;
-        if (item.model_value === '修正') totalModify += item.model_count;
-        totalCost = item.total_cost;
-    });
-
-    if (isSelected) {
-        totalCreateModel += totalCreate;
-        totalCreateModifyModel += totalCreateModify;
-        totalModifyModel += totalModify;
-        totalModelCost += totalCost;
-    } else {
-        totalCreateModel -= totalCreate;
-        totalCreateModifyModel -= totalCreateModify;
-        totalModifyModel -= totalModify;
-        totalModelCost -= totalCost;
-    }
-
-    $("#totalCreate").text(totalCreateModel || "");
-    $("#totalCreateModify").text(totalCreateModifyModel || "");
-    $("#totalModify").text(totalModifyModel || "");
-    $("#totalCost").text(totalModelCost || "");
-}
-
-
-
-#tab3
-$(document).ready(function () {
-    slectAllCompanyName();
-});
-
-export async function LoadAllPartnerCompany() {
-    try {
-        const response = await fetch(url_prefix + "/partnerMgmt/getAllPartnerCompany", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': CSRF_TOKEN
-            },
-            body: JSON.stringify({ _token: CSRF_TOKEN })
-        });
-
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json(); // Assuming the response is JSON
-
-        if (data != null && data !== '') {
-            ShowPartnerCompanyList(data);
-        }
-    } catch (err) {
-        alert("データロードに失敗しました。\n管理者に問い合わせてください。");
-    }
-}
-
-function ShowPartnerCompanyList(data) {
-    $.each(data, function (tname, tdata) {
-        var row = "<tr data-id='" + tdata['company_id'] + "'><td class='company-cell'><input type='checkbox' class='company-checkbox' data-id='" + tdata['company_id'] + "' data-name='" + tdata['company_name'] + "'></td><td>" + tdata['company_name'] + "</td></tr>";
-        $("#companyNameList tbody").append(row);
-    });
-    // $.each(data, function (tname, tdata) {
-    //     var row = "<tr data-id='" + tdata['company_id'] + "'><td class='company-cell'><input type='checkbox' class='company-checkbox' data-id='" + tdata['company_id'] + "' data-name='" + tdata['company_name'] + "'>" + tdata['company_name'] + "</td></tr>";
-    //     $("#companyNameList tbody").append(row);
-    // });
-
-    // Add click event to each company checkbox
-    $(".company-checkbox").change(function () {
-        var companyName = $(this).data("name");
-        var companyId = $(this).data("id");
-        if (this.checked) {
-            // selectedCompanies.push(companyId);
-            getPartnerCompanyInfo(companyId, companyName, true); // Pass true for selection
-            $(this).closest('td').addClass("selected");
-        } else {
-            updateTotalModelCount(selectedCompaniesData[companyId], false); // Use stored data for deselection
-            removeCompanyInfo(companyId);
-            delete selectedCompaniesData[companyId]; // Remove stored data
-            $(this).closest('td').removeClass("selected");
-        }
-    });
-
-    // Add search functionality
-    $("#searchBox").on("keyup", function () {
-        var value = $(this).val().toLowerCase();
-        $("#companyNameList tbody tr").filter(function () {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
-        });
-    });
-}
-
-
-// Add event listener to the "Select All" checkbox
-function slectAllCompanyName() {
-    $("#selectAllCheckbox").change(function () {
-        if (this.checked) {
-            $(".company-checkbox").each(function () {
-                if (!this.checked) {
-                    this.checked = true;
-                    $(this).trigger('change');
-                }
-            });
-        } else {
-            $(".company-checkbox").each(function () {
-                if (this.checked) {
-                    this.checked = false;
-                    $(this).trigger('change');
-                }
-            });
-        }
-    });
-}
-
-function getPartnerCompanyInfo(id, company_name, isSelected) {
-    ShowLoading1();
-    var company_id = id ? id : $("#companyName").val();
-    if (company_id == 0) {
-        alert("会社名を選択してください。");
-        return;
-    } else {
-        $.ajax({
-            url: url_prefix + "/partnerMgmt/getModelCount",
-            type: 'post',
-            data: { _token: CSRF_TOKEN, company_id: company_id },
-            success: function (data) {
-                if (data == 'no company') {
-                    alert("Error");
-                } else {
-                    if (isSelected) {
-                        showCompanyInfo(data, company_name, company_id);
-                        selectedCompaniesData[company_id] = data; // Store data for deselection
-                    }
-                    updateTotalModelCount(data, isSelected); // Pass isSelected flag
-                }
-                // HideLoading();
-                checkAllRequestsCompleted(); // Check if all requests are completed
-            },
-            error: function (err) {
-                console.log(err);
-                checkAllRequestsCompleted(); // Ensure to check even on error
-            }
-        });
-    }
-}
-
-function showCompanyInfo(data, name, id) {
-    const tableBody = document.querySelector('#companyInfoTable tbody');
-    const groupedData = {};
-    let totalCreate = 0;
-    let totalCreateModify = 0;
-    let totalModify = 0;
-    let totalCost = 0;
-
-    // Group data by model_type
-    data.forEach(item => {
-        if (!groupedData[item.model_type]) {
-            groupedData[item.model_type] = { 作成: 0, 作成・修正: 0, 修正: 0 };
-        }
-        groupedData[item.model_type][item.model_value] = item.model_count;
-        totalCost = item.total_cost;
-    });
-
-    const row1 = document.createElement('tr');
-    row1.setAttribute('data-id', id);
-    row1.classList.add('company-info-row');
-    const r1c1 = document.createElement('td');
-    r1c1.setAttribute("rowSpan", "3");
-    r1c1.textContent = name;
-    row1.appendChild(r1c1);
-
-    const r1c2 = document.createElement('td');
-    r1c2.classList.add('create');
-    r1c2.textContent = "作成";
-    row1.appendChild(r1c2);
-
-    const row2 = document.createElement('tr');
-    row2.setAttribute('data-id', id);
-    row2.classList.add('company-info-row');
-    const r2c2 = document.createElement('td');
-    r2c2.classList.add('createModify');
-    r2c2.textContent = "作成・修正";
-    row2.appendChild(r2c2);
-
-    const row3 = document.createElement('tr');
-    row3.setAttribute('data-id', id);
-    row3.classList.add('company-info-row');
-    const r3c2 = document.createElement('td');
-    r3c2.classList.add('modify');
-    r3c2.textContent = "修正";
-    row3.appendChild(r3c2);
-
-    if (data.length === 0) {
-        for (var col = 0; col < 12; col++) {
-            const r1c3 = document.createElement('td');
-            r1c3.textContent = "";
-            row1.append(r1c3);
-
-            const r2c3 = document.createElement('td');
-            r2c3.textContent = "";
-            row2.append(r2c3);
-
-            const r3c3 = document.createElement('td');
-            r3c3.textContent = "";
-            row3.append(r3c3);
-        }
-    } else {
-        Object.keys(groupedData).forEach(model_type => {
-            const r1c3 = document.createElement('td');
-            const createCount = groupedData[model_type]["作成"];
-            r1c3.textContent = createCount ? createCount : "";
-            row1.appendChild(r1c3);
-            if (createCount) totalCreate += createCount;
-
-            const r2c3 = document.createElement('td');
-            const createModifyCount = groupedData[model_type]["作成・修正"];
-            r2c3.textContent = createModifyCount ? createModifyCount : "";
-            row2.appendChild(r2c3);
-            if (createModifyCount) totalCreateModify += createModifyCount;
-
-            const r3c3 = document.createElement('td');
-            const modifyCount = groupedData[model_type]["修正"];
-            r3c3.textContent = modifyCount ? modifyCount : "";
-            row3.appendChild(r3c3);
-            if (modifyCount) totalModify += modifyCount;
-        });
-
-        const totalCreateCell = document.createElement('td');
-        totalCreateCell.textContent = totalCreate || "";
-        row1.appendChild(totalCreateCell);
-
-        const totalCreateModifyCell = document.createElement('td');
-        totalCreateModifyCell.textContent = totalCreateModify || "";
-        row2.appendChild(totalCreateModifyCell);
-
-        const totalModifyCell = document.createElement('td');
-        totalModifyCell.textContent = totalModify || "";
-        row3.appendChild(totalModifyCell);
-    }
-
-    const totalCostRow = document.createElement('td');
-    totalCostRow.setAttribute("rowSpan", "3");
-    totalCostRow.textContent = totalCost || "";
-    row1.appendChild(totalCostRow);
-
-    tableBody.appendChild(row1);
-    tableBody.appendChild(row2);
-    tableBody.appendChild(row3);
-}
-
-function removeCompanyInfo(company_id) {
-    const rows = document.querySelectorAll('#companyInfoTable tbody tr');
-    rows.forEach(row => {
-        const aa = row.getAttribute('data-id');
-        if (aa === String(company_id)) {
-            row.remove();
-        }
-    });
-}
-
-function updateTotalModelCount(data, isSelected) {
-    if (isSelected && data.length > 0) {
-        totalAllCost += Number(data[0].total_cost);
-    } else if (data.length > 0) {
-        totalAllCost -= Number(data[0].total_cost);
-    }
-    data.forEach(item => {
-        console.log("Each data = " + item.total_cost);
-
-        if (isSelected) {
-            totalModelCounts[item.model_type] += item.model_count;
-        } else {
-            totalModelCounts[item.model_type] -= item.model_count;
-        }
-    });
-
-    const totalTable = document.querySelector('#total-table tbody');
-    totalTable.innerHTML = '';
-    const row1 = document.createElement('tr');
-    const r1c1 = document.createElement('td');
-    r1c1.textContent = "合計";
-    row1.appendChild(r1c1);
-    Object.keys(totalModelCounts).forEach(modelType => {
-        const cell = document.createElement('td');
-        cell.textContent = totalModelCounts[modelType];
-        row1.appendChild(cell);
-    });
-
-    const totalModelCountCell = document.createElement('td');
-    totalModelCountCell.textContent = Object.values(totalModelCounts).reduce((a, b) => a + b, 0);
-    row1.appendChild(totalModelCountCell);
-
-    const totalCostCell = document.createElement('td');
-    totalCostCell.textContent = totalAllCost;
-    row1.appendChild(totalCostCell);
-    totalTable.appendChild(row1);
-}
-
-function ShowLoading1() {
-    $(".loading").removeClass("hide");
-    $(".loading").addClass("show");
-    totalRequests++;
-}
-
-function HideLoading1() {
-    $(".loading").removeClass("show");
-    $(".loading").addClass("hide");
-}
-
-function checkAllRequestsCompleted() {
-    completedRequests++;
-    if (completedRequests >= totalRequests) {
-        HideLoading1();
-        totalRequests = 0; // Reset counters
-        completedRequests = 0;
-    }
-}
-
-# ascending and descending
-![image](https://github.com/user-attachments/assets/efe10b5f-c527-4048-9d43-8f5cc5a9724c)
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sortable Table</title>
-    <style>
-        body {
-    font-family: Arial, sans-serif;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th, td {
-    padding: 10px;
-    text-align: left;
-    border: 1px solid #000;
-    background-color: #333;
-    color: #fff;
-    cursor: pointer;
-}
-
-th:hover {
-    background-color: #555;
-}
-
-th::after {
-    content: " ▼"; /* Default arrow (descending) */
-}
-
-th[data-order="asc"]::after {
-    content: " ▲"; /* Ascending arrow */
-}
-
-    </style>
-</head>
-<body>
-    <table id="sortable-table">
-        <thead>
-            <tr>
-                <th data-column="projectName" data-order="desc">プロジェクト名称</th>
-                <th data-column="pjCode" data-order="desc">PJコード</th>
-                <th data-column="branchName" data-order="desc">支店名</th>
-                <th data-column="reporterName" data-order="desc">報告者名</th>
-                <th data-column="organizationName" data-order="desc">投稿者組織名</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Data will be injected here from API -->
-        </tbody>
-    </table>
-
-    <script>
-        // Mock API call to get table data
-const fetchData = async () => {
-    return [
-        { projectName: "プロジェクトA", pjCode: "PJ001", branchName: "東京", reporterName: "田中", organizationName: "本社" },
-        { projectName: "プロジェクトB", pjCode: "PJ002", branchName: "大阪", reporterName: "佐藤", organizationName: "支社" },
-        { projectName: "プロジェクトC", pjCode: "PJ003", branchName: "名古屋", reporterName: "鈴木", organizationName: "地方" }
-    ];
-};
-
-// Sort the table by the column clicked
-const sortTable = (column, order) => {
-    const table = document.querySelector('#sortable-table tbody');
-    const rows = Array.from(table.rows);
-
-    const sortedRows = rows.sort((rowA, rowB) => {
-        const cellA = rowA.querySelector(`td[data-column="${column}"]`).innerText.toLowerCase();
-        const cellB = rowB.querySelector(`td[data-column="${column}"]`).innerText.toLowerCase();
-
-        if (cellA < cellB) return order === 'asc' ? -1 : 1;
-        if (cellA > cellB) return order === 'asc' ? 1 : -1;
-        return 0;
-    });
-
-    // Reorder the rows in the table
-    table.append(...sortedRows);
-};
-
-// Populate table with data from API
-const populateTable = async () => {
-    const data = await fetchData();
-    const tableBody = document.querySelector('#sortable-table tbody');
-
-    data.forEach(item => {
-        const row = document.createElement('tr');
-
-        Object.keys(item).forEach(key => {
-            const cell = document.createElement('td');
-            cell.innerText = item[key];
-            cell.setAttribute('data-column', key); // Add this for sorting purpose
-            row.appendChild(cell);
-        });
-
-        tableBody.appendChild(row);
-    });
-};
-
-// Event listener for sorting
-document.querySelectorAll('th').forEach(header => {
-    header.addEventListener('click', () => {
-        const column = header.getAttribute('data-column');
-        const currentOrder = header.getAttribute('data-order');
-        const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
-
-        // Update the order attribute
-        header.setAttribute('data-order', newOrder);
-
-        // Sort the table
-        sortTable(column, newOrder);
-    });
-});
-
-// Call the function to populate the table on page load
-populateTable();
-
-    </script>
-</body>
-</html>
 
 
 
