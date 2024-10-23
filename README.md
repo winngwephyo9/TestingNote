@@ -1,5 +1,171 @@
 function filterPopup1() {
     let currentColumnIndex = 0;
+    let previousFilters = {};  // Store filtered data for each column
+
+    $('.filter-icon1').on('click', function (e) {
+        let headerCell = $(this).closest('th');
+        currentColumnIndex = headerCell.index();  // Get the index of the clicked column
+
+        // Mark the clicked filter icon
+        $('.filter-icon1').removeClass('active-filter');
+        $(this).addClass('active-filter');
+
+        // Determine if the clicked column is "Cost" and show cost range inputs
+        if (headerCell.text().trim().includes('費用')) {
+            $('.cost-filter1').show();
+        } else {
+            $('.cost-filter1').hide();
+        }
+
+        // Position and show the filter popup
+        let filterPopup = $('#filterPopup1');
+        filterPopup.css({ top: e.pageY, left: e.pageX }).toggle();
+
+        // Populate the filter options dynamically based on the column and previous filters
+        populateFilterOptions(currentColumnIndex, previousFilters);
+    });
+}
+
+$('#selectAll1').on('change', function () {
+    $('.filter-option1').prop('checked', this.checked);
+});
+
+function populateFilterOptions(columnIndex, previousFilters) {
+    let filterOptionsContainer = $('#filterOptions1');
+    filterOptionsContainer.empty();  // Clear any previous options
+
+    let uniqueValues = new Set();
+
+    // Only consider rows that match previous filters (i.e., visible rows)
+    $('#sortable-table1 #table-body-property tr:visible').each(function () {
+        let row = $(this);
+        let cellText = row.children('td').eq(columnIndex).text().trim();
+
+        // Check if the row matches the filters from previous columns
+        let matchesPreviousFilters = true;
+        for (let colIndex in previousFilters) {
+            let filterValues = previousFilters[colIndex];
+            let cellValue = row.children('td').eq(colIndex).text().trim();
+            if (!filterValues.includes(cellValue)) {
+                matchesPreviousFilters = false;
+                break;
+            }
+        }
+
+        // If the row matches previous filters, add its value to the filter options
+        if (matchesPreviousFilters && !uniqueValues.has(cellText)) {
+            uniqueValues.add(cellText);
+            filterOptionsContainer.append(`<div><input type="checkbox" class="filter-option1" checked> ${cellText}</div>`);
+        }
+    });
+
+    popUpSearch();
+    clickOKBtn(columnIndex, previousFilters);
+}
+
+function popUpSearch() {
+    // Clear search value
+    $('#searchInput1').val('');
+    
+    // Search function to filter checkboxes dynamically
+    $('#searchInput1').on('keyup', function () {
+        let searchValue = $(this).val().toLowerCase();
+
+        // Search and filter the checkboxes based on the text next to the checkboxes
+        $('.filter-option1').each(function () {
+            let checkboxLabel = $(this).parent().text().toLowerCase();  // Get the text next to the checkbox
+            if (checkboxLabel.indexOf(searchValue) > -1) {
+                $(this).parent().show();  // Show the checkbox and its label
+            } else {
+                $(this).parent().hide();  // Hide the checkbox and its label
+            }
+        });
+    });
+}
+
+function clickOKBtn(currentColumnIndex, previousFilters) {
+    $('#costMin1').val('');
+    $('#costMax1').val('');
+
+    $('#applyFilter1').off('click').on('click', function () {
+        // Get the selected sorting order
+        let sortOrder = $('input[name="sortOrder1"]:checked').val();
+
+        // Get the cost range values (if applicable)
+        let costMin = parseFloat($('#costMin1').val()) || -Infinity;
+        let costMax = parseFloat($('#costMax1').val()) || Infinity;
+
+        // Get the search value
+        let searchValue = $('#searchInput1').val().toLowerCase();
+
+        // Sort the table based on the selected column and sorting order
+        let rows = $('#sortable-table1 #table-body-property tr').get();
+
+        if (sortOrder !== undefined) {
+            sortData(sortOrder, rows, currentColumnIndex);
+        }
+
+        // Apply all filters, including the current one
+        allFilterLogicCombine(currentColumnIndex, searchValue, costMin, costMax, previousFilters);
+
+        // Update the previous filters for the current column
+        previousFilters[currentColumnIndex] = $('.filter-option1:checked').map(function () {
+            return $(this).parent().text().trim();
+        }).get();
+
+        // Hide the filter popup
+        $('#filterPopup1').hide();
+    });
+}
+
+function allFilterLogicCombine(currentColumnIndex, searchValue, costMin, costMax, previousFilters) {
+    $('#sortable-table1 #table-body-property tr').each(function () {
+        let row = $(this);
+        let cellText = row.children('td').eq(currentColumnIndex).text().trim();
+        let isChecked = $('.filter-option1').filter(function () {
+            return $(this).parent().text().trim() === cellText;
+        }).is(':checked');
+
+        let costValue = parseInt(row.children('td').eq(6).text().replace(/,/g, ''), 10);  // Get the cost value
+        let cellTextLower = row.children('td').eq(currentColumnIndex).text().toLowerCase();
+
+        // Check if the row matches previous filters
+        let matchesPreviousFilters = true;
+        for (let colIndex in previousFilters) {
+            let filterValues = previousFilters[colIndex];
+            let cellValue = row.children('td').eq(colIndex).text().trim();
+            if (!filterValues.includes(cellValue)) {
+                matchesPreviousFilters = false;
+                break;
+            }
+        }
+
+        // Show/hide the row based on the combined filter logic
+        let matchesSearch = cellTextLower.indexOf(searchValue) > -1;
+        let withinCostRange = (costMin === -Infinity && costMax === Infinity) || 
+                              (currentColumnIndex === 6 && (costValue >= costMin && costValue <= costMax));
+
+        if (isChecked && matchesSearch && withinCostRange && matchesPreviousFilters) {
+            row.show();
+        } else {
+            row.hide();
+        }
+    });
+}
+
+// Cancel filter (just hides the popup)
+$('#cancelFilter1').on('click', function () {
+    $('#filterPopup1').hide();
+});
+
+
+
+
+
+
+
+function filterPopup1() {
+    let currentColumnIndex = 0;
     let previousFilters = {};
 
     $('.filter-icon1').on('click', function (e) {
