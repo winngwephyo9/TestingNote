@@ -1,3 +1,7 @@
+
+![image](https://github.com/user-attachments/assets/e2e3a7a3-0bcf-41f7-874c-970b06517315)
+
+
 function filterPopup1() {
     let currentColumnIndex = 0;
     let previousFilters = {};  // Store filtered data for each column
