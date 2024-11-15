@@ -1,5 +1,53 @@
+			 <details open>
+                            <summary><strong>会社ID</strong></summary>
+                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて">
+                        </details>
 
-![image](https://github.com/user-attachments/assets/e2e3a7a3-0bcf-41f7-874c-970b06517315)
+                        <details open>
+                            <summary><strong>協定書締結日</strong></summary>
+                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                                class="input-type">
+                        </details>
+
+                        <details open>
+                            <summary><strong>担当支店</strong></summary>
+                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                                class="input-type">
+                        </details>
+                        <details open>
+                            <summary><strong>担当部門</strong></summary>
+                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                                class="input-type">
+                        </details>
+			<details open>
+                            <summary><strong>会社名</strong></summary>
+                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                                class="input-type">
+                        </details>
+
+Overall
+I want to add filter all input type and other filter depend on previous filter value 
+
+
+Detail requirement :
+
+I want to add filter for each input type
+for example 
+When keyup on the 会社ID, get all 会社ID from api and show all 会社ID,
+write for all 協定書締結日, 担当支店, 担当部門 and 会社名
+when select 会社ID,
+
+1. alert box for choose 会社ID
+2. other input type related prevoious filter 
+for example when click 会社ID = 1, show at 会社名 only name of clicked 会社ID = 1
+
+Write the javascript code
+
+Should use many api for each input type , or should use one api for all input type
+if you use one api for all input type, generate method for each input type
+
+
+
 
 
 function filterPopup1() {
