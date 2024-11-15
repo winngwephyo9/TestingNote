@@ -1,144 +1,67 @@
-	document.addEventListener("DOMContentLoaded", function () {
-    // Function to fetch data from the API
-    async function fetchData(type, filterValue = '') {
-        try {
-            const response = await fetch(`/api/data?type=${type}&filter=${filterValue}`);
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        }
-    }
+function populateFilterOptions(columnIndex, previousFilters) {
+    let filterOptionsContainer = $('#filterOptions');
+    filterOptionsContainer.empty(); // Clear any previous options
 
-    // Display options in the input field
-    function populateOptions(element, options) {
-        // Clear previous options
-        element.innerHTML = '';
+    let uniqueValues = new Set();
 
-        options.forEach(option => {
-            const optionElement = document.createElement("option");
-            optionElement.value = option.id; // Assuming options have 'id' and 'name' fields
-            optionElement.textContent = option.name;
-            element.appendChild(optionElement);
-        });
-    }
+    // Only consider rows that match previous filters (i.e., visible rows)
+    $('#sortable-table #table-body tr:visible').each(function () {
+        let row = $(this);
+        let cellText = row.children('td').eq(columnIndex).text().trim();
 
-    // Add event listeners to each input type
-    async function addFilterListeners() {
-        const filters = {
-            "会社ID": document.getElementById("companyId"),
-            "会社名": document.getElementById("companyName"),
-            "協定書締結日": document.getElementById("agreementDate"),
-            "担当支店": document.getElementById("branch"),
-            "担当部門": document.getElementById("department")
-        };
-
-        // Load initial options for 会社ID
-        const companyIdOptions = await fetchData("会社ID");
-        populateOptions(filters["会社ID"], companyIdOptions);
-
-        filters["会社ID"].addEventListener("change", async function () {
-            const companyId = filters["会社ID"].value;
-
-            if (companyId) {
-                alert(`Selected 会社ID: ${companyId}`);
-
-                // Fetch and display company name options related to the selected 会社ID
-                const companyNames = await fetchData("会社名", companyId);
-                populateOptions(filters["会社名"], companyNames);
-
-                // Clear other dependent filters
-                filters["協定書締結日"].innerHTML = '';
-                filters["担当支店"].innerHTML = '';
-                filters["担当部門"].innerHTML = '';
+        // Check if the row matches the filters from previous columns
+        let matchesPreviousFilters = true;
+        for (let colIndex in previousFilters) {
+            let filterValues = previousFilters[colIndex];
+            let cellValue = row.children('td').eq(colIndex).text().trim();
+            if (!filterValues.includes(cellValue)) {
+                matchesPreviousFilters = false;
+                break;
             }
-        });
+        }
 
-        filters["会社名"].addEventListener("change", async function () {
-            const companyName = filters["会社名"].value;
-
-            // Fetch and display 協定書締結日 options based on selected 会社名
-            const agreementDates = await fetchData("協定書締結日", companyName);
-            populateOptions(filters["協定書締結日"], agreementDates);
-
-            // Clear other dependent filters
-            filters["担当支店"].innerHTML = '';
-            filters["担当部門"].innerHTML = '';
-        });
-
-        filters["協定書締結日"].addEventListener("change", async function () {
-            const agreementDate = filters["協定書締結日"].value;
-
-            // Fetch and display 担当支店 options based on selected 協定書締結日
-            const branches = await fetchData("担当支店", agreementDate);
-            populateOptions(filters["担当支店"], branches);
-
-            // Clear the next dependent filter
-            filters["担当部門"].innerHTML = '';
-        });
-
-        filters["担当支店"].addEventListener("change", async function () {
-            const branch = filters["担当支店"].value;
-
-            // Fetch and display 担当部門 options based on selected 担当支店
-            const departments = await fetchData("担当部門", branch);
-            populateOptions(filters["担当部門"], departments);
-        });
-    }
-
-    // Initialize listeners
-    addFilterListeners();
-});
+        // If the row matches previous filters, add its value to the filter options
+        if (matchesPreviousFilters && !uniqueValues.has(cellText)) {
+            uniqueValues.add(cellText);
+            filterOptionsContainer.append(`<div><input type="checkbox" class="filter-option" checked> ${cellText}</div>`);
+        }
+    });
+    // Disable OK button if only one filter option is present and unchecked
+    $('.filter-option').on('change', function () {
+        if (filterOptionsContainer.find('.filter-option').length === 1 && !$(this).is(':checked')) {
+            $('#applyFilter').prop('disabled', true);
+        } else {
+            $('#applyFilter').prop('disabled', false);
+        }
+    });
+    popUpSearch();
+    clickOKBtn(columnIndex, previousFilters);
+}
 
 
+This code is old code, I want to change table filter to input filter base on above code
 
-<details open>
-                            <summary><strong>会社ID</strong></summary>
-                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて">
-                        </details>
+ <details open>
+                        <summary><strong>協定書締結日</strong></summary>
+                        <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                            class="input-type">
+                    </details>
 
-                        <details open>
-                            <summary><strong>協定書締結日</strong></summary>
-                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
-                                class="input-type">
-                        </details>
-
-                        <details open>
-                            <summary><strong>担当支店</strong></summary>
-                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
-                                class="input-type">
-                        </details>
-                        <details open>
-                            <summary><strong>担当部門</strong></summary>
-                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
-                                class="input-type">
-                        </details>
-			<details open>
-                            <summary><strong>会社名</strong></summary>
-                            <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
-                                class="input-type">
-                        </details>
-
-Overall
-I want to add filter all input type and other filter depend on previous filter value 
-
-
-Detail requirement :
-
-I want to add filter for each input type
-for example 
-When keyup on the 会社ID, get all 会社ID from api and show all 会社ID,
-write for all 協定書締結日, 担当支店, 担当部門 and 会社名
-when select 会社ID,
-
-1. alert box for choose 会社ID
-2. other input type related prevoious filter 
-for example when click 会社ID = 1, show at 会社名 only name of clicked 会社ID = 1
-
-Write the javascript code
-
-Should use many api for each input type , or should use one api for all input type
-if you use one api for all input type, generate method for each input type
+                    <details open>
+                        <summary><strong>担当支店</strong></summary>
+                        <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                            class="input-type">
+                    </details>
+                    <details open>
+                        <summary><strong>担当部門</strong></summary>
+                        <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                            class="input-type">
+                    </details>
+		<details open>
+                        <summary><strong>会社名</strong></summary>
+                        <input type="text" id="project_inCharge" class="form-control" placeholder="すべて"
+                            class="input-type">
+                    </details>
 
 
 
