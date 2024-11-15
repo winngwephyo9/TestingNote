@@ -1,3 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependent Filters</title>
+</head>
+<body>
+    <h2>Filter System</h2>
+
+    <!-- Filters -->
+    <label for="filter1">Filter 1:</label>
+    <input type="text" id="filter1" onkeyup="handleFilter(1)"><br><br>
+
+    <label for="filter2">Filter 2:</label>
+    <input type="text" id="filter2" disabled onkeyup="handleFilter(2)"><br><br>
+
+    <label for="filter3">Filter 3:</label>
+    <input type="text" id="filter3" disabled onkeyup="handleFilter(3)"><br><br>
+
+    <label for="filter4">Filter 4:</label>
+    <input type="text" id="filter4" disabled onkeyup="handleFilter(4)"><br><br>
+
+    <label for="filter5">Filter 5:</label>
+    <input type="text" id="filter5" disabled onkeyup="handleFilter(5)"><br><br>
+
+    <!-- Results -->
+    <h3>Results:</h3>
+    <div id="results"></div>
+
+    <script>
+        async function fetchOptions(filterId, filterValue) {
+            try {
+                // Simulating an API call
+                // In actual implementation, replace this URL with your actual API endpoint
+                const response = await fetch(`https://yourapi.com/filters?filter${filterId}=${filterValue}`);
+                const data = await response.json();
+
+                return data.options;  // assuming API response has `options` array
+            } catch (error) {
+                console.error('Error fetching options:', error);
+                return [];
+            }
+        }
+
+        async function handleFilter(filterNumber) {
+            const currentFilter = document.getElementById(`filter${filterNumber}`);
+            const currentValue = currentFilter.value;
+
+            if (filterNumber < 5) {
+                // Get options for the next filter
+                const nextFilterNumber = filterNumber + 1;
+                const nextFilter = document.getElementById(`filter${nextFilterNumber}`);
+                const options = await fetchOptions(nextFilterNumber, currentValue);
+
+                // Enable and populate the next filter
+                if (options.length > 0) {
+                    nextFilter.disabled = false;
+                    nextFilter.value = "";  // Clear previous value
+                    nextFilter.placeholder = "Available options: " + options.join(", ");
+                } else {
+                    nextFilter.disabled = true;  // Disable if no options
+                    nextFilter.value = "";
+                    nextFilter.placeholder = "";
+                }
+            }
+
+            // Update the results section with filtered data
+            updateResults();
+        }
+
+        async function updateResults() {
+            const filterValues = {
+                filter1: document.getElementById('filter1').value,
+                filter2: document.getElementById('filter2').value,
+                filter3: document.getElementById('filter3').value,
+                filter4: document.getElementById('filter4').value,
+                filter5: document.getElementById('filter5').value
+            };
+
+            try {
+                const response = await fetch(`https://yourapi.com/results?${new URLSearchParams(filterValues)}`);
+                const data = await response.json();
+
+                // Display results
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = JSON.stringify(data.results, null, 2);  // assuming API response has `results` array
+            } catch (error) {
+                console.error('Error fetching results:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
 function populateFilterOptions(columnIndex, previousFilters) {
     let filterOptionsContainer = $('#filterOptions');
     filterOptionsContainer.empty(); // Clear any previous options
