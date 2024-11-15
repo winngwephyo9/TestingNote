@@ -1,4 +1,98 @@
-			 <details open>
+	document.addEventListener("DOMContentLoaded", function () {
+    // Function to fetch data from the API
+    async function fetchData(type, filterValue = '') {
+        try {
+            const response = await fetch(`/api/data?type=${type}&filter=${filterValue}`);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    }
+
+    // Display options in the input field
+    function populateOptions(element, options) {
+        // Clear previous options
+        element.innerHTML = '';
+
+        options.forEach(option => {
+            const optionElement = document.createElement("option");
+            optionElement.value = option.id; // Assuming options have 'id' and 'name' fields
+            optionElement.textContent = option.name;
+            element.appendChild(optionElement);
+        });
+    }
+
+    // Add event listeners to each input type
+    async function addFilterListeners() {
+        const filters = {
+            "会社ID": document.getElementById("companyId"),
+            "会社名": document.getElementById("companyName"),
+            "協定書締結日": document.getElementById("agreementDate"),
+            "担当支店": document.getElementById("branch"),
+            "担当部門": document.getElementById("department")
+        };
+
+        // Load initial options for 会社ID
+        const companyIdOptions = await fetchData("会社ID");
+        populateOptions(filters["会社ID"], companyIdOptions);
+
+        filters["会社ID"].addEventListener("change", async function () {
+            const companyId = filters["会社ID"].value;
+
+            if (companyId) {
+                alert(`Selected 会社ID: ${companyId}`);
+
+                // Fetch and display company name options related to the selected 会社ID
+                const companyNames = await fetchData("会社名", companyId);
+                populateOptions(filters["会社名"], companyNames);
+
+                // Clear other dependent filters
+                filters["協定書締結日"].innerHTML = '';
+                filters["担当支店"].innerHTML = '';
+                filters["担当部門"].innerHTML = '';
+            }
+        });
+
+        filters["会社名"].addEventListener("change", async function () {
+            const companyName = filters["会社名"].value;
+
+            // Fetch and display 協定書締結日 options based on selected 会社名
+            const agreementDates = await fetchData("協定書締結日", companyName);
+            populateOptions(filters["協定書締結日"], agreementDates);
+
+            // Clear other dependent filters
+            filters["担当支店"].innerHTML = '';
+            filters["担当部門"].innerHTML = '';
+        });
+
+        filters["協定書締結日"].addEventListener("change", async function () {
+            const agreementDate = filters["協定書締結日"].value;
+
+            // Fetch and display 担当支店 options based on selected 協定書締結日
+            const branches = await fetchData("担当支店", agreementDate);
+            populateOptions(filters["担当支店"], branches);
+
+            // Clear the next dependent filter
+            filters["担当部門"].innerHTML = '';
+        });
+
+        filters["担当支店"].addEventListener("change", async function () {
+            const branch = filters["担当支店"].value;
+
+            // Fetch and display 担当部門 options based on selected 担当支店
+            const departments = await fetchData("担当部門", branch);
+            populateOptions(filters["担当部門"], departments);
+        });
+    }
+
+    // Initialize listeners
+    addFilterListeners();
+});
+
+
+
+<details open>
                             <summary><strong>会社ID</strong></summary>
                             <input type="text" id="project_inCharge" class="form-control" placeholder="すべて">
                         </details>
