@@ -1,177 +1,144 @@
-![image](https://github.com/user-attachments/assets/6f3f82b0-35f7-4e93-9194-cf70a2aa589a)
+<details open>
+    <summary><strong>会社ID</strong></summary>
+    <div class="custom-select-container">
+        <input type="text" id="companyIdSearch" onkeyup="filterDropdown('companyId')" placeholder="検索" class="form-control search-box">
+        <ul id="companyIdDropdown" class="dropdown-list"></ul>
+    </div>
+</details>
 
- 
- <details open>
-                            <summary><strong>会社ID</strong></summary>
-                            <select id="companyId" onchange="filterData()" class="form-control">
-                                <option value="">すべて</option>
-                            </select>
-                                                    </details>
-                                                    <details open>
-                                                        <summary><strong>協定書締結日</strong></summary>
-                                                        <select id="agreementDate" onchange="filterData()" class="form-control">
-                                                            <option value="">すべて</option>
-                                                        </select>
-                                                    </details>
-                                                    
-                                                    <details open>
-                                                        <summary><strong>担当支店</strong></summary>
-                                                        <select id="branch" onchange="filterData()" class="form-control">
-                                                            <option value="">すべて</option>
-                                                        </select>
-                                                    </details>
-                                                    <details open>
-                                                        <summary><strong>担当部門</strong></summary>
-                                                        <select id="department" onchange="filterData()" class="form-control">
-                                                            <option value="">すべて</option>
-                                                        </select>
-                                                    </details>
-                                                     <details open>
-                            <summary><strong>会社名</strong></summary>
-                            <select id="companyName" onchange="filterData()" class="form-control">
-                                <option value="">すべて</option>
-                            </select>
-                        </details>
+<details open>
+    <summary><strong>協定書締結日</strong></summary>
+    <div class="custom-select-container">
+        <input type="text" id="agreementDateSearch" onkeyup="filterDropdown('agreementDate')" placeholder="検索" class="form-control search-box">
+        <ul id="agreementDateDropdown" class="dropdown-list"></ul>
+    </div>
+</details>
 
+<details open>
+    <summary><strong>担当支店</strong></summary>
+    <div class="custom-select-container">
+        <input type="text" id="branchSearch" onkeyup="filterDropdown('branch')" placeholder="検索" class="form-control search-box">
+        <ul id="branchDropdown" class="dropdown-list"></ul>
+    </div>
+</details>
 
-function populateFilters() {
-    const companyIdFilter = document.getElementById('companyId');
-    const agreementDateFilter = document.getElementById('agreementDate');
-    const branchFilter = document.getElementById('branch');
-    const departmentFilter = document.getElementById('department');
-    const companyNameFilter = document.getElementById('companyName');
+<details open>
+    <summary><strong>担当部門</strong></summary>
+    <div class="custom-select-container">
+        <input type="text" id="departmentSearch" onkeyup="filterDropdown('department')" placeholder="検索" class="form-control search-box">
+        <ul id="departmentDropdown" class="dropdown-list"></ul>
+    </div>
+</details>
 
-    const companyId = [...new Set(filterDataArray.map(item => item.company_id))];
-    const agreementDate = [...new Set(filterDataArray.map(item => item.sign_date))];
-    const branches = [...new Set(filterDataArray.map(item => item.tantou_shiten))];
-    const departments = [...new Set(filterDataArray.map(item => item.tantou_bumon))];
-    const companyNames = [...new Set(filterDataArray.map(item => item.company_name))];
-
-
-    companyId.sort((a, b) => a - b).forEach(id => {
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = id;
-        companyIdFilter.appendChild(option);
-    });
-
-    agreementDate.sort((a, b) => a - b).forEach(date => {
-        const option = document.createElement('option');
-        option.value = date;
-        option.textContent = date;
-        agreementDateFilter.appendChild(option);
-    });
-
-    branches.sort((a, b) => a.localeCompare(b)).forEach(branch => {
-        const option = document.createElement('option');
-        option.value = branch;
-        option.textContent = branch;
-        branchFilter.appendChild(option);
-    });
-
-    departments.sort((a, b) => a.localeCompare(b)).forEach(department => {
-        const option = document.createElement('option');
-        option.value = department;
-        option.textContent = department;
-        departmentFilter.appendChild(option);
-    });
-
-    companyNames.sort((a, b) => a.localeCompare(b)).forEach(companyName => {
-        const option = document.createElement('option');
-        option.value = companyName;
-        option.textContent = companyName;
-        companyNameFilter.appendChild(option);
-    });
-
+<details open>
+    <summary><strong>会社名</strong></summary>
+    <div class="custom-select-container">
+        <input type="text" id="companyNameSearch" onkeyup="filterDropdown('companyName')" placeholder="検索" class="form-control search-box">
+        <ul id="companyNameDropdown" class="dropdown-list"></ul>
+    </div>
+</details>
+.custom-select-container {
+    position: relative;
+    width: 100%;
 }
 
-export function filterData() {
-    const companyIdFilter = document.getElementById('companyId').value;
-    const agreementDateFilter = document.getElementById('agreementDate').value;
-    const branchFilter = document.getElementById('branch').value;
-    const departmentFilter = document.getElementById('department').value;
-    const companyNameFilter = document.getElementById('companyName').value;
+.search-box {
+    margin-bottom: 5px;
+    padding: 5px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.dropdown-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background: #fff;
+}
+
+.dropdown-list li {
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.dropdown-list li:hover {
+    background-color: #f0f0f0;
+}
+
+function populateFilters() {
+    populateDropdown('companyId', 'company_id');
+    populateDropdown('agreementDate', 'sign_date');
+    populateDropdown('branch', 'tantou_shiten');
+    populateDropdown('department', 'tantou_bumon');
+    populateDropdown('companyName', 'company_name');
+}
+
+function populateDropdown(dropdownId, dataKey) {
+    const dropdown = document.getElementById(`${dropdownId}Dropdown`);
+    const values = [...new Set(filterDataArray.map(item => item[dataKey]))];
+
+    // Clear existing items
+    dropdown.innerHTML = '';
+
+    // Add options with checkboxes
+    values.sort((a, b) => a.localeCompare(b)).forEach(value => {
+        const li = document.createElement('li');
+        const checkbox = document.createElement('input');
+        const label = document.createElement('label');
+
+        checkbox.type = 'checkbox';
+        checkbox.value = value;
+        checkbox.className = 'dropdown-checkbox';
+        checkbox.onchange = filterData;
+
+        label.textContent = value || '(空白)';
+        label.style.marginLeft = '5px';
+
+        li.appendChild(checkbox);
+        li.appendChild(label);
+        dropdown.appendChild(li);
+    });
+}
+
+function filterDropdown(dropdownId) {
+    const searchInput = document.getElementById(`${dropdownId}Search`).value.toLowerCase();
+    const options = document.querySelectorAll(`#${dropdownId}Dropdown li`);
+
+    options.forEach(option => {
+        const text = option.textContent.toLowerCase();
+        option.style.display = text.includes(searchInput) ? '' : 'none';
+    });
+}
+
+function filterData() {
+    const selectedCompanyIds = getSelectedValues('companyId');
+    const selectedAgreementDates = getSelectedValues('agreementDate');
+    const selectedBranches = getSelectedValues('branch');
+    const selectedDepartments = getSelectedValues('department');
+    const selectedCompanyNames = getSelectedValues('companyName');
 
     const filteredData = filterDataArray.filter(item => {
-        return (companyIdFilter === '' || item.company_id === Number(companyIdFilter)) &&
-            (agreementDateFilter === '' || item.sign_date == agreementDateFilter) &&
-            (branchFilter === '' || item.tantou_shiten === branchFilter) &&
-            (departmentFilter === '' || item.tantou_bumon == departmentFilter) &&
-            (companyNameFilter === '' || item.company_name == companyNameFilter);
+        return (
+            (selectedCompanyIds.length === 0 || selectedCompanyIds.includes(item.company_id)) &&
+            (selectedAgreementDates.length === 0 || selectedAgreementDates.includes(item.sign_date)) &&
+            (selectedBranches.length === 0 || selectedBranches.includes(item.tantou_shiten)) &&
+            (selectedDepartments.length === 0 || selectedDepartments.includes(item.tantou_bumon)) &&
+            (selectedCompanyNames.length === 0 || selectedCompanyNames.includes(item.company_name))
+        );
     });
 
-    updateFilters(filteredData);
     displayResults(filteredData);
 }
 
-function updateFilters(filteredData) {
-    const companyIdFilter = document.getElementById('companyId');
-    const agreementDateFilter = document.getElementById('agreementDate');
-    const branchFilter = document.getElementById('branch');
-    const departmentFilter = document.getElementById('department');
-    const companyNameFilter = document.getElementById('companyName');
-
-    const selectedCompanyId = companyIdFilter.value;
-    const selectedAgreementDate = agreementDateFilter.value;
-    const selectedBranch = branchFilter.value;
-    const selectedDepartment = departmentFilter.value;
-    const selectedcompanyName = companyNameFilter.value;
-
-    companyIdFilter.innerHTML = '<option value="">すべて</option>';
-    agreementDateFilter.innerHTML = '<option value="">すべて</option>';
-    branchFilter.innerHTML = '<option value="">すべて</option>';
-    departmentFilter.innerHTML = '<option value="">すべて</option>';
-    companyNameFilter.innerHTML = '<option value="">すべて</option>';
-
-    const companyIds = [...new Set(filteredData.map(item => item.company_id))];
-    const agreementDates = [...new Set(filteredData.map(item => item.sign_date))];
-    const branches = [...new Set(filteredData.map(item => item.tantou_shiten))];
-    const departments = [...new Set(filteredData.map(item => item.tantou_bumon))];
-    const companyNames = [...new Set(filteredData.map(item => item.company_name))];
-
-    companyIds.forEach(companyId => {
-        const option = document.createElement('option');
-        option.value = companyId;
-        option.textContent = companyId;
-        companyIdFilter.appendChild(option);
-    });
-
-    agreementDates.forEach(agreementDate => {
-        const option = document.createElement('option');
-        option.value = agreementDate;
-        option.textContent = agreementDate;
-        agreementDateFilter.appendChild(option);
-    });
-
-    branches.forEach(branch => {
-        const option = document.createElement('option');
-        option.value = branch;
-        option.textContent = branch;
-        branchFilter.appendChild(option);
-    });
-
-    departments.forEach(department => {
-        const option = document.createElement('option');
-        option.value = department;
-        option.textContent = department;
-        departmentFilter.appendChild(option);
-    });
-
-    companyNames.forEach(companyName => {
-        const option = document.createElement('option');
-        option.value = companyName;
-        option.textContent = companyName;
-        companyNameFilter.appendChild(option);
-    });
-
-    if (selectedCompanyId) companyIdFilter.value = selectedCompanyId;
-    if (selectedAgreementDate) agreementDateFilter.value = selectedAgreementDate;
-    if (selectedBranch) branchFilter.value = selectedBranch;
-    if (selectedDepartment) departmentFilter.value = selectedDepartment;
-    if (selectedcompanyName) companyNameFilter.value = selectedcompanyName;
+function getSelectedValues(dropdownId) {
+    const checkboxes = document.querySelectorAll(`#${dropdownId}Dropdown .dropdown-checkbox`);
+    return Array.from(checkboxes)
+        .filter(checkbox => checkbox.checked)
+        .map(checkbox => checkbox.value);
 }
-
-the above code is original code
-I want to modify this code with thw image design
-1. add search function
-2. add checkbox beside the option value reference Image
+ 
