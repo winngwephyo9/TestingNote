@@ -1,197 +1,89 @@
+but i want to modify  this project want to add in my existing php,laravel, js project
+how to integrate terriaMap project to my existing laravel project
+Integrating a TerriaMap project into an existing Laravel application involves several steps. TerriaMap is a JavaScript-based mapping application, so you'll need to ensure that your Laravel application can serve the necessary static files and handle routing appropriately. Here's a step-by-step guide to help you integrate TerriaMap into your Laravel project:
 
-<details open>
-    <summary><strong>会社ID</strong></summary>
-    <div class="custom-select-container">
-        <button
-            id="companyIdButton"
-            onclick="toggleDropdown('companyId')"
-            class="form-control dropdown-toggle"
-        >
-            すべて
-        </button>
-        <div id="companyIdDropdownContainer" class="dropdown-container" style="display: none;">
-            <input
-                type="text"
-                id="companyIdSearch"
-                onkeyup="filterDropdown('companyId')"
-                placeholder="検索"
-                class="form-control search-box"
-            />
-            <ul id="companyIdDropdown" class="dropdown-list">
-                <!-- Items will be dynamically populated -->
-            </ul>
-        </div>
-    </div>
-</details>
+1. Prepare Your TerriaMap Project
+Ensure your TerriaMap project is working independently (e.g., running on http://localhost:3001).
 
-<details open>
-    <summary><strong>協定書締結日</strong></summary>
-    <div class="custom-select-container">
-        <button
-            id="agreementDateButton"
-            onclick="toggleDropdown('agreementDate')"
-            class="form-control dropdown-toggle"
-        >
-            すべて
-        </button>
-        <div id="agreementDateDropdownContainer" class="dropdown-container" style="display: none;">
-            <input
-                type="text"
-                id="agreementDateSearch"
-                onkeyup="filterDropdown('agreementDate')"
-                placeholder="検索"
-                class="form-control search-box"
-            />
-            <ul id="agreementDateDropdown" class="dropdown-list">
-                <!-- Items will be dynamically populated -->
-            </ul>
-        </div>
-    </div>
-</details>
+Build your TerriaMap project for production. This typically involves running a build command like npm run build or yarn build. This will generate static files (HTML, JS, CSS, etc.) in a dist or build directory.
 
-.custom-select-container {
-    position: relative;
-}
+2. Move TerriaMap Files to Laravel's Public Directory
+Copy the contents of the TerriaMap dist or build directory into your Laravel project's public directory. You can create a subdirectory like public/terriamap to keep things organized.
 
-.dropdown-toggle {
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-}
+For example:
 
-.dropdown-container {
-    position: absolute;
-    background-color: white;
-    border: 1px solid #ccc;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    width: 100%;
-}
+Copy
+cp -r /path/to/terriamap/dist/* /path/to/laravel/public/terriamap/
+3. Serve TerriaMap via Laravel
+You can serve the TerriaMap files directly from the public/terriamap directory. Laravel will serve static files from the public directory by default.
 
-.dropdown-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
+Access the TerriaMap interface via http://your-laravel-app/terriamap/index.html.
 
-.dropdown-list li {
-    padding: 5px;
-    cursor: pointer;
-}
+4. Integrate TerriaMap into Laravel Views
+If you want to embed TerriaMap into a Laravel Blade view, you can include the TerriaMap HTML file or use an iframe.
 
-.dropdown-list li:hover {
-    background-color: #f0f0f0;
-}
+Example of embedding via iframe in a Blade view (resources/views/terriamap.blade.php):
 
-.search-box {
-    margin: 5px 0;
-    padding: 5px;
-    width: 100%;
-}
+blade
+Copy
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TerriaMap Integration</title>
+</head>
+<body>
+    <h1>My Laravel Application with TerriaMap</h1>
+    <iframe src="{{ asset('terriamap/index.html') }}" width="100%" height="600px"></iframe>
+</body>
+</html>
+5. Set Up Laravel Routes
+Create a route in routes/web.php to serve the TerriaMap view:
 
-function populateFilters() {
-    populateDropdown('companyId', 'company_id');
-    populateDropdown('agreementDate', 'sign_date');
-    populateDropdown('branch', 'tantou_shiten');
-    populateDropdown('department', 'tantou_bumon');
-    populateDropdown('companyName', 'company_name');
-}
+php
+Copy
+Route::get('/terriamap', function () {
+    return view('terriamap');
+});
+Now, you can access the TerriaMap integration at http://your-laravel-app/terriamap.
 
-function populateDropdown(dropdownId, dataKey) {
-    const dropdown = document.getElementById(`${dropdownId}Dropdown`);
-    const values = [...new Set(filterDataArray.map(item => item[dataKey]))];
+6. Handle API Requests (if needed)
+If TerriaMap makes API requests to your Laravel backend, ensure you have the necessary API routes and controllers set up in Laravel.
 
-    // Clear existing items
-    dropdown.innerHTML = `
-        <li>
-            <input
-                type="radio"
-                id="${dropdownId}_all"
-                name="${dropdownId}"
-                value=""
-                class="dropdown-radio"
-                onchange="selectOption('${dropdownId}', 'すべて')"
-                checked
-            />
-            <label for="${dropdownId}_all">すべて</label>
-        </li>
-    `;
+Example API route in routes/api.php:
 
-    // Add other options with radio buttons
-    values.sort((a, b) => a.localeCompare(b)).forEach((value, index) => {
-        const id = `${dropdownId}_${index}`;
-        const li = document.createElement('li');
+php
+Copy
+Route::get('/terriamap-data', [TerriaMapController::class, 'getData']);
+7. Adjust TerriaMap Configuration
+If TerriaMap requires configuration files (e.g., config.json), ensure they are correctly placed in the public/terriamap directory and referenced properly in the TerriaMap build.
 
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.id = id;
-        radio.name = dropdownId;
-        radio.value = value;
-        radio.className = 'dropdown-radio';
-        radio.onchange = () => selectOption(dropdownId, value);
+8. Test the Integration
+Run your Laravel application (php artisan serve) and navigate to the TerriaMap route (e.g., http://localhost:8000/terriamap).
 
-        const label = document.createElement('label');
-        label.textContent = value || '(空白)';
-        label.htmlFor = id;
+Ensure all assets (JS, CSS, images) are loading correctly and that the map functions as expected.
 
-        li.appendChild(radio);
-        li.appendChild(label);
-        dropdown.appendChild(li);
-    });
-}
+9. Deploy to Production
+When deploying to production, ensure your web server (e.g., Apache, Nginx) is configured to serve static files from the public/terriamap directory.
 
-function toggleDropdown(dropdownId) {
-    const dropdownContainer = document.getElementById(`${dropdownId}DropdownContainer`);
-    dropdownContainer.style.display =
-        dropdownContainer.style.display === 'none' ? 'block' : 'none';
-}
+If using Laravel Forge, Vapor, or another deployment tool, follow their guidelines for serving static files.
 
-function selectOption(dropdownId, value) {
-    const button = document.getElementById(`${dropdownId}Button`);
-    button.textContent = value || 'すべて';
+10. Optional: Use Laravel Mix for Asset Compilation
+If you want to integrate TerriaMap's build process with Laravel Mix, you can modify webpack.mix.js to include TerriaMap's build steps. This is more advanced and may require custom configuration.
 
-    // Close dropdown after selection
-    const dropdownContainer = document.getElementById(`${dropdownId}DropdownContainer`);
-    dropdownContainer.style.display = 'none';
-
-    // Trigger filter update
-    filterData();
-}
-
-function filterDropdown(dropdownId) {
-    const searchInput = document.getElementById(`${dropdownId}Search`).value.toLowerCase();
-    const options = document.querySelectorAll(`#${dropdownId}Dropdown li`);
-
-    options.forEach(option => {
-        const text = option.textContent.toLowerCase();
-        option.style.display = text.includes(searchInput) ? '' : 'none';
-    });
-}
-
-function filterData() {
-    const selectedCompanyId = getSelectedValue('companyId');
-    const selectedAgreementDate = getSelectedValue('agreementDate');
-    const selectedBranch = getSelectedValue('branch');
-    const selectedDepartment = getSelectedValue('department');
-    const selectedCompanyName = getSelectedValue('companyName');
-
-    const filteredData = filterDataArray.filter(item => {
-        return (
-            (selectedCompanyId === '' || item.company_id === selectedCompanyId) &&
-            (selectedAgreementDate === '' || item.sign_date === selectedAgreementDate) &&
-            (selectedBranch === '' || item.tantou_shiten === selectedBranch) &&
-            (selectedDepartment === '' || item.tantou_bumon === selectedDepartment) &&
-            (selectedCompanyName === '' || item.company_name === selectedCompanyName)
-        );
-    });
-
-    displayResults(filteredData);
-}
-
-function getSelectedValue(dropdownId) {
-    const selectedRadio = document.querySelector(`#${dropdownId}Dropdown .dropdown-radio:checked`);
-    return selectedRadio ? selectedRadio.value : '';
-}
-
-<!-- Repeat similar structure for branch, department, and companyName -->
+Example Directory Structure
+Copy
+laravel-project/
+├── public/
+│   └── terriamap/
+│       ├── index.html
+│       ├── assets/
+│       └── config.json
+├── resources/
+│   └── views/
+│       └── terriamap.blade.php
+├── routes/
+│   └── web.php
+└── ...
+By following these steps, you should be able to integrate TerriaMap into your existing Laravel project. Let me know if you encounter any issues!
