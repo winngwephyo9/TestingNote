@@ -1,3 +1,14 @@
+進捗報告をさせていただきます。
+
+DL/DWHのBIに関しては、プロジェクトと左側の各フィルターをクリックすると、そのプロジェクトに関する場所が地図上にマークされるように開発しました。現在はこの作業を一旦停止し、プラトーの調査を行っております。
+
+プラトーの調査報告ですが、プラトーにはAPIがありません。GitHubからソースコードをダウンロードし、ローカル環境に必要な開発環境を構築して起動しましたので、新しいプロジェクトとしてなっております。このドキュメントに従い、ローカル環境で地図の確認と日本の地図の表示まで調査が完了しました。現在、3D都市モデルと地形の表示について引き続き調査を行っております。
+
+調査が終了したら、プラトーが新しいプロジェクトとしてCCCに埋め込むことが可能かどうかを確認する予定です。もしローカル環境でプラトープロジェクトがCCCに埋め込むことができましたら、本番環境でプラトープロジェクトとCCCプロジェクトの開発環境の構築が競合する可能性があります。
+
+以上、ご報告させていただきます。よろしくお願いいたします。
+
+
 but i want to modify  this project want to add in my existing php,laravel, js project
 how to integrate terriaMap project to my existing laravel project
 Integrating a TerriaMap project into an existing Laravel application involves several steps. TerriaMap is a JavaScript-based mapping application, so you'll need to ensure that your Laravel application can serve the necessary static files and handle routing appropriately. Here's a step-by-step guide to help you integrate TerriaMap into your Laravel project:
