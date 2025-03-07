@@ -1,6 +1,10 @@
- public function handle()
+/**
+     * Execute the job.
+     *
+     * @return void
+     */
+    public function handle()
     {
-        $this->client = new \GuzzleHttp\Client();
         $this->client = new \GuzzleHttp\Client(['verify' => false]);
 
         $dldwhImportController = new DLDWHDataImportController();
@@ -16,7 +20,7 @@
 
             if (!empty($csvFiles)) {
                 Log::info('start organizeData ' . count($csvFiles));
-                $this->organizeAndProcessData($this->updatedDateWithoutSeconds, $csvFiles, $this->access_token, $this->updatedDate, $this->client);
+                $this->organizeAndProcessData($this->updatedDateWithoutSeconds, $csvFiles, $this->access_token, $this->updatedDate);
 
                 Log::info('job finished uploadDataToDB');
 
@@ -73,103 +77,109 @@
     }
 
     public function organizeAndProcessData($updatedDateWithoutSeconds, $folderItems, $access_token, $updatedDate)
-    {
-        $DLDWHModel = new DLDHWDataImportModel();
-        $dldwhImportController = new DLDWHDataImportController();
-        $sortedTableNames = $DLDWHModel->showDependencyGraph();
+{
+    $DLDWHModel = new DLDHWDataImportModel();
+    $dldwhImportController = new DLDWHDataImportController();
+    $sortedTableNames = $DLDWHModel->showDependencyGraph();
 
-        $normalizedFolderItems = [];
-        foreach ($folderItems as $key => $value) {
-            $normalizedFolderItems[strtolower($key)] = $value;
+    $normalizedFolderItems = [];
+    foreach ($folderItems as $key => $value) {
+        $normalizedFolderItems[strtolower($key)] = $value;
+    }
+
+    foreach ($sortedTableNames as $folderName) {
+        if (!isset($normalizedFolderItems[strtolower($folderName)])) {
+            Log::info("Organize Data Skip tables>>>>>" . $folderName);
+            continue;
         }
+        Log::info($folderName);
+        $csvFiles = $normalizedFolderItems[$folderName];
+        $tableExit = $DLDWHModel->checkTableExist($folderName);
+        $allColumns = $DLDWHModel->getTableColumns($folderName);
 
-        foreach ($sortedTableNames as $folderName) {
-            if (!isset($normalizedFolderItems[strtolower($folderName)])) {
-                Log::info("Organize Data Skip tables>>>>>" . $folderName);
-                continue;
-            }
-            Log::info($folderName);
-            $csvFiles = $normalizedFolderItems[$folderName];
-            $tableExit = $DLDWHModel->checkTableExist($folderName);
-            $allColumns = $DLDWHModel->getTableColumns($folderName);
+        if ($tableExit) {
+            foreach ($csvFiles as $files) {
+                foreach ($files as $file) {
+                    $fileName = $file['name'];
+                    $fileId = $file['id'];
+                    $isFileUpdated = false;
 
-            if ($tableExit) {
-                foreach ($csvFiles as $files) {
-                    foreach ($files as $file) {
-                        $fileName = $file['name'];
-                        $fileId = $file['id'];
-                        $isFileUpdated = false;
+                    $boxDate = $dldwhImportController->getDateOrNameOfCsv($fileId, "date", $access_token);
+                    $boxDateParsed = Carbon::parse($boxDate);
+                    $csvFileDate = $DLDWHModel->getCsvFileDate($fileName);
 
-                        $boxDate = $dldwhImportController->getDateOrNameOfCsv($fileId, "date", $access_token);
-                        $boxDateParsed = Carbon::parse($boxDate);
-                        $csvFileDate = $DLDWHModel->getCsvFileDate($fileName);
-
-                        if (!is_null($csvFileDate)) {
-                            $lastModifiedAt = $csvFileDate->last_modified_at;
-                            $fileDateParsed = Carbon::parse($lastModifiedAt);
-                            if ($boxDateParsed > $fileDateParsed) {
-                                $isFileUpdated = true;
-                            }
-                        }
-
-                        if (is_null($csvFileDate) || $isFileUpdated) {
-                            $requestURL = "https://api.box.com/2.0/files/" . $fileId . "/content";
-                            $header = [
-                                "Authorization" => "Bearer " . $access_token,
-                                "Accept" => "application/json"
-                            ];
-                            $response = $this->client->request('GET', $requestURL, ['headers' => $header]);
-                            $stream = $response->getBody()->detach();
-
-                            $firstLine = fgets($stream);
-                            if (substr($firstLine, 0, 3) === "\xEF\xBB\xBF") {
-                                $firstLine = substr($firstLine, 3);
-                            }
-
-                            $encoding = mb_detect_encoding($firstLine, ['UTF-8', 'SJIS', 'EUC-JP', 'ISO-2022-JP']);
-                            $firstLine = mb_convert_encoding($firstLine, 'UTF-8', $encoding);
-                            $header = array_map('trim', explode(',', $firstLine));
-                            $batchData = [];
-                            while (($line = fgets($stream)) !== false) {
-                                $line = mb_convert_encoding($line, 'UTF-8', $encoding);
-                                $row = str_getcsv($line);
-
-                                if (count($header) !== count($row)) {
-                                    // Log::warning("Header and row count mismatch in file: {$fileName}");
-                                    continue;
-                                }
-
-                                $rowData = array_combine($header, $row);
-                                $tableRow = [];
-                                foreach ($allColumns as $column) {
-                                    $tableRow[$column] = $column === 'Updated_Date' ? $updatedDateWithoutSeconds : ($rowData[$column] ?? null);
-                                }
-                                $batchData[] = $tableRow;
-
-                                if (count($batchData) >= 1000) { // Adjust batch size as needed
-                                    $result = $dldwhImportController->uploadDataToDB($folderName, $allColumns, $batchData, $isFileUpdated);
-                                    $this->processResult($result, $folderName, $fileName, $DLDWHModel);
-                                    $batchData = [];
-                                }
-                            }
-
-                            if (!empty($batchData)) {
-                                $result = $dldwhImportController->uploadDataToDB($folderName, $allColumns, $batchData, $isFileUpdated);
-                                $this->processResult($result, $folderName, $fileName, $DLDWHModel);
-                            }
-
-                            fclose($stream);
-                            $DLDWHModel->saveCsvFileDate($fileName, $updatedDate, $isFileUpdated);
-                            array_push($this->fileNameList, $fileName);
-                            array_push($this->folderNameList, $folderName);
+                    if (!is_null($csvFileDate)) {
+                        $lastModifiedAt = $csvFileDate->last_modified_at;
+                        $fileDateParsed = Carbon::parse($lastModifiedAt);
+                        if ($boxDateParsed > $fileDateParsed) {
+                            $isFileUpdated = true;
                         }
                     }
+
+                    if (is_null($csvFileDate) || $isFileUpdated) {
+                        $requestURL = "https://api.box.com/2.0/files/" . $fileId . "/content";
+                        $header = [
+                            "Authorization" => "Bearer " . $access_token,
+                            "Accept" => "application/json"
+                        ];
+                        $response = $this->client->request('GET', $requestURL, ['headers' => $header]);
+                        $stream = $response->getBody()->detach();
+
+                        $firstLine = fgets($stream);
+                        if (substr($firstLine, 0, 3) === "\xEF\xBB\xBF") {
+                            $firstLine = substr($firstLine, 3);
+                        }
+
+                        $encoding = mb_detect_encoding($firstLine, ['UTF-8', 'SJIS', 'EUC-JP', 'ISO-2022-JP']);
+                        $firstLine = mb_convert_encoding($firstLine, 'UTF-8', $encoding);
+                        $header = array_map('trim', explode(',', $firstLine));
+                        $batchData = [];
+                        while (($line = fgets($stream)) !== false) {
+                            $line = mb_convert_encoding($line, 'UTF-8', $encoding);
+                            $row = str_getcsv($line);
+
+                            if (count($header) !== count($row)) {
+                                // Log::warning("Header and row count mismatch in file: {$fileName}");
+                                continue;
+                            }
+
+                            $rowData = array_combine($header, $row);
+                            $tableRow = [];
+                            foreach ($allColumns as $column) {
+                                $tableRow[$column] = $column === 'Updated_Date' ? $updatedDateWithoutSeconds : ($rowData[$column] ?? null);
+                            }
+                            $batchData[] = $tableRow;
+
+                            if (count($batchData) >= 1000) { // Adjust batch size as needed
+                                $result = $dldwhImportController->uploadDataToDB($folderName, $allColumns, $batchData, $isFileUpdated);
+                                $this->processResult($result, $folderName, $fileName, $DLDWHModel);
+                                $batchData = [];
+                            }
+                        }
+
+                        if (!empty($batchData)) {
+                            $result = $dldwhImportController->uploadDataToDB($folderName, $allColumns, $batchData, $isFileUpdated);
+                            $this->processResult($result, $folderName, $fileName, $DLDWHModel);
+                        }
+
+                        fclose($stream);
+                        $DLDWHModel->saveCsvFileDate($fileName, $updatedDate, $isFileUpdated);
+
+                        if(is_array($this->fileNameList) && is_array($this->folderNameList)){
+                            array_push($this->fileNameList, $fileName);
+                            array_push($this->folderNameList, $folderName);
+                        } else {
+                            $this->fileNameList = [$fileName];
+                            $this->folderNameList = [$folderName];
+                        }
+
+                    }
                 }
-                if ($folderName === $this->DOC_0201_ELEMENT_LISTS) {
-                    $latestUpdateDate = $DLDWHModel->getLatestUpdatedDate_element();
-                    $DLDWHModel->copyDataProfileList($this->DOC_0201_ELEMENT_LISTS, $this->DOC_0211_PROFILE_LISTS, $latestUpdateDate);
-                    $DLDWHModel->copyDataElementList($this->DOC_0201_ELEMENT_LISTS, $this->DOC_0201_ELEMENT_LEVEL_LISTS, $latestUpdateDate);
-                }
+            }
+            if ($folderName === $this->DOC_0201_ELEMENT_LISTS) {
+                $latestUpdateDate = $DLDWHModel->getLatestUpdatedDate_element();
+                $DLDWHModel->copyDataProfileList($this->DOC_0201_ELEMENT_LISTS, $this->DOC_0211_PROFILE_LISTS, $latestUpdateDate);
+                $DLDWHModel->copyDataElementList($this->DOC_0201_ELEMENT_LISTS, $this->DOC_0201_ELEMENT_LEVEL_LISTS, $latestUpdateDate);
             }
         }
     }
@@ -192,12 +202,3 @@
             $DLDWHModel->saveDataImportLogs($jsonResult);
         }
     }
-
-    // ジョブの再試行回数とタイムアウトを設定
-    public $tries = 3; // 最大試行回数
-}
-
-modify code to solve this error
-ErrorException: array_push() expects parameter 1 to be array, null given in
-array_push($this->fileNameList, $fileName);
-                            array_push($this->folderNameList, $folderName);
