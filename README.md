@@ -1,6 +1,11 @@
+
+
+
 /**
      * Execute the job.
-     *
+     *![画像 (14)](https://github.com/user-attachments/assets/90df5b7b-8f57-4458-a3c9-591d07b23f82)
+![画像 (15)](https://github.com/user-attachments/assets/197d95ba-9e65-44be-98e9-361adf2e0193)
+
      * @return void
      */
     public function handle()
