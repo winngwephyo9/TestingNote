@@ -1,3 +1,60 @@
+   public function checkLogin()
+    {
+        $process = new Process(['node', base_path('scripts/scrapeLoginOnly.js')]);
+        $process->run();
+
+        // Check output
+        $output = $process->getOutput();
+
+        if (str_contains($output, 'SUCCESS')) {
+            return response()->json(['login' => 'success']);
+        } else {
+            return response()->json(['login' => 'failed', 'output' => $output], 500);
+        }
+    }
+
+const puppeteer = require('puppeteer');
+
+(async () => {
+  const USER_ID = 'your-user-id';
+  const PASSWORD = 'your-password';
+
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+
+  try {
+    // 1. Go to login page
+    await page.goto('https://example-intranet.com/login', { waitUntil: 'networkidle2' });
+
+    // 2. Enter credentials
+    await page.type('#userId', USER_ID);        // Replace #userId with real selector
+    await page.type('#password', PASSWORD);     // Replace #password with real selector
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('#login-button')               // Replace #login-button with actual button selector
+    ]);
+
+    // 3. Check for post-login element
+    const successSelector = 'a[href*="電話帳"]';  // Replace with real selector visible only after login
+
+    try {
+      await page.waitForSelector(successSelector, { timeout: 5000 });
+      console.log('SUCCESS');
+    } catch (e) {
+      console.log('FAILED');
+    }
+
+  } catch (err) {
+    console.error('Error:', err.message);
+    console.log('FAILED');
+  } finally {
+    await browser.close();
+  }
+})();
+Route::get('/check-login', [ScraperController::class, 'checkLogin']);
+
+
+
 // ✅ Check for a known element only present after login
 try {
   await page.waitForSelector('a[href*="電話帳"]', { timeout: 5000 });
