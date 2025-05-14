@@ -1,6 +1,9 @@
 ![image](https://github.com/user-attachments/assets/e9a904f8-45f9-4315-bd98-ea08dc334578)
 ![画像 (14)](https://github.com/user-attachments/assets/8a511483-64d6-48d7-97f5-584ae2d54d9c)
 
+![image](https://github.com/user-attachments/assets/2a5eef2d-f4c3-46b1-b2bb-54c37133d068)
+
+
 Code
   $client = new Client([
             'allow_redirects' => true,
