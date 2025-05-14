@@ -42,3 +42,85 @@ const path = require('path');
 
   await browser.close();
 })();
+
+
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
+use Microsoft\Graph\Graph;
+use Microsoft\Graph\Model;
+use \GuzzleHttp\Client;
+
+class ScrapeAndUpload extends Command
+{
+    protected $signature = 'scrape:emails';
+    protected $description = 'Scrape data and upload to Box and Teams';
+
+    public function handle()
+    {
+        $this->info('Running Puppeteer script...');
+        exec('node scripts/scrape.js');
+
+        $this->info('Finding latest CSV...');
+        $files = Storage::files('exports');
+        $latestFile = collect($files)->sortByDesc(fn($f) => Storage::lastModified($f))->first();
+
+        if (!$latestFile) {
+            $this->error('No file found.');
+            return;
+        }
+
+        // Upload to Box
+        $this->info('Uploading to Box...');
+        $this->uploadToBox(storage_path("app/{$latestFile}"));
+
+        // Upload to Teams
+        $this->info('Uploading to Teams...');
+        $this->uploadToTeams(storage_path("app/{$latestFile}"));
+
+        $this->info('Done.');
+    }
+
+    protected function uploadToBox($filePath)
+    {
+        $accessToken = 'YOUR_BOX_ACCESS_TOKEN';
+        $folderId = 'YOUR_FOLDER_ID';
+
+        $client = new \GuzzleHttp\Client();
+        $res = $client->request('POST', "https://upload.box.com/api/2.0/files/content", [
+            'headers' => [
+                'Authorization' => "Bearer $accessToken",
+            ],
+            'multipart' => [
+                ['name' => 'attributes', 'contents' => json_encode(['name' => basename($filePath), 'parent' => ['id' => $folderId]])],
+                ['name' => 'file', 'contents' => fopen($filePath, 'r')],
+            ]
+        ]);
+
+        return json_decode($res->getBody(), true);
+    }
+
+    protected function uploadToTeams($filePath)
+    {
+        $accessToken = 'YOUR_GRAPH_API_TOKEN';
+        $teamDriveId = 'YOUR_TEAM_DRIVE_ID';
+        $folderPath = '/General/Documents';
+
+        $client = new \GuzzleHttp\Client();
+        $url = "https://graph.microsoft.com/v1.0/drives/{$teamDriveId}/root:{$folderPath}/".basename($filePath).":/content";
+
+        $res = $client->put($url, [
+            'headers' => [
+                'Authorization' => "Bearer $accessToken",
+                'Content-Type' => 'text/csv'
+            ],
+            'body' => fopen($filePath, 'r')
+        ]);
+
+        return json_decode($res->getBody(), true);
+    }
+}
+
