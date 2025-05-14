@@ -1,3 +1,13 @@
+// ✅ Check for a known element only present after login
+try {
+  await page.waitForSelector('a[href*="電話帳"]', { timeout: 5000 });
+  console.log('✅ Login successful');
+} catch (e) {
+  console.error('❌ Login failed: expected element not found');
+  await browser.close();
+  process.exit(1); // Exit with error
+}
+
 <?php
 
 namespace App\Http\Controllers;
