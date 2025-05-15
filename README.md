@@ -1,3 +1,12 @@
+
+            if (strpos($body, '<TITLE>データベースへの問い合わせ中</TITLE>') === false && $response->getStatusCode() === 200) {
+                // Check if the "database querying" message is NOT present and we have a 200 OK
+                dd('Login successful!', $body);
+            } else {
+                dd('Login failed.', $body);
+            }
+            
+            
 ^ "Login failed."
 ^ """
 
