@@ -1,3 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="ROBOTS" content="NOINDEX, FOLLOW" />
+    <title>大林組イントラネット</title>
+    <SCRIPT language="JavaScript" SRC="http://www.fc.obayashi.co.jp/accessCookie.js"></SCRIPT>
+
+    <script language="JavaScript1.2">
+        <!--
+        window.onload=init
+        
+        ie=false
+        nn=false
+        if(document.all){ie=true}
+        if(navigator.appName=="Netscape"||navigator.userAgent.indexOf("Opera")!=-1){nn=true}
+        
+        function init(){
+        if(ie){
+        frames[0].document.body.onscroll=scrollie
+        frames[1].document.body.onscroll=scrollie
+        }
+        if(nn){
+        scroll=new Array(0,0)
+        scrollnn()
+        }
+        }
+        
+        function scrollie(){
+        if(frames[0].event){
+        frames[1].scrollTo(0,frames[0].document.body.scrollTop)
+        }
+        if(frames[1].event){
+        frames[0].scrollTo(0,frames[1].document.body.scrollTop)
+        }
+        }
+        
+        function scrollnn(){
+        var scr0=frames[0].pageYOffset
+        var scr1=frames[1].pageYOffset
+        if(scr0!=scroll[0]){
+        //左がスクロール
+        frames[1].scrollTo(0,scr0)
+        scroll[0]=scr0
+        scroll[1]=scr0
+        }else{
+        if(scr1!=scroll[1]){
+        //右がスクロール
+        frames[0].scrollTo(0,scr1)
+        scroll[0]=scr1
+        scroll[1]=scr1
+        }}
+        setTimeout("scrollnn()",0)
+        }
+        //-->
+    </script>
+</head>
+
+<frameset cols="172,*" frameborder="no" border="0" framespacing="0">
+    <frame src="/top/sidemenu.html" name="leftFrame" id="leftFrame" title="サイドメニュー" noresize="noresize"
+        scrolling="no" />
+    <frame src="/top/main.html" name="mainFrame" id="mainFrame" title="mainFrame" noresize="noresize" />
+</frameset>
+<noframes>
+
+    <body>
+    </body>
+</noframes>
+
+</html>
+
+
+
+
+
+
 
 <HTML>
 
