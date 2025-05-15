@@ -1,3 +1,30 @@
+// 2. 電話帳へのアクセス (直接URLを使用)
+            $addressBookUrl = 'http://it.isc.obayashi.co.jp/tel_web/index.html';
+            $addressBookResponse = $client->get($addressBookUrl);
+            $addressBookHtml = (string) $addressBookResponse->getBody();
+            $addressBookCrawler = new Crawler($addressBookHtml);
+
+           // 3.「メールアドレス検索システム」リンクの抽出
+            $mailAddressSearchLink = $addressBookCrawler->filter('a:contains("メールアドレス検索システム")')->attr('href');
+
+            if (!$mailAddressSearchLink) {
+                dd('メールアドレス検索システム link not found.');
+            }
+
+            // 絶対URLに変換
+            $mailAddressSearchAbsoluteLink = $addressBookUrl . $mailAddressSearchLink; // 電話帳ページからの相対パスを考慮
+
+            // 4. 「メールアドレス検索システム」ページへのアクセス
+            $finalResponse = $client->get($mailAddressSearchAbsoluteLink);
+            $finalHtml = (string) $finalResponse->getBody();
+
+            dd('メールアドレス検索システム Page Content:', $finalHtml);
+
+
+
+
+
+
 <div id="sidemenu"><a href="http://www.obayashi.co.jp/" target="_blank" id="to_obayashiHP"><img src="images/obayashiweb.gif" alt="社外ホームページへ" width="170" height="38"></a>
   <div id="h2_box">
 <h2>サイドメニュー</h2>
