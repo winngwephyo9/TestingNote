@@ -1,4 +1,28 @@
-             dd('電話帳へのアクセス!', $addressBookCrawler);
+            // 3. frame 要素から src 属性の値を取得
+            $frameSrc = $addressBookIndexCrawler->filter('frame#frame1')->attr('src');
+
+            if (!$frameSrc) {
+                dd('Frame source URL not found.');
+            }
+
+            // 絶対URLに変換
+            $addressBookFrameUrl = $addressBookBaseUrl . '/' . ltrim($frameSrc, './');
+
+            // 4. frame の内容 (ob_index.aspx) を取得
+            $addressBookFrameResponse = $client->get($addressBookFrameUrl);
+            $addressBookFrameHtml = (string) $addressBookFrameResponse->getBody();
+            $addressBookFrameCrawler = new Crawler($addressBookFrameHtml);
+
+            // 5. 「メールアドレス検索システム」リンクの抽出
+            $mailAddressSearchLinkNode = $addressBookFrameCrawler->filter('a:contains("メールアドレス検索システム")');
+
+            if ($mailAddressSearchLinkNode->count() > 0) {
+                $mailAddressSearchLink = $mailAddressSearchLinkNode->attr('href');
+            } else {
+                dd('メールアドレス検索システム link not found in the 電話帳 frame.');
+            }
+	    
+     dd('電話帳へのアクセス!', $addressBookCrawler);
 <?xml version="1.0" standalone="yes"?>
       <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
       <?xml encoding="UTF-8"?>
