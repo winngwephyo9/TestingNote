@@ -1,4 +1,24 @@
-<div id="sidemenu"><a href="http://www.obayashi.co.jp/" target="_blank" id="to_obayashiHP"><img src="images/obayashiweb.gif" alt="社外ホームページへ" width="170" height="38"></a>
+             dd('電話帳へのアクセス!', $addressBookCrawler);
+<?xml version="1.0" standalone="yes"?>
+      <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+      <?xml encoding="UTF-8"?>
+      <html>
+        <body><p>&#xFEFF;&#xD;
+      </p>&#xD;
+        <title>&#x96FB;&#x8A71;&#x5E33;&#x30FB;&#x30A2;&#x30C9;&#x30EC;&#x30B9;&#x5E33;</title>&#xD;
+      &#xD;
+      <frameset rows="100%" frameborder="0">&#xD;
+      <frame id="frame1" name="frame1" src="./ob_index.aspx"/>&#xD;
+      <noframes>&#xD;
+      <div>&#x3053;&#x306E;&#x30DA;&#x30FC;&#x30B8;&#x3092;&#x3054;&#x89A7;&#x3044;&#x305F;&#x3060;&#x304F;&#x306B;&#x306F;&#x30D5;&#x30EC;&#x30FC;&#x30E0;&#x5BFE;&#x ▶
+      </noframes>&#xD;
+      </frameset>&#xD;
+      &#xD;
+      </body>
+      </html>
+      
+      
+      <div id="sidemenu"><a href="http://www.obayashi.co.jp/" target="_blank" id="to_obayashiHP"><img src="images/obayashiweb.gif" alt="社外ホームページへ" width="170" height="38"></a>
   <div id="h2_box">
 <h2>サイドメニュー</h2>
 <a href="javascript:;" onclick="blind_toggle.start(); return false;">設定</a>
