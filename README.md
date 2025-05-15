@@ -1,3 +1,5 @@
+<a href="address_search.html" target="_blank">メールアドレス検索システム</a>
+
 // 2. 電話帳へのアクセス (直接URLを使用)
             $addressBookUrl = 'http://it.isc.obayashi.co.jp/tel_web/index.html';
             $addressBookResponse = $client->get($addressBookUrl);
