@@ -1,3 +1,278 @@
+<div id="sidemenu"><a href="http://www.obayashi.co.jp/" target="_blank" id="to_obayashiHP"><img src="images/obayashiweb.gif" alt="社外ホームページへ" width="170" height="38"></a>
+  <div id="h2_box">
+<h2>サイドメニュー</h2>
+<a href="javascript:;" onclick="blind_toggle.start(); return false;">設定</a>
+<br class="clearfloat">
+</div>
+
+<div id="slide_setmenu" style="overflow: hidden; visibility: visible; display: none;">
+<div class="sp01">
+サイドメニューの展開状態を<br>
+保存しますか？
+</div>
+<form name="form">
+<div class="sp02">
+  <input type="radio" name="set_sidemenu" value="keep" id="set_sidemenu_0"><span>保持する</span>
+  <br>
+  <input type="radio" name="set_sidemenu" value="close" id="set_sidemenu_1"><span>起動時はいつも閉じる</span>
+  <br>
+  <input type="radio" name="set_sidemenu" value="open" id="set_sidemenu_2"><span>起動時はいつも開く</span>
+</div>
+<div class="sp03">
+	<input name="set" type="button" value="設定する" onclick="CookieCheck(),blind_toggle.start(); return false;">
+	<input name="set" type="button" value="中止" onclick="blind_toggle.start(); return false;">
+</div>
+</form>
+</div>
+
+<ul id="list01" class="ul01">
+<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.csr.obayashi.co.jp/topics/assets_images/kihon_rinen_2018rev.pdf" target="_blank" class="first_a">基本理念</a></li>
+
+<li class="li_normal_sec"><img src="images/bulet_side.gif" class="bulet"><a href="http://secure.fc.obayashi.co.jp/accdept/sougoukikaku/log/clicklog.asp?url=http://secure.fc.obayashi.co.jp/accdept/sougoukikaku/overdirectorandauditor/index.htm&amp;title=keiei" target="_blank" class="first_a">経営情報</a></li>
+
+
+<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.brand.obayashi.co.jp/pdf/DL_slogan_A4.pdf" target="_blank" class="first_a">ブランドビジョン</a></li>
+
+<li class="li_long"><strong><font size="1"><img src="images/bulet_side.gif" class="bulet"><a href="http://gdi.obayashi.co.jp/chukei2022/" target="_blank" class="first_a">中期経営計画２０２２ポータル</a></font></strong></li>
+<li class="li_long_5"><a href="http://secure.fc.obayashi.co.jp/accdept/sougoukikaku/newhomepage/03%20keieikeikaku/2025sisaku.pdf" class="rinri_4" target="_blank">２０２５年度経営施策</a></li>
+
+<li class="li_long_2"><img src="images/bulet_side.gif" class="bulet"><a href="http://gdi.obayashi.co.jp/seisansei/mtg.html" target="_blank" class="first_c">会議改革ポータル</a></li>
+
+<br>
+
+<li class="li_long_2"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.ga.obayashi.co.jp/tekiseika/kigyourinri/kigyourinri.htm" target="_blank" class="first_c">企業倫理</a></li>
+<li class="li_long_5"><a href="http://www.ga.obayashi.co.jp/rinritsuho/tsuho.pdf" class="rinri_4" target="_blank">企業倫理相談・通報制度</a></li>
+
+<li class="li_long_5"><a href="http://www.ga.obayashi.co.jp/tekiseika/kigyourinri/kaigoukonsinrepo.html" class="rinri_4" target="_blank">同業者会合・懇親会報告</a></li>
+
+<li class="li_long_5"><a href="http://www.ga.obayashi.co.jp/tekiseika/kigyourinri/training/portal/top.html" class="rinri_4" target="_blank">職場内研修ポータル</a></li>
+
+<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="http://gdi.obayashi.co.jp/" target="_blank" class="first_digital">ダイバーシティ＆インクルージョン</a></li>
+
+<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.ga.obayashi.co.jp/kikikanri/kikikanri.htm" target="_blank" class="first_a">危機管理</a></li>
+	<li class="li_normal" style="margin-right:-3px;"><img src="images/bulet_side.gif" class="bulet"><span style="font-size:95%"><a href="http://www2.ga.obayashi.co.jp/e-portal/index.html" target="_blank" class="second_a">災害対策本部</a></span></li>
+<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/harassment" target="_blank" class="first_a">ハラスメント</a></li>
+<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><span style="font-size:95%"><a href="http://www.ga.obayashi.co.jp/rinritsuho/soudan.html" target="_blank" class="first_a">各種相談窓口</a></span></li>
+</ul>
+<br class="clearfloat">
+
+<div id="CollapsiblePanel1" class="CollapsiblePanel clearfix CollapsiblePanelClosed">
+
+  <div class="CollapsiblePanelTab" tabindex="1">
+  <h3><img src="images/side_h3_01.gif" alt="ポータル" onclick="tabwrite1()"></h3>
+  </div>
+  <div class="CollapsiblePanelContent2" style="display: none;">
+	<ul class="ul01">
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.pd.obayashi.co.jp/jinji/jinjiportal/" target="_blank" class="first_a">人事給与</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.pd.obayashi.co.jp/jinji/work_innovation/" target="_blank" class="first_a">働き方改革</a></li>
+		<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.pd.obayashi.co.jp/jinji/recruit/" target="_blank" class="first_a">学生の社員訪問申請</a></li>
+	<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.dho.cvl.obayashi.co.jp/c-portal/" target="_blank" class="first_a">土木</a><a href="javascript:;" class="ichiniti" onclick="javascript:window.open('http://www.dho.cvl.obayashi.co.jp/new_ichinichi_ichiwa/','cvlskk','resizable=no,scrollbars=yes,menubar=no,toolbar=no,width=576,height=768,top=30,left=400');"><img src="images/civil.gif" alt="土木一日一話" width="65" height="11"></a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.dho2.bc.obayashi.co.jp/" target="_blank" class="first_a">建築</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/eigyo_portal/SitePages/Home.aspx?csf=1&amp;web=1&amp;share=EXYMnkjq7sZCpRGeA8h0Mq4BlWmIRunbwj1ObSl_0JyOpw&amp;e=Q7vils&amp;cid=98098746-b9ac-4dc7-883f-b9df5d513349" target="_blank" class="first_a">営業</a></li>
+<!--<a href="javascript:;" class="dekiru" onclick="javascript:window.open('http://www.dho.bc.obayashi.co.jp/new_seisan5up/','seisan5up','resizable=no,scrollbars=yes,menubar=no,toolbar=no,width=576,height=768,top=30,left=400');">できる！１０％UP</a>-->
+<!--<li class="li_long_6"><a href="javascript:;" class="tdlist" onclick="javascript:window.open('http://mieruka-popup.fc.obayashi.co.jp/tza01/TZAS200/TZAS200','tdlist','resizable=no,scrollbars=yes,menubar=no,toolbar=no,width=750,height=210,top=30,left=400');">現場TODOリスト</a></li>-->
+<!--<li class="li_long_5"><a href="javascript:;" class="kiduki" onclick="javascript:window.open('http://mieruka-popup.fc.obayashi.co.jp/tza01/TZAS100/TZAS100','kiduki','resizable=no,scrollbars=yes,menubar=no,toolbar=no,width=750,height=420,top=200,left=400');">気づき工程表</a></li>-->
+<!--<li class="li_long"><a href="javascript:;" class="mieru" onclick="javascript:window.open('http://www.dho.bc.obayashi.co.jp/new_seisan5up/','seisan5up','resizable=no,scrollbars=yes,menubar=no,toolbar=no,width=576,height=768,top=30,left=400');">見える化システム</a>
+</li>-->
+    <li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.osm.obayashi.co.jp/portal/index.html" target="_blank" class="first_a">安全</a>
+	</li><li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/TeamSite_techportal" target="_blank" class="first_a">技術</a>
+		<a href="http://techforest.fc.obayashi.co.jp/tsc/" target="_blank" class="tech">TECHFOREST</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/design" target="_blank" class="first_a">設計</a></li>
+	<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/dxportal" target="_blank" class="first_digital">ここから始める「デジタルおおばやし」</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://dms.fc.obayashi.co.jp/ock/" target="_blank" class="first_a">OC-ナレッジ</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.fc.obayashi.co.jp/convenience.html" target="_blank" class="first_a">便利帳</a></li>
+	<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="http://gp.obayashi.co.jp/" target="_blank" class="first_a">大林グループ</a></li>
+	</ul>
+    <br class="clearfloat">
+    
+
+<div id="basicmenu" class="yuimenu yui-module yui-overlay yui-overlay-hidden" style="z-index: 1; position: absolute; visibility: hidden;">
+<div class="bd">
+        <ul class="first-of-type">
+          <li id="yui-gen0" class="yuimenuitem first-of-type" groupindex="0" index="0"><a href="http://cbes.fc.obayashi.co.jp/cbes-dnavi/search?ui=custom_kbank_civil&amp;ctrl=refresh" target="_blank" class="know yuimenuitemlabel">土木</a></li>
+          <li id="yui-gen1" class="yuimenuitem" groupindex="0" index="1"><a href="http://cbes.fc.obayashi.co.jp/cbes-dnavi/search?ui=custom_kbank_arch&amp;ctrl=refresh" target="_blank" class="know yuimenuitemlabel">建築</a></li>
+          <li id="yui-gen2" class="yuimenuitem" groupindex="0" index="2"><a href="http://cbes.fc.obayashi.co.jp/cbes-dnavi/search?ui=custom_kbank_edb&amp;ctrl=refresh" target="_blank" class="know yuimenuitemlabel">環境</a></li>
+        </ul>            
+    </div>
+</div>
+
+
+  </div>
+</div>
+
+<div id="CollapsiblePanel2" class="CollapsiblePanel clearfix CollapsiblePanelOpen">
+  <div class="CollapsiblePanelTab" tabindex="0">
+  <h3><img src="images/side_h3_02.gif" alt="情報共有ツール" onclick="tabwrite2()"></h3>
+  </div>
+  <div class="CollapsiblePanelContent" style="display: block; visibility: visible; height: 100px;">
+	<ul class="ul01">
+	<li class="li_long_2"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/NaviPortal/SitePages/Office365.aspx" target="_blank" class="first_a">Ｏｆｆｉｃｅ３６５</a></li>
+	<li class="li_normal"><a href="https://outlook.office365.com/owa/" target="_blank">　OWA</a></li>
+	<li class="li_normal"><a href="https://obayashig.sharepoint.com/sites/NaviPortal/SitePages/Exchange_LargeFileSendRecieve.aspx" target="_blank">大容量ファイル</a></li> 
+	<li class="li_normal"><a href="https://obayashig.sharepoint.com/sites/NaviPortal/SitePages/Exchange_GuestInvitation.aspx" target="_blank">　受付予約</a></li>
+	<li class="li_normal" style="margin-left:0px;"><a href="https://obayashig.sharepoint.com/sites/NaviPortal/SitePages/IntraAndTool_SharePointSite.aspx" target="_blank">サイト</a></li> 
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://it.isc.obayashi.co.jp/tel_web/index.html" target="_blank" class="first_a">電話帳</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://lbs3.fc.obayashi.co.jp/msg/inf/web/asp/TWXA2Z.asp?GID=COM1000" target="_blank" class="first_a">各種設定</a></li> 
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.itsol.obayashi.co.jp/oc/comet/" target="_blank">OC-COMET</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://ocproject.fc.obayashi.co.jp/pj/site/main/login.aspx" target="_blank">OC-Project</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www2.group.obayashi.co.jp/it/box/index.html" target="_blank">Box</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www2.group.obayashi.co.jp/it/helpdesk/servicenow/ServiceNow_top.html" target="_blank">ServiceNow</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/sansan" target="_blank">Sansan</a></li>
+	<li class="li_normal"></li>
+	<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/TeamSite_0000_0505?e=1%3A592a48eb977645f8882bdae0d82ee7c5" target="_blank">Talent Palette</a></li>	
+	</ul>
+    <br class="clearfloat">
+  </div>
+</div>
+
+<div id="CollapsiblePanel3" class="CollapsiblePanel clearfix CollapsiblePanelClosed">
+  <div class="CollapsiblePanelTab" tabindex="0">
+    <h3><img src="images/side_h3_03.gif" alt="業務処理" onclick="tabwrite3()"></h3>
+  </div>
+  <div class="CollapsiblePanelContent" style="display: none;">
+	<ul class="ul01">
+	<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="javascript:;" onclick="window.open('gyomusystemmenu.htm','','width=330,height=680')" class="first_a">業務システムメニュー</a></li>
+	<li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/dxdportal/systemnavi/" target="_blank" class="first_a">業務システムナビ</a></li>
+    <li class="li_long"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/oelportal" target="_blank" class="first_a">eラーニング</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.pd.obayashi.co.jp/payroll/shuro/guide.htm" target="_blank" class="first_a">出勤簿</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.pd.obayashi.co.jp/jinji/jinjiportal/j_web.html" target="_blank" class="first_a">人事Web</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.itsol.obayashi.co.jp/keiri/keihi/keihi_top.htm" target="_blank" class="first_a">経費管理</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="https://b-plus.jtb-cwt.com/sso/SamlStart.aspx?CORPORATEID=a2h0TRNr%2fJo%24&amp;IDPNUMBER=s1FGbvm1qPk%24&amp;LANG=LFNXegKk4Hc%24&amp;SITE=iwIoZbLp1iQ%24&amp;pageHash=2CDF44852EF1AE9AC869E444359F521D" target="_blank" class="first_a">出張予約</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="https://obayashig.sharepoint.com/sites/dms/" target="_blank" class="first_a">文書管理</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://www.ga.obayashi.co.jp/ringi/ringi_toppage.htm" target="_blank" class="first_a">稟議</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="http://it.isc.obayashi.co.jp/ct_other/cost/hurikaejoho.html" target="_blank" class="first_a">振替情報</a></li>
+	<li class="li_normal"><img src="images/bulet_side.gif" class="bulet"><a href="javascript:;" onclick="javascript:window.open('http://lbs3.fc.obayashi.co.jp/TZA/flashWin.asp','subwin','resizable,toolbar=no,menubar=no,width=320,height=650,top=30,left=50');" class="first_a">承認小窓</a></li>
+
+	<p>&nbsp;</p>
+	</ul>
+
+    <div id="KMTmenu" class="yuimenuKMT yui-module yui-overlay yuimenu">
+    <div class="bd">
+        <ul class="first-of-type">
+          <li id="yui-gen3" class="yuimenuitem first-of-type" groupindex="0" index="0"><a href="javascript:startdoboku()" class="know yuimenuitemlabel">土木技術</a></li>
+          <li id="yui-gen4" class="yuimenuitem" groupindex="0" index="1"><a href="javascript:startkentiku()" class="know yuimenuitemlabel">建築技術</a></li>
+        </ul>            
+    </div>
+    </div>
+    
+<script type="text/javascript">
+<!--
+function startdoboku(){
+now = new Date();
+hhh = now.getHours();
+mmm = now.getMinutes();
+
+if(mmm < 10){
+	var mmm = "0" + mmm.toString();
+}
+
+var  time = (hhh.toString() + mmm.toString());
+
+	if ( time < 200 ){
+   alert("利用時間外です。（利用時間 02:00～23:00）..");
+	}else if ( time > 2300 ){
+   alert("利用時間外です。（利用時間 02:00～23:00）..");
+	}else{
+   window.open('http://kmt.fc.obayashi.co.jp/kmt/QAKmtSso.jsp?FunctionType=12&ModelType=10&ModelId=7');
+	}
+}
+
+function startkentiku(){
+now = new Date();
+hhh = now.getHours();
+mmm = now.getMinutes();
+
+if(mmm < 10){
+	var mmm = "0" + mmm.toString();
+}
+
+var  time = (hhh.toString() + mmm.toString());
+
+	if ( time < 200 ){
+   alert("利用時間外です。（利用時間 02:00～23:00）..");
+	}else if ( time > 2300 ){
+   alert("利用時間外です。（利用時間 02:00～23:00）..");
+	}else{
+   window.open('http://kmt.fc.obayashi.co.jp/kmt/QAKmtSso.jsp?FunctionType=12&ModelType=10&ModelId=1');
+	}
+}
+
+/*
+function startit(){
+now = new Date();
+hhh = now.getHours();
+mmm = now.getMinutes();
+
+if(mmm < 10){
+	var mmm = "0" + mmm.toString();
+}
+
+var  time = (hhh.toString() + mmm.toString());
+
+	if ( time < 200 ){
+   alert("利用時間外です。（利用時間 02:00～23:00）..");
+	}else if ( time > 2300 ){
+   alert("利用時間外です。（利用時間 02:00～23:00）..");
+	}else{
+   window.open('http://kmt.fc.obayashi.co.jp/kmt/QAKmtSso.jsp?FunctionType=12&ModelType=10&ModelId=15');
+	}
+}
+*/
+
+-->
+</script>
+    
+  </div>
+</div>
+
+<br class="clearfloat">
+
+<!--BEGIN SOURCE CODE FOR EXAMPLE =============================== -->
+
+<script type="text/javascript">
+
+    /*
+         Initialize and render the Menu when its elements are ready 
+         to be scripted.
+    */
+
+    YAHOO.util.Event.onContentReady("basicmenu", function () {
+    
+        /*
+             Instantiate a Menu:  The first argument passed to the 
+             constructor is the id of the element in the page 
+             representing the Menu; the second is an object literal 
+             of configuration properties.
+        */
+
+        var oMenu = new YAHOO.widget.Menu("basicmenu");
+
+
+        /*
+             Call the "render" method with no arguments since the 
+             markup for this Menu instance is already exists in the page.
+        */
+
+        oMenu.render();
+
+
+        YAHOO.util.Event.addListener("menutoggle", "click", oMenu.show, null, oMenu);
+    
+
+    
+
+
+var oMenu = new YAHOO.widget.Menu("KMTmenu");
+YAHOO.util.Event.addListener("menutoggleKMT", "click", oMenu.show, null, oMenu);
+
+    });
+</script>
+<!--END　技術相談室 =============================== -->
+
+
+</div>
+
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Frameset//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 
