@@ -1,4 +1,18 @@
-      #message: "Unexpected ErrorException thrown from a caster: DOMDocument::saveXML(): unknown encoding x-sjis"
+      $dom = new \DOMDocument('1.0', 'UTF-8');
+@$dom->loadHTML($finalHtml, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_ENCODING_SJIS);
+$extractionPageCrawler = new Crawler($dom);
+dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+
+$finalHtml = mb_convert_encoding($finalHtml, 'UTF-8', 'x-sjis');
+$finalHtml = preg_replace('/\xEF\xBB\xBF/', '', $finalHtml); // UTF-8 BOM を削除
+$dom = new \DOMDocument('1.0', 'UTF-8');
+@$dom->loadHTML('<?xml encoding="UTF-8"?>' . $finalHtml);
+$extractionPageCrawler = new Crawler($dom);
+dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+
+
+
+#message: "Unexpected ErrorException thrown from a caster: DOMDocument::saveXML(): unknown encoding x-sjis"
       trace: {▼
         C:\xampp\htdocs\stg_ccc\CCC\ccc\vendor\symfony\var-dumper\Caster\DOMCaster.php:158 {▼
           Illuminate\Foundation\Bootstrap\HandleExceptions->handleError($level, $message, $file = '', $line = 0, $context = []) …
