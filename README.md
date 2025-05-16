@@ -1,3 +1,14 @@
+$dom = new \DOMDocument('1.0', 'UTF-8');
+@$dom->loadHTML('<?xml encoding="x-sjis"?>' . $finalHtml);
+$extractionPageCrawler = new Crawler($dom);
+dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+
+$dom = new \DOMDocument('1.0', 'UTF-8');
+@$dom->loadXML('<?xml version="1.0" encoding="x-sjis"?>' . $finalHtml);
+$extractionPageCrawler = new Crawler($dom);
+dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+      
+      
       $dom = new \DOMDocument('1.0', 'UTF-8');
 @$dom->loadHTML($finalHtml, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_ENCODING_SJIS);
 $extractionPageCrawler = new Crawler($dom);
