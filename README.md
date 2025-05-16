@@ -1,4 +1,12 @@
+      #message: "Unexpected ErrorException thrown from a caster: DOMDocument::saveXML(): unknown encoding x-sjis"
+            $mailAddressSearchAbsoluteLink = $addressBookBaseUrl . '/' . $mailAddressSearchLink;
+            $finalResponse = $client->get($mailAddressSearchAbsoluteLink);
+            $finalHtml = (string) $finalResponse->getBody();
+            $finalHtml = mb_convert_encoding($finalHtml, 'UTF-8', 'shift_jis');
+            // dd('メールアドレス一覧の抽出 Page Content ', $finalHtml);
 
+            $extractionPageCrawler = new Crawler($finalHtml);
+            dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
  <blockquote>
     <div align="center">
       <table border="1" cellspacing="0" width="93%" cellpadding="3" bordercolorlight="#FFFFFF" bordercolordark="#000000">
