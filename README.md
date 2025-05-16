@@ -1,3 +1,21 @@
+$finalHtml = mb_convert_encoding($finalHtml, 'UTF-8', 'x-sjis');
+$dom = new \DOMDocument('1.0', 'UTF-8');
+@$dom->loadHTML('<?xml encoding="UTF-8"?>' . $finalHtml);
+$extractionPageCrawler = new Crawler($dom);
+dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+
+
+$finalHtml = iconv('SJIS-win', 'UTF-8//TRANSLIT//IGNORE', $finalHtml);
+if ($finalHtml === false) {
+    dd('文字コード変換エラー');
+}
+$dom = new \DOMDocument('1.0', 'UTF-8');
+@$dom->loadHTML('<?xml encoding="UTF-8"?>' . $finalHtml);
+$extractionPageCrawler = new Crawler($dom);
+dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+
+
+
 Trying to get property 'ownerDocument' of non-object
 
 $dom = new \DOMDocument('1.0', 'UTF-8');
