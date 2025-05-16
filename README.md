@@ -1,4 +1,11 @@
-<meta http-equiv="Content-Type" content="text/html; charset=x-sjis">
+ // DOMDocument で明示的に x-sjis として読み込む
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            @$dom->loadHTML('<?xml encoding="x-sjis"?>' . $finalHtml);
+            $extractionPageCrawler = new Crawler($dom);
+
+            dd('メールアドレス一覧の抽出 Page Content ', $extractionPageCrawler);
+	    
+     <meta http-equiv="Content-Type" content="text/html; charset=x-sjis">
 <html>
 
 <head>
