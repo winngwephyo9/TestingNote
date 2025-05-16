@@ -1,3 +1,5 @@
+Trying to get property 'ownerDocument' of non-object
+
 $dom = new \DOMDocument('1.0', 'UTF-8');
 @$dom->loadHTML('<?xml encoding="x-sjis"?>' . $finalHtml);
 $extractionPageCrawler = new Crawler($dom);
