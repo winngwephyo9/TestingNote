@@ -1,4 +1,135 @@
-      #message: "Unexpected ErrorException thrown from a caster: DOMDocument::saveXML(): unknown encoding x-sjis"
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=x-sjis">
+<!--<script src="http://www.fc.obayashi.co.jp/accessCookie.js"></script>-->
+<SCRIPT LANGUAGE="JavaScript">
+    var n;
+    n = getCookie("secCode");
+    if ( n!= "" && n > 13 ) {
+	window.location = "http://www.fc.obayashi.co.jp/deny.htm";
+
+    }
+</SCRIPT>
+<title>メールアドレス一覧の抽出</title>
+</head>
+
+
+<body link="#0000FF" vlink="#0000FF" alink="#FF0000">
+  <a href="index.html" target="_top"><span style="font-size:smaller;">電話帳・アドレス帳へ戻る</span></a>
+
+
+  <table border="0" cellspacing="0" id="TABLE1" width="100%">
+    <tr>
+      <td height="2" width="755" bgcolor="#FFFF66"><span style="font-size:medium; font:bold; color:#800080;">
+        メールアドレス一覧の抽出</span></td>
+    </tr>
+  </table>
+
+
+  <table border="0" cellspacing="0" id="TABLE1" width="100%">
+    <tr>
+      <td align="right" bgcolor="#FFCC00">
+        <p align="right"><span style="font-size:smaller; color:#800080;">メールアドレス一覧を取得します。</span></p></td>
+    </tr>
+  </table>
+
+  <hr>
+
+  <p align="left">
+  　メールアドレスを抽出するツールとして、以下のツールが用意されています。<br>
+  　このツールで抽出したメールアドレスをOutlookの連絡先に取り込むことで、一斉メールの発信が容易になります。  
+　</p>
+
+
+  <blockquote>
+    <div align="center">
+      <table border="1" cellspacing="0" width="93%" cellpadding="3" bordercolorlight="#FFFFFF" bordercolordark="#000000">
+        <tr>
+          <td width="20%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="left" height="160" bordercolorlight="#FFFFFF" bordercolordark="#C0C0C0">
+            <span style="font-size:medium; color:#FFFF66;">■</span><span style="font-size:medium; font:bold;"><a target="_blank" href="http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm">メールアドレス検索システム</a></span><br /><br />
+            <!--<span style="color:#F0F; font-weight:bold; font-size:14px; margin-left:10px;">8/13～8/15の期間は、</span><br /><span style="color:#F0F; font-weight:bold; font-size:14px; margin-left:10px;">サーバメンテナンス中のため</span><br />
+            <span style="color:#F0F; font-weight:bold; font-size:14px; margin-left:10px;">ご利用いただけません。</span>--></td>
+          <td width="4%" bordercolor="#FFFFFF" bgcolor="#FFFFCC" height="160" bordercolorlight="#FFFFFF" bordercolordark="#C0C0C0" align="center">
+            <a><span style="font-size:smaller;">詳細</span></a></td>
+          <td width="41%" bordercolor="#FFFFFF" height="160" bordercolorlight="#FFFFFF" bordercolordark="#C0C0C0">
+            <span style="font-size:smaller;">　所属等を指定して該当者一覧のメールアドレスや氏名等を抽出することができます。<br>
+            　メールを送付する対象者が、店をまたがっていたりする場合や店内全員など、人数が多いときに便利です。<br></span>
+            <span style="font-size:smaller; color:#FF0000;">
+            　多種多様に検索を行いたい場合は、多めに検索し、検索結果のＣＳＶファイルをパソコンにダウンロードした後、<br>
+            　ＥＸＣＥＬのオートフィルタ機能や手作業で、必要なデータのみにしてください。<br></span>
+	        <span style="font-size:smaller; color:#FF0000;">
+	        　作成した一覧データは、目的を達成し次第削除してください。また他の人にコピーを渡すことは行わないでください。
+	        </span></td>
+        </tr>
+      </table>
+    </div>
+  </blockquote>
+
+
+  <p align="left">
+<span style="font:bold;">　　　　※Outlookの連絡先へアドレスデータを取り込む方法は<a target="_blank" href="http://it.isc.obayashi.co.jp/tel_web/outlook_imp.html">こちら</a>をご覧ください。<br><br><br><br>
+      <!--<span style="color:#FFFF66;">■</span><span style="font-size:medium;"><a href="http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm" name="001">メールアドレス検索システム</a></span>
+    </span>
+    <i><span style="color:#FF0000;">(2004年6月より公開しました)</span></i>　<span style="font-size:smaller;">（左のメニューをクリックしてください）</span>
+  </p>
+-->
+
+<blockquote>
+    <div align="center">
+      <table border="1" cellspacing="0" width="93%" cellpadding="5" bgcolor="#FFFFFF">
+        <tr>
+          <td width="17%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="center">機能</td>
+          <td width="53%" bordercolor="#FFFFFF" bgcolor="#CCCCCC">
+          <span style="font-size:smaller;">　所属等を指定して該当者一覧のメールアドレスや氏名等を抽出することができます。<br>
+          　抽出したデータは、Outlookの連絡先に取り込んだり、Ｗｅｂアンケートシステム等に利用できます。</span></td>
+        </tr>
+        <tr>
+          <td width="17%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="center">目的</td>
+          <td width="53%" bordercolor="#FFFFFF" bgcolor="#CCCCCC">
+            <span style="font-size:smaller;">　従業員への一斉メール、Ｗｅｂアンケートシステムの実施などに利用することを目的としています。</span></td>
+        </tr>
+        <tr>
+          <td width="17%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="center">アクセス制限</td>
+          <td width="53%" bordercolor="#FFFFFF" bgcolor="#CCCCCC">
+            <span style="font-size:smaller; color:#FF0000;">　個人情報の漏洩防止、メールの誤送信防止の観点から、本システムは特定の部署にのみアクセス権を設定します。</span><br>
+            <span style="font-size:smaller;">
+            　許可されている部署の方は、上記メニューをクリックすると同システムに入ることができます。一方、許可されていない部署の方は、<br>
+            　上記メニューをクリックすると「アクセスする権限がありません」と表示されます。
+            　（参考）本システムは<a target="_blank" href="http://it.isc.obayashi.co.jp/ct_sys/secure_web/">アクセス制限付き共用Webサーバ</a>の機能を利用しています。</span></td>
+        </tr>
+        <tr>
+          <td width="17%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="center">アクセス許可の依頼</td>
+          <td width="53%" bordercolor="#FFFFFF" bgcolor="#CCCCCC"><span style="font-size:smaller;">　業務上このシステムの利用が必要な部門の方は、利用目的を明記し、<a href="mailto:mail_question@mb.obayashi.co.jp?subject=メールアドレス検索システム利用申請">メールアドレス検索システム　担当者</a>までメールにてご依頼ください。依頼いただく際には、CCに所属長を含めてご連絡ください。<br>
+            　アクセス権を設定します。設定完了後連絡いたします。なお、設定から連絡まで数日かかりますので、利用される際には、ゆとりを持ってお申し込みください。</span></td>
+        </tr>
+        <tr>
+          <td width="17%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="center">利用時間の制限</td>
+          <td width="53%" bordercolor="#FFFFFF" bgcolor="#CCCCCC">
+          <span style="font-size:smaller;">　抽出はサーバに負荷を与えるため、始業時等一部時間帯は利用制限を設けさせていただきます。</span></td>
+        </tr>
+        <tr>
+          <td width="17%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="center">利用権限の棚卸</td>
+          <td width="53%" bordercolor="#FFFFFF" bgcolor="#CCCCCC">
+          <span style="font-size:smaller;">
+          　年1回、利用権限の棚卸を実施致します。<br>
+          　通知が来ましたら、利用の有無と利用目的をご回答ください。</span></td>
+        </tr>
+      </table>  
+    </div>
+  </blockquote>
+
+  <hr>
+  
+  <p align="center">
+    <span style="font-size:smaller;">Copyright&copy; 2002-2015 OBAYASHI Corporation All Rights Reserved. </span>
+  </p>
+</body>
+</html>
+
+
+#message: "Unexpected ErrorException thrown from a caster: DOMDocument::saveXML(): unknown encoding x-sjis"
             $mailAddressSearchAbsoluteLink = $addressBookBaseUrl . '/' . $mailAddressSearchLink;
             $finalResponse = $client->get($mailAddressSearchAbsoluteLink);
             $finalHtml = (string) $finalResponse->getBody();
