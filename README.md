@@ -1,4 +1,27 @@
- // DOMDocument で明示的に x-sjis として読み込む
+      #message: "Unexpected ErrorException thrown from a caster: DOMDocument::saveXML(): unknown encoding x-sjis"
+      trace: {▼
+        C:\xampp\htdocs\stg_ccc\CCC\ccc\vendor\symfony\var-dumper\Caster\DOMCaster.php:158 {▼
+          Illuminate\Foundation\Bootstrap\HandleExceptions->handleError($level, $message, $file = '', $line = 0, $context = []) …
+          › $dom->formatOutput = true;
+          › $a += [Caster::PREFIX_VIRTUAL.'xml' => $dom->saveXML()];
+          › $dom->formatOutput = $formatOutput;
+        }
+        C:\xampp\htdocs\stg_ccc\CCC\ccc\vendor\symfony\var-dumper\Cloner\AbstractCloner.php:286 {▼
+          Symfony\Component\VarDumper\Cloner\AbstractCloner->Symfony\Component\VarDumper\Cloner\{closure} …
+          › if ($this->prevErrorHandler) {
+          ›     return ($this->prevErrorHandler)($type, $msg, $file, $line, $context);
+          › }
+        }
+        Symfony\Component\VarDumper\Cloner\AbstractCloner->Symfony\Component\VarDumper\Cloner\{closure}() {}
+        C:\xampp\htdocs\stg_ccc\CCC\ccc\vendor\symfony\var-dumper\Caster\DOMCaster.php:158 {▼
+          Symfony\Component\VarDumper\Caster\DOMCaster::castDocument(DOMDocument $dom, array $a, Stub $stub, bool $isNested, int $filter = 0) …
+          › $dom->formatOutput = true;
+          › $a += [Caster::PREFIX_VIRTUAL.'xml' => $dom->saveXML()];
+          › $dom->formatOutput = $formatOutput;
+        }
+      }
+      
+      // DOMDocument で明示的に x-sjis として読み込む
             $dom = new \DOMDocument('1.0', 'UTF-8');
             @$dom->loadHTML('<?xml encoding="x-sjis"?>' . $finalHtml);
             $extractionPageCrawler = new Crawler($dom);
