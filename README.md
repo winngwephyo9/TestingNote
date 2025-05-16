@@ -1,3 +1,6 @@
+iconv(): Wrong charset, conversion from `SJIS-win' to `UTF-8//TRANSLIT//IGNORE' is not allowed
+
+
 $finalHtml = mb_convert_encoding($finalHtml, 'UTF-8', 'x-sjis');
 $dom = new \DOMDocument('1.0', 'UTF-8');
 @$dom->loadHTML('<?xml encoding="UTF-8"?>' . $finalHtml);
