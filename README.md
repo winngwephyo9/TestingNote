@@ -1,3 +1,4 @@
+^ "An error occurred: cURL error 6: Could not resolve host: address_search.html (see https://curl.haxx.se/libcurl/c/libcurl-errors.html)"
 
 <html>
 
