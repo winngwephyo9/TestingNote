@@ -1,4 +1,14 @@
- $extractionPageCrawler = new Crawler($finalHtml);
+
+ <blockquote>
+    <div align="center">
+      <table border="1" cellspacing="0" width="93%" cellpadding="3" bordercolorlight="#FFFFFF" bordercolordark="#000000">
+        <tr>
+          <td width="20%" bgcolor="#B7CACA" bordercolor="#FFFFFF" align="left" height="160" bordercolorlight="#FFFFFF" bordercolordark="#C0C0C0">
+            <span style="font-size:medium; color:#FFFF66;">■</span><span style="font-size:medium; font:bold;"><a target="_blank" href="http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm">メールアドレス検索システム</a></span><br /><br /> ◀
+
+
+    
+     $extractionPageCrawler = new Crawler($finalHtml);
 
             // 7. 「メールアドレス検索システム」リンク (マニュアルへのリンク) を抽出
             $manualLinkNode = $extractionPageCrawler->filter('blockquote div table tr td a:contains("メールアドレス検索システム")');
@@ -34,6 +44,7 @@
             $formHtml = mb_convert_encoding($formHtml, 'UTF-8', 'shift_jis');
 
             dd('メールアドレス検索画面 Page Content:', $formHtml);
+
 
 
 
