@@ -1,4 +1,45 @@
+ $extractionPageCrawler = new Crawler($finalHtml);
 
+            // 7. 「メールアドレス検索システム」リンク (マニュアルへのリンク) を抽出
+            $manualLinkNode = $extractionPageCrawler->filter('blockquote div table tr td a:contains("メールアドレス検索システム")');
+            if ($manualLinkNode->count() > 0) {
+                $manualLink = $manualLinkNode->attr('href');
+                $manualAbsoluteLink = $manualLink; // 既にご提示の HTML では絶対 URL
+            } else {
+                dd('メールアドレス検索システム (manual) link not found.');
+            }
+
+            // 8. メールアドレス検索マニュアルページへのアクセス
+            $manualResponse = $client->get($manualAbsoluteLink);
+            $manualHtml = (string) $manualResponse->getBody();
+            $manualHtml = mb_convert_encoding($manualHtml, 'UTF-8', 'shift_jis');
+            $manualPageCrawler = new Crawler($manualHtml);
+
+            // 9. フォームの送信先 URL と hidden フィールドの値を取得
+            $formNode = $manualPageCrawler->filter('form[name="f"]');
+            $formAction = $formNode->attr('action');
+            $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
+
+            // 絶対URLに変換
+            $formAbsoluteAction = $pickManualBaseUrl . '/' . ltrim($formAction, './');
+
+            // 10. フォームを POST 送信
+            $formResponse = $client->post($formAbsoluteAction, [
+                'form_params' => [
+                    'prev' => $prevValue,
+                ],
+            ]);
+
+            $formHtml = (string) $formResponse->getBody();
+            $formHtml = mb_convert_encoding($formHtml, 'UTF-8', 'shift_jis');
+
+            dd('メールアドレス検索画面 Page Content:', $formHtml);
+
+
+
+
+
+     
             $mailAddressSearchAbsoluteLink = $addressBookBaseUrl . '/' . $mailAddressSearchLink;
             $finalResponse = $client->get($mailAddressSearchAbsoluteLink);
             $finalHtml = (string) $finalResponse->getBody();
