@@ -1,3 +1,48 @@
+if ($nextPageResponse) {
+                    $nextPageHtml = (string) $nextPageResponse->getBody();
+                    $nextPageHtml = mb_convert_encoding($nextPageHtml, 'UTF-8', 'shift_jis');
+                    dump("Response after POST to ADDR000.aspx:", $nextPageHtml);
+                    $nextPageCrawler = new Crawler($nextPageHtml);
+
+                    // Now, look for the frameset in the response of the POST request
+                    $framesetNodes = $nextPageCrawler->filter('frameset');
+
+                    if ($framesetNodes->count() > 0) {
+                        dd("Found frameset in the response of the POST request:", $nextPageHtml);
+                        // Extract frame URLs here as in the previous correct version
+                        $frameUrls = [];
+                        foreach ($nextPageCrawler->filter('frameset > frame') as $frameElement) {
+                            $frameUrls[] = "http://it-nw.isc.obayashi.co.jp/pick/" . $frameElement->getAttribute('src');
+                        }
+
+                        // Access and dump content of each frame
+                        foreach ($frameUrls as $frameUrl) {
+                            try {
+                                $frameResponse = $this->client->get($frameUrl);
+                                if ($frameResponse->getStatusCode() === 200) {
+                                    $frameHtml = (string) $frameResponse->getBody();
+                                    $frameHtml = mb_convert_encoding($frameHtml, 'UTF-8', 'shift_jis');
+                                    dd("フレーム {$frameUrl} の内容:", $frameHtml);
+                                } else {
+                                    dd("フレーム {$frameUrl} へのアクセスに失敗:", $frameResponse->getStatusCode(), (string) $frameResponse->getBody());
+                                }
+                            } catch (\GuzzleHttp\Exception\GuzzleException $e) {
+                                dd("フレーム {$frameUrl} へのアクセス中にエラーが発生:", $e->getMessage());
+                            }
+                        }
+                    } else {
+                        dd("Frameset not found in the response of the POST request.");
+                    }
+
+                    // **Remove the separate GET request to the frameset URL**
+                    // $framesetPageUrl = "http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR000.aspx";
+                    // $framesetResponse = $this->client->get($framesetPageUrl);
+                    // ... (rest of the previous GET request block should be removed)
+
+                } else {
+                    dd('Error: Failed to get the page after form submission.');
+                }
+
 
 ![image](https://github.com/user-attachments/assets/9716f28c-ba46-45ff-a133-780e5ce52f1c)
 ![image](https://github.com/user-attachments/assets/a36fbffa-0a56-453c-ac59-ae61854a498d)
