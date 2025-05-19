@@ -1,4 +1,219 @@
- dump("Initial GET to it-nw.isc.obayashi.co.jp status:", $initialPickResponse->getStatusCode());
+^ "Success Page Status Code:"
+^ 200
+^ "Initial GET to it-nw.isc.obayashi.co.jp status:"
+^ 200
+^ "Initial GET redirect URL:"
+^ ""
+array:16 [▼
+  0 => array:9 [▼
+    "Name" => "amlbcookie"
+    "Value" => "01"
+    "Domain" => ".obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  1 => array:9 [▼
+    "Name" => "JSESSIONID"
+    "Value" => "A2E445D1C37945BB8537082E0D66B8FD"
+    "Domain" => "login.fc.obayashi.co.jp"
+    "Path" => "/sso/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => true
+  ]
+  2 => array:9 [▼
+    "Name" => "iPlanetDirectoryPro"
+    "Value" => "AQIC5wM2LY4Sfcx71sLqlFrkVCXqAFfrkBF81WWZy6Ndyro.*AAJTSQACMDMAAlNLABQtODcwOTUwMDUxMTQ2NDcwOTkyMgACUzEAAjAx*"
+    "Domain" => ".obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  3 => array:9 [▼
+    "Name" => "AMAuthCookie"
+    "Value" => "LOGOUT"
+    "Domain" => ".obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => 10
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  4 => array:9 [▼
+    "Name" => "ID"
+    "Value" => "U53439"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  5 => array:9 [▼
+    "Name" => "userID"
+    "Value" => "53439"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  6 => array:9 [▼
+    "Name" => "secCode"
+    "Value" => "7"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  7 => array:9 [▼
+    "Name" => "staffCode"
+    "Value" => "0"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  8 => array:9 [▼
+    "Name" => "yakCode"
+    "Value" => "999"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  9 => array:9 [▼
+    "Name" => "jyuCode"
+    "Value" => "50"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  10 => array:9 [▼
+    "Name" => "syoCode"
+    "Value" => "09332"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  11 => array:9 [▼
+    "Name" => "multiCode"
+    "Value" => "0130"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  12 => array:9 [▼
+    "Name" => "RedirectID"
+    "Value" => "11010"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  13 => array:9 [▼
+    "Name" => "TAMURL"
+    "Value" => "http://www.fc.obayashi.co.jp/"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  14 => array:9 [▼
+    "Name" => "X-Oracle-BMC-LBS-Route"
+    "Value" => "e6af554aec0684237958a20560a47c61088324f6"
+    "Domain" => "lbs3.fc.obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => "10800"
+    "Expires" => 1747651404
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  15 => array:9 [▼
+    "Name" => "ASPSESSIONIDAABCDAAS"
+    "Value" => "JLHIIGPADMGIPPKLMGAIKOIG"
+    "Domain" => "lbs3.fc.obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+]
+^ "Response after POST to ADDR000.aspx:"
+^ """
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>メールアドレス検索</title>
+<script type="text/javascript" language="javascript">
+//================================================================================================//
+function writePOSTData(obj, url) {
+    var strFormContents = '<form method="post" id="form1" name="form1" action="' + url + '" target="_self">' + "\n"
+    + '<input type="hidden" name="txtConditionFile" value="">' + "\n"
+    + '</form>';
+    obj.document.write(strFormContents);
+}
+//================================================================================================//
+</script>
+</head>
+
+<body>メニュー画面よりアクセスして下さい。</body>
+
+</html>
+"""
+^ "Frameset not found in the response of the POST request."
+
+
+
+
+
+dump("Initial GET to it-nw.isc.obayashi.co.jp status:", $initialPickResponse->getStatusCode());
             dump("Initial GET redirect URL:", $initialPickResponse->getHeaderLine('Location'));
 
 
