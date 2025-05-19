@@ -1,3 +1,154 @@
+
+use GuzzleHttp\Cookie\CookieJar;
+use GuzzleHttp\Uri\UriResolver;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\DomCrawler\Crawler;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Psr7\Uri;
+
+class EmailDataScraperController extends Controller
+{
+    private $cookieJar;
+    private $client;
+
+    public function __construct()
+    {
+        $this->cookieJar = new CookieJar();
+        $this->client = new Client([
+            'cookies' => $this->cookieJar, // Use the explicit CookieJar
+            'allow_redirects' => true,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Encoding' => 'gzip, deflate',
+                'Accept-Language' => 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control' => 'no-cache',
+                'Connection' => 'keep-alive',
+                'Origin' => 'http://login.fc.obayashi.co.jp',
+                'Pragma' => 'no-cache',
+                'Referer' => 'http://login.fc.obayashi.co.jp/sso/UI/Login?type=obayashi&goto=http%3A%2F%2Fintralogin.fc.obayashi.co.jp%2Fcgi-bin%2Fclogin.cgi%3Faccess%3Dhttp%253A%252F%252Fwww.fc.obayashi.co.jp%252F%252F',
+                'Upgrade-Insecure-Requests' => '1',
+            ],
+        ]);
+    }
+
+    public function login()
+    {
+        $loginUrl = 'http://login.fc.obayashi.co.jp/sso/UI/Login';
+        $successRedirectUrl = 'http://www.fc.obayashi.co.jp/';
+        $username = 'YOUR_USERNAME'; // Replace with the actual username
+        $password = 'YOUR_PASSWORD'; // Replace with the actual password
+        $groupCompanyCode = 'U'; // Replace with the desired group company code (e.g., 'U' for 大林組)
+
+        try {
+            // 1. Get the initial login page
+            $response = $this->client->get($loginUrl);
+            $html = (string) $response->getBody();
+
+            // 2. Prepare the login form data
+            $loginData = [
+                'IDToken0-0' => $groupCompanyCode,
+                'IDToken0' => $groupCompanyCode,
+                'IDToken1' => $groupCompanyCode . $username,
+                'IDToken2' => $password,
+                'Login.Submit' => 'ログイン',
+                'goto' => 'aHR0cDovL2ludHJhbG9naW4uZmMub2JheWFzaGkuY28uanAvY2dpLWJpbi9jbG9naW4uY2dpP2FjY2Vzcz1odHRwOi8vd3d3LmZjLm9iYXlhc2hpLmNvLmpwLw==',
+                'gotoOnFail' => '',
+                'SunQueryParamsString' => 'dHlwZT1vYmF5YXNoaQ==',
+                'encoded' => 'true',
+                'type' => 'obayashi',
+                'gx_charset' => 'UTF-8',
+                'IDButton' => 'ログイン',
+            ];
+
+            // 3. Submit the login form
+            $response = $this->client->post($loginUrl, [
+                'form_params' => $loginData,
+            ]);
+            dump("Login Status Code:", $response->getStatusCode());
+
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                // Optionally, make a subsequent request to the redirected URL to ensure login success
+                $successPageResponse = $this->client->get($successRedirectUrl);
+                dump("Success Page Status Code:", $successPageResponse->getStatusCode());
+                // You might want to check the content of $successPageResponse here to confirm login
+
+                $this->callFinalUrl();
+            } else {
+                // Login failed
+                $loginHtml = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'SJIS-win');
+                dd('Login failed.', $loginHtml);
+            }
+        } catch (GuzzleException $e) {
+            dd('An error occurred during login: ' . $e->getMessage());
+        }
+    }
+
+    private function callFinalUrl()
+    {
+        // 8. メールアドレス検索マニュアルページへのアクセス
+        $manualResponse = $this->client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
+        $manualHtml = (string) $manualResponse->getBody();
+        $manualHtml = mb_convert_encoding($manualHtml, 'UTF-8', 'shift_jis');
+        $manualPageCrawler = new Crawler($manualHtml);
+
+        // Extract the URL of the mokuji.htm frame
+        $mokujiFrameNode = $manualPageCrawler->filter('frame[name="mokuji"]');
+        if ($mokujiFrameNode->count() > 0) {
+            $mokujiSrc = $mokujiFrameNode->attr('src');
+            $mokujiUrl = "http://it-nw.isc.obayashi.co.jp/pick/manual/" . $mokujiSrc;
+
+            // Access the content of the mokuji.htm page
+            $mokujiResponse = $this->client->get($mokujiUrl);
+            $mokujiHtml = (string) $mokujiResponse->getBody();
+            $mokujiHtml = mb_convert_encoding($mokujiHtml, 'UTF-8', 'shift_jis');
+            $mokujiCrawler = new Crawler($mokujiHtml);
+
+            // 9. フォームの送信先 URL と hidden フィールドの値を取得
+            $formNode = $mokujiCrawler->filter('form[name="f"]');
+
+            if ($formNode->count() > 0) {
+                $formAction = $formNode->attr('action');
+                $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
+
+                $relativeUri = new Uri($formAction);
+                $baseUri = new Uri("http://it-nw.isc.obayashi.co.jp/pick/manual/");
+                $absoluteNextPageUrl = (string) UriResolver::resolve($baseUri, $relativeUri);
+
+                $formData = ['prev' => $prevValue];
+
+                // Make a POST request to ADDR000.aspx
+                $nextPageResponse = $this->client->request('POST', $absoluteNextPageUrl, [
+                    'form_params' => $formData,
+                ]);
+
+                if ($nextPageResponse) {
+                    $framesetPageUrl = "http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR000.aspx";
+                    $framesetResponse = $this->client->get($framesetPageUrl);
+
+                    if ($framesetResponse->getStatusCode() === 200) {
+                        $framesetHtml = (string) $framesetResponse->getBody();
+                        $framesetHtml = mb_convert_encoding($framesetHtml, 'UTF-8', 'shift_jis');
+                        dd('Frameset Page Content:', $framesetHtml);
+                    } else {
+                        dd('Failed to access frameset page:', $framesetResponse->getStatusCode(), (string) $framesetResponse->getBody());
+                    }
+
+                } else {
+                    dd('Error: Failed to get the page after form submission.');
+                }
+            } else {
+                dd('Error: Form with name "f" not found in mokuji.htm.');
+            }
+        } else {
+            dd('Error: Frame with name "mokuji" not found.');
+        }
+    }
+}
+
+
 ![image](https://github.com/user-attachments/assets/40300876-04bc-4fb2-b068-4b2300c32794)
 
 ![image](https://github.com/user-attachments/assets/d7def2e4-bfdd-40ab-89e9-3ded980fdac8)
