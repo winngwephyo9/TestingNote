@@ -1,5 +1,19 @@
 
-^ array:16 [▼
+  // **New Step: Initial GET request to the target domain**
+        try {
+            $initialPickResponse = $this->client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
+            dump("Initial GET to it-nw.isc.obayashi.co.jp status:", $initialPickResponse->getStatusCode());
+            $initialPickHtml = (string) $initialPickResponse->getBody();
+            // We don't necessarily need to parse this content yet
+        } catch (GuzzleException $e) {
+            dd("Error during initial GET to it-nw.isc.obayashi.co.jp: " . $e->getMessage());
+            return;
+        }array:16 [▼
+
+
+
+
+        
   0 => array:9 [▼
     "Name" => "amlbcookie"
     "Value" => "01"
