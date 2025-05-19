@@ -1,4 +1,11 @@
-private function callFinalUrl($client)
+An error occurred: Client error: `GET http://it-nw.isc.obayashi.co.jp/pick/ADDR001.aspx` resulted in a `404 Not Found` response:
+<html>
+    <head>
+        <title>リソースが見つかりませんでした。</title>
+        <style>
+         b (truncated...)
+            
+            private function callFinalUrl($client)
     {
         // 8. メールアドレス検索マニュアルページへのアクセス
         $manualResponse = $client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
