@@ -1,4 +1,96 @@
+private function callFinalUrl()
+    {
+        // **Step 1: Access the initial manual page (sets up the frameset)**
+        try {
+            $manualResponse = $this->client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
+            dump("Initial GET to addr_man.htm status:", $manualResponse->getStatusCode());
+            $manualHtml = (string) $manualResponse->getBody();
+            $manualHtml = mb_convert_encoding($manualHtml, 'UTF-8', 'shift_jis');
+            $manualPageCrawler = new Crawler($manualHtml);
 
+            // **Step 2: Access the mokuji.htm frame content**
+            $mokujiFrameSrc = $manualPageCrawler->filter('frame[name="mokuji"]')->attr('src');
+            $mokujiUrl = "http://it-nw.isc.obayashi.co.jp/pick/manual/" . $mokujiFrameSrc;
+            $mokujiResponse = $this->client->get($mokujiUrl);
+            $mokujiHtml = (string) $mokujiResponse->getBody();
+            $mokujiHtml = mb_convert_encoding($mokujiHtml, 'UTF-8', 'shift_jis');
+            $mokujiCrawler = new Crawler($mokujiHtml);
+
+            // **Step 3: Access the chuui.htm frame content (the 'naiyou' frame)**
+            $naiyouFrameSrc = $manualPageCrawler->filter('frame[name="naiyou"]')->attr('src');
+            $naiyouUrl = "http://it-nw.isc.obayashi.co.jp/pick/manual/" . $naiyouFrameSrc;
+            $naiyouResponse = $this->client->get($naiyouUrl);
+            dump("GET to naiyou frame (chuui.htm) status:", $naiyouResponse->getStatusCode());
+            $naiyouHtml = (string) $naiyouResponse->getBody();
+            // We might not need to parse this, just accessing it might be enough
+
+            // **Step 4: Find the form in mokuji.htm and submit it**
+            $formNode = $mokujiCrawler->filter('form[name="f"]');
+
+            if ($formNode->count() > 0) {
+                $formAction = $formNode->attr('action');
+                $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
+
+                $relativeUri = new Uri($formAction);
+                $baseUri = new Uri("http://it-nw.isc.obayashi.co.jp/pick/manual/");
+                $absoluteNextPageUrl = (string) UriResolver::resolve($baseUri, $relativeUri);
+
+                $formData = ['prev' => $prevValue];
+
+                // Make a POST request to ADDR000.aspx
+                $nextPageResponse = $this->client->request('POST', $absoluteNextPageUrl, [
+                    'form_params' => $formData,
+                ]);
+
+                if ($nextPageResponse) {
+                    $nextPageHtml = (string) $nextPageResponse->getBody();
+                    $nextPageHtml = mb_convert_encoding($nextPageHtml, 'UTF-8', 'shift_jis');
+                    dump("Response after POST to ADDR000.aspx:", $nextPageHtml);
+                    $nextPageCrawler = new Crawler($nextPageHtml);
+
+                    // Now, look for the frameset in the response of the POST request
+                    $framesetNodes = $nextPageCrawler->filter('frameset');
+
+                    if ($framesetNodes->count() > 0) {
+                        dd("Found frameset in the response of the POST request:", $nextPageHtml);
+                        // Extract frame URLs here as in the previous correct version
+                        $frameUrls = [];
+                        foreach ($nextPageCrawler->filter('frameset > frame') as $frameElement) {
+                            $frameUrls[] = "http://it-nw.isc.obayashi.co.jp/pick/" . $frameElement->getAttribute('src');
+                        }
+
+                        // Access and dump content of each frame
+                        foreach ($frameUrls as $frameUrl) {
+                            try {
+                                $frameResponse = $this->client->get($frameUrl);
+                                if ($frameResponse->getStatusCode() === 200) {
+                                    $frameHtml = (string) $frameResponse->getBody();
+                                    $frameHtml = mb_convert_encoding($frameHtml, 'UTF-8', 'shift_jis');
+                                    dd("フレーム {$frameUrl} の内容:", $frameHtml);
+                                } else {
+                                    dd("フレーム {$frameUrl} へのアクセスに失敗:", $frameResponse->getStatusCode(), (string) $frameResponse->getBody());
+                                }
+                            } catch (\GuzzleHttp\Exception\GuzzleException $e) {
+                                dd("フレーム {$frameUrl} へのアクセス中にエラーが発生:", $e->getMessage());
+                            }
+                        }
+                    } else {
+                        dd("Frameset not found in the response of the POST request.");
+                    }
+
+                } else {
+                    dd('Error: Failed to get the page after form submission.');
+                }
+            } else {
+                dd('Error: Form with name "f" not found in mokuji.htm.');
+            }
+        } catch (GuzzleException $e) {
+            dd("Error accessing addr_man.htm: " . $e->getMessage());
+        }
+    }
+
+
+    
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=shift_jis" />
