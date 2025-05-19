@@ -1,3 +1,176 @@
+
+^ array:16 [▼
+  0 => array:9 [▼
+    "Name" => "amlbcookie"
+    "Value" => "01"
+    "Domain" => ".obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  1 => array:9 [▼
+    "Name" => "JSESSIONID"
+    "Value" => "DB1EE4FFB8D497A01F67C3AE3C067208"
+    "Domain" => "login.fc.obayashi.co.jp"
+    "Path" => "/sso/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => true
+  ]
+  2 => array:9 [▼
+    "Name" => "iPlanetDirectoryPro"
+    "Value" => "AQIC5wM2LY4Sfcy_WrR2g002ZeJs7xhn3-hAV3R-vRiwVCc.*AAJTSQACMDMAAlNLABMxNzQwNjg1Njg0NjQ2MjYwNTgxAAJTMQACMDE.*"
+    "Domain" => ".obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  3 => array:9 [▼
+    "Name" => "AMAuthCookie"
+    "Value" => "LOGOUT"
+    "Domain" => ".obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => 10
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  4 => array:9 [▼
+    "Name" => "ID"
+    "Value" => "U53439"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  5 => array:9 [▼
+    "Name" => "userID"
+    "Value" => "53439"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  6 => array:9 [▼
+    "Name" => "secCode"
+    "Value" => "7"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  7 => array:9 [▼
+    "Name" => "staffCode"
+    "Value" => "0"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  8 => array:9 [▼
+    "Name" => "yakCode"
+    "Value" => "999"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  9 => array:9 [▼
+    "Name" => "jyuCode"
+    "Value" => "50"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  10 => array:9 [▶]
+  11 => array:9 [▼
+    "Name" => "multiCode"
+    "Value" => "0130"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  12 => array:9 [▼
+    "Name" => "RedirectID"
+    "Value" => "11010"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  13 => array:9 [▼
+    "Name" => "TAMURL"
+    "Value" => "http://www.fc.obayashi.co.jp/"
+    "Domain" => "obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  14 => array:9 [▼
+    "Name" => "X-Oracle-BMC-LBS-Route"
+    "Value" => "e6af554aec0684237958a20560a47c61088324f6"
+    "Domain" => "lbs3.fc.obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => "10800"
+    "Expires" => 1747650212
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+  15 => array:9 [▼
+    "Name" => "ASPSESSIONIDAABCDAAS"
+    "Value" => "AOGIIGPAHIKHMGILOGMICNCB"
+    "Domain" => "lbs3.fc.obayashi.co.jp"
+    "Path" => "/"
+    "Max-Age" => null
+    "Expires" => null
+    "Secure" => false
+    "Discard" => false
+    "HttpOnly" => false
+  ]
+]
+
+
+
+
 ^ "Response after POST to ADDR000.aspx:"
 ^ """
 
