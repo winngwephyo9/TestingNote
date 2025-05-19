@@ -1,4 +1,8 @@
+ dump("Initial GET to it-nw.isc.obayashi.co.jp status:", $initialPickResponse->getStatusCode());
+            dump("Initial GET redirect URL:", $initialPickResponse->getHeaderLine('Location'));
 
+
+            
   ^ "Response after POST to ADDR000.aspx:"
 ^ """
 
