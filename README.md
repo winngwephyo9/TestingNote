@@ -1,4 +1,68 @@
-class EmailDataScraperController extends Controller
+private function callFinalUrl($client)
+    {
+        // 8. メールアドレス検索マニュアルページへのアクセス
+        $manualResponse = $client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
+        $manualHtml = (string) $manualResponse->getBody();
+        $manualHtml = mb_convert_encoding($manualHtml, 'UTF-8', 'shift_jis');
+        $manualPageCrawler = new Crawler($manualHtml);
+
+        // Extract the URL of the mokuji.htm frame
+        $mokujiFrameNode = $manualPageCrawler->filter('frame[name="mokuji"]');
+        if ($mokujiFrameNode->count() > 0) {
+            $mokujiSrc = $mokujiFrameNode->attr('src');
+            $mokujiUrl = "http://it-nw.isc.obayashi.co.jp/pick/manual/" . $mokujiSrc;
+
+            // Access the content of the mokuji.htm page
+            $mokujiResponse = $client->get($mokujiUrl);
+            $mokujiHtml = (string) $mokujiResponse->getBody();
+            $mokujiHtml = mb_convert_encoding($mokujiHtml, 'UTF-8', 'shift_jis');
+            $mokujiCrawler = new Crawler($mokujiHtml);
+
+            // 9. フォームの送信先 URL と hidden フィールドの値を取得
+            $formNode = $mokujiCrawler->filter('form[name="f"]');
+
+            if ($formNode->count() > 0) {
+                $formAction = $formNode->attr('action');
+                $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
+
+                $relativeUri = new Uri($formAction);
+                $baseUri = new Uri("http://it-nw.isc.obayashi.co.jp/pick/manual/");
+                $absoluteNextPageUrl = (string) UriResolver::resolve($baseUri, $relativeUri);
+
+                $formData = ['prev' => $prevValue];
+
+                // Make a POST request to ADDR000.aspx
+                $nextPageResponse = $client->request('POST', $absoluteNextPageUrl, [
+                    'form_params' => $formData,
+                ]);
+
+                if ($nextPageResponse) {
+                    // Instead of directly accessing the frameset, we need to access the content of the desired frame.
+                    $jyokenFrameUrl = "http://it-nw.isc.obayashi.co.jp/pick/ADDR001.aspx"; // URL of the 'jyoken' frame
+                    $jyokenResponse = $client->get($jyokenFrameUrl);
+
+                    if ($jyokenResponse->getStatusCode() === 200) {
+                        $jyokenHtml = (string) $jyokenResponse->getBody();
+                        $jyokenHtml = mb_convert_encoding($jyokenHtml, 'UTF-8', 'shift_jis');
+                        dd('メールアドレス検索 Page Content:', $jyokenHtml);
+                    } else {
+                        dd('Failed to access jyoken frame:', $jyokenResponse->getStatusCode(), (string) $jyokenResponse->getBody());
+                    }
+
+                } else {
+                    dd('Error: Failed to get the page after form submission.');
+                }
+            } else {
+                dd('Error: Form with name "f" not found in mokuji.htm.');
+            }
+        } else {
+            dd('Error: Frame with name "mokuji" not found.');
+        }
+    }
+    
+    
+    
+    class EmailDataScraperController extends Controller
 {
     public function login()
     {
