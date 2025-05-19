@@ -1,3 +1,11 @@
+![image](https://github.com/user-attachments/assets/40300876-04bc-4fb2-b068-4b2300c32794)
+
+![image](https://github.com/user-attachments/assets/d7def2e4-bfdd-40ab-89e9-3ded980fdac8)
+
+After investigate, I clicked step by step to get this url, return the first folder and html file structure
+and I not clicked step by step, I call this url, return the second folder and file
+
+
 private function callFinalUrl($client)
     {
         // 8. メールアドレス検索マニュアルページへのアクセス
