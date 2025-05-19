@@ -1,3 +1,20 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=shift_jis">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>メールアドレス検索マニュアル</title>
+</head>
+
+<frameset rows="130,*">
+<frame src="mokuji.htm" name="mokuji">
+<frame src="chuui.htm" name="naiyou">
+</frameset><noframes></noframes>
+
+</html>
+
+
 
 ![image](https://github.com/user-attachments/assets/1c395b72-a54b-4971-be83-72266bf4f4d0)
 ^ "Success Page Status Code:"
