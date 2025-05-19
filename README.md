@@ -15,6 +15,59 @@
 </html>
 
 
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=shift_jis" />
+  <title>社内のたくさんの人に一度にまとめてメールを送信したい</title>
+<style>
+ h3 { color:white;background-color:brown; }
+ p.title { font-size:16px;background-color:cccccc;margin-top:37; }
+ p.chuui { font-size:16px;background-color:pink; }
+ p.copy { margin-top:5;margin-bottom:5;text-align:center;font-size:12px; }
+ hr { color:#996600; }
+</style>
+</head>
+<body onLoad="focus()">
+
+<table style="width:625px;">
+<tr><td valign="top">
+
+<h3>機能の概要と利用にあたっての注意事項（必ずお読みください）</h3>
+
+<p style="text-align:right;font-weight:bold;color:#ff0000;">関係者外秘 </p>
+
+<p class="title">メールアドレス検索の機能の概要</p>
+
+<ul>
+  <li><span style="color:#ff0000;">メールアドレス検索は一斉メール等のために、メールアドレスを検索・抽出するシステムです。</span></li>
+  <li>メールアドレス以外にも、個人コード、氏名、店コード、店名、組織コード、組織名、常設・現場、工事区分、在籍区分、職位、役職、従区分コード、従区分名、職種、内線、外線、勤務地を 検索・抽出することができます。</li>
+</ul>
+
+<p class="chuui">メールアドレス検索についての注意事項</p>
+<ul>
+  <li><span style="color:#ff0000;">検索結果のデータのメールアドレスなどは個人情報になります。また一覧データは当社の重要な情報です。取り扱いは十分注意してください。</span>そのため、利用者を制限させていただきます。</li>
+  <li>ここで作成した一覧データは、目的を達成し次第削除してください。また他の人にコピーを渡すことは行わないでください。</li>
+  <li><span style="color:#ff0000;">この検索はサーバに負荷を与えることから実行可能な時間帯を下記のとおりとしています。<br />
+    &nbsp; ８：００～１２：００、 １３：００～２３：３０</span>
+  </li>
+</ul>
+
+<p class="chuui">一斉メールについての注意事項</p>
+<ul>
+  <li><span style="color:#ff0000;">一斉メールもサーバに負荷がかかります。送信前に必ず</span>「5. 
+    <a href="issei.htm">社内のたくさんの人に一度にまとめてメールを送信したい</a>」<span style="color:#ff0000;">をお読みください。</span></li>
+  <li><span style="color:#ff0000;">関係ある人のみに正しい情報が届くように、時間のある時に急がずに行ってください。</span></li>
+</ul>
+
+<hr />
+<p class="copy">Copyright&copy; 2004-2018 Information Network Department, OBAYASHI Corporation All Rights Reserved.</p>
+
+</td></tr>
+</table>
+
+</body>
+</html>
+
 
 ![image](https://github.com/user-attachments/assets/1c395b72-a54b-4971-be83-72266bf4f4d0)
 ^ "Success Page Status Code:"
