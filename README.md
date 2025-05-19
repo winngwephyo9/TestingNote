@@ -1,3 +1,70 @@
+
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=shift_jis" />
+  <title>メールアドレス検索マニュアル</title>
+<script>
+function _submit() {
+    if (location.href.indexOf("secure.fc") != -1) {
+        f.action = "http://it-nw.isc.obayashi.co.jp/pick_new/frm/ADDR000.aspx";
+    }
+    f.submit();
+}
+function _close() {
+    top.window.close();
+}
+</script>
+<style>
+  ol { margin-top:2;margin-bottom:2; }
+  li { margin-top:2;margin-bottom:2; }
+  a { color:blue; }
+  a.chuui { color:red; }
+</style>
+</head>
+<body style="margin-top:5;margin-bottom:0;">
+
+<form method="POST" name="f" action="../frm/ADDR000.aspx" target="_top">
+<input type="hidden" id="prev" name="prev" value="addr_man" />
+
+<table cellspacing="0" style="width:100%;font-size:16;font-weight:bold;background-color:yellow;margin-top:0;margin-bottom:3;">
+  <tr>
+    <td>
+      メールアドレス検索 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <input type="button" value="検索画面に進む" onClick="_submit()" /> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+      <a href="faq.htm" target="naiyou">FAQ</a>
+    </td>
+    <td width="65" align="right">
+      <input type="button" value="閉じる" onClick="_close()" />
+    </td>
+  </tr>
+</table>
+
+<table cellspacing="0" cellpadding="0" style="font-size:16;">
+  <tr>
+    <td width="258" valign="top">
+      <ol>
+        <li><a href="chuui.htm" target="naiyou" class="chuui">機能の概要と利用にあたっての注意事項 （必ずお読みください）</a></li>
+        <li><a href="sousa.htm" target="naiyou">メールアドレス検索 操作方法</a> </li>
+        <li><a href="seigen.htm" target="naiyou">検索時の制限について</a></li>
+      </ol>
+    </td>
+    <td>
+      <ol start="4">
+        <li><a href="http://it.isc.obayashi.co.jp/tel_web/outlook_imp.html" target="naiyou">メールアドレスのOutlook連絡先へのインポート方法</a></li>
+        <li><a href="issei.htm" target="naiyou">社内のたくさんの人に一度にまとめてメールを送信したい</a></li>
+        <li><a href="hozon.htm" target="naiyou">検索条件の保存と読み込み</a></li>
+      </ol>
+    </td>
+  </tr>
+</table>
+
+</form>
+</body>
+</html>
+
+
+
+
 <html>
 
 <head>
