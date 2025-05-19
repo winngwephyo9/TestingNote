@@ -1,3 +1,37 @@
+^ "Success Page Status Code:"
+^ 200
+^ "Initial GET to addr_man.htm status:"
+^ 200
+^ "GET to naiyou frame (chuui.htm) status:"
+^ 200
+^ "Response after POST to ADDR000.aspx:"
+^ """
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>繝｡繝ｼ繝ｫ繧｢繝峨Ξ繧ｹ讀懃ｴ｢</title>
+<script type="text/javascript" language="javascript">
+//================================================================================================//
+function writePOSTData(obj, url) {
+    var strFormContents = '<form method="post" id="form1" name="form1" action="' + url + '" target="_self">' + "\n"
+    + '<input type="hidden" name="txtConditionFile" value="">' + "\n"
+    + '</form>';
+    obj.document.write(strFormContents);
+}
+//================================================================================================//
+</script>
+</head>
+
+<body>繝｡繝九Η繝ｼ逕ｻ髱｢繧医ｊ繧｢繧ｯ繧ｻ繧ｹ縺励※荳九＆縺???/body>
+
+</html>
+"""
+^ "Frameset not found in the response of the POST request."
+
+
 private function callFinalUrl()
     {
         // **Step 1: Access the initial manual page (sets up the frameset)**
