@@ -1,4 +1,8 @@
 
+![image](https://github.com/user-attachments/assets/9716f28c-ba46-45ff-a133-780e5ce52f1c)
+![image](https://github.com/user-attachments/assets/a36fbffa-0a56-453c-ac59-ae61854a498d)
+
+
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Uri\UriResolver;
 use Psr\Http\Message\RequestInterface;
