@@ -1,4 +1,91 @@
-An error occurred: Client error: `GET http://it-nw.isc.obayashi.co.jp/pick/ADDR001.aspx` resulted in a `404 Not Found` response:
+private function callFinalUrl($client)
+    {
+        // 8. メールアドレス検索マニュアルページへのアクセス
+        $manualResponse = $client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
+        $manualHtml = (string) $manualResponse->getBody();
+        $manualHtml = mb_convert_encoding($manualHtml, 'UTF-8', 'shift_jis');
+        $manualPageCrawler = new Crawler($manualHtml);
+
+        // Extract the URL of the mokuji.htm frame
+        $mokujiFrameNode = $manualPageCrawler->filter('frame[name="mokuji"]');
+        if ($mokujiFrameNode->count() > 0) {
+            $mokujiSrc = $mokujiFrameNode->attr('src');
+            $mokujiUrl = "http://it-nw.isc.obayashi.co.jp/pick/manual/" . $mokujiSrc;
+
+            // Access the content of the mokuji.htm page
+            $mokujiResponse = $client->get($mokujiUrl);
+            $mokujiHtml = (string) $mokujiResponse->getBody();
+            $mokujiHtml = mb_convert_encoding($mokujiHtml, 'UTF-8', 'shift_jis');
+            $mokujiCrawler = new Crawler($mokujiHtml);
+
+            // 9. フォームの送信先 URL と hidden フィールドの値を取得
+            $formNode = $mokujiCrawler->filter('form[name="f"]');
+
+            if ($formNode->count() > 0) {
+                $formAction = $formNode->attr('action');
+                $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
+
+                $relativeUri = new Uri($formAction);
+                $baseUri = new Uri("http://it-nw.isc.obayashi.co.jp/pick/manual/");
+                $absoluteNextPageUrl = (string) UriResolver::resolve($baseUri, $relativeUri);
+
+                $formData = ['prev' => $prevValue];
+
+                // Make a POST request to ADDR000.aspx
+                $nextPageResponse = $client->request('POST', $absoluteNextPageUrl, [
+                    'form_params' => $formData,
+                ]);
+
+                if ($nextPageResponse) {
+                    $nextPageHtml = (string) $nextPageResponse->getBody();
+                    $nextPageHtml = mb_convert_encoding($nextPageHtml, 'UTF-8', 'shift_jis');
+                    $nextPageCrawler = new Crawler($nextPageHtml);
+
+                    // アクセスを試みるフレームのURLを抽出
+                    $framesetPageUrl = "http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR000.aspx";
+                    $framesetResponse = $client->get($framesetPageUrl);
+
+                    if ($framesetResponse->getStatusCode() === 200) {
+                        $framesetHtml = (string) $framesetResponse->getBody();
+                        $framesetHtml = mb_convert_encoding($framesetHtml, 'UTF-8', 'shift_jis');
+                        $framesetCrawler = new Crawler($framesetHtml);
+
+                        // フレームセット内のすべてのフレームのsrc属性を抽出
+                        $frameUrls = [];
+                        foreach ($framesetCrawler->filter('frameset > frame') as $frameElement) {
+                            $frameUrls[] = "http://it-nw.isc.obayashi.co.jp/pick/" . $frameElement->getAttribute('src');
+                        }
+
+                        // 各フレームにアクセスして内容を表示
+                        foreach ($frameUrls as $frameUrl) {
+                            try {
+                                $frameResponse = $client->get($frameUrl);
+                                if ($frameResponse->getStatusCode() === 200) {
+                                    $frameHtml = (string) $frameResponse->getBody();
+                                    $frameHtml = mb_convert_encoding($frameHtml, 'UTF-8', 'shift_jis');
+                                    dd("フレーム {$frameUrl} の内容:", $frameHtml);
+                                } else {
+                                    dd("フレーム {$frameUrl} へのアクセスに失敗:", $frameResponse->getStatusCode(), (string) $frameResponse->getBody());
+                                }
+                            } catch (\GuzzleHttp\Exception\GuzzleException $e) {
+                                dd("フレーム {$frameUrl} へのアクセス中にエラーが発生:", $e->getMessage());
+                            }
+                        }
+                    } else {
+                        dd('フレームセットページへのアクセスに失敗:', $framesetResponse->getStatusCode(), (string) $framesetResponse->getBody());
+                    }
+
+                } else {
+                    dd('Error: Form with name "f" not found in mokuji.htm.');
+                }
+            } else {
+                dd('Error: Frame with name "mokuji" not found.');
+            }
+        }
+    }
+    
+    
+    An error occurred: Client error: `GET http://it-nw.isc.obayashi.co.jp/pick/ADDR001.aspx` resulted in a `404 Not Found` response:
 <html>
     <head>
         <title>リソースが見つかりませんでした。</title>
