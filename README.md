@@ -1,3 +1,31 @@
+^ "Response after POST to ADDR000.aspx:"
+^ """
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>メールアドレス検索</title>
+<script type="text/javascript" language="javascript">
+//================================================================================================//
+function writePOSTData(obj, url) {
+    var strFormContents = '<form method="post" id="form1" name="form1" action="' + url + '" target="_self">' + "\n"
+    + '<input type="hidden" name="txtConditionFile" value="">' + "\n"
+    + '</form>';
+    obj.document.write(strFormContents);
+}
+//================================================================================================//
+</script>
+</head>
+
+<body>メニュー画面よりアクセスして下さい。</body>
+
+</html>
+"""
+^ "Frameset not found in the response of the POST request."
+
+
 if ($nextPageResponse) {
                     $nextPageHtml = (string) $nextPageResponse->getBody();
                     $nextPageHtml = mb_convert_encoding($nextPageHtml, 'UTF-8', 'shift_jis');
