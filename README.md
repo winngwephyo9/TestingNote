@@ -1,3 +1,148 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>メールアドレス・電話番号　検索</title>
+<script>
+    function onCSVDownLoad() {
+        document.form1.submit();
+        return false;
+    }
+</script>
+<style type="text/css">
+  table { font-size:12px; }
+  #jyouken { background-color:#333366;width:100%; }
+  #jyouken th { text-align:left;border:none;background-color:#ccccff;font-weight:normal;vertical-align:top; }
+  #jyouken th.output { background-color:#666666;color:#ffffff; }
+  #jyouken td { border:none;background-color:#dddddd;vertical-align:top; }
+  .s1 { color:navy;font-size:13px; }
+</style>
+</head>
+<body>
+<div>
+
+
+以下の条件で検索しますがよろしいですか。<br />
+
+<table id="jyouken" cellpadding="0" cellspacing="1">
+  <colgroup>
+    <col style="width:40%" />
+    <col style="width:60%" />
+  </colgroup>
+  <tr><th>支店</th><td style="word-break:break-all;"></td></tr>
+  <tr><th>組織コード</th><td style="word-break:break-all;"></td></tr>
+  <tr><th>組織名</th><td style="word-break:break-all;"></td></tr>
+  <tr><th>常設・現場</th><td style="word-break:break-all;">現場</td></tr>
+  <tr><th>工事区分</th><td style="word-break:break-all;">国内土木</td></tr>
+  <tr><th>個人コード</th><td style="word-break:break-all;"></td></tr>
+  <tr>
+    <th>協力スタッフ</th>
+    <td style="word-break:break-all;">
+
+    </td>
+  </tr>
+  <tr><th>本務・兼務・他在籍・仮想在籍</th><td style="word-break:break-all;"></td></tr>
+  <tr><th>職位（セキュリティランク）</th><td style="word-break:break-all;"> ～ </td></tr>
+  <tr>
+    <th>役職</th>
+    <td style="word-break:break-all;">
+
+    </td>
+  </tr>
+  <tr>
+    <th>従区分名</th>
+    <td style="word-break:break-all;">
+
+    </td>
+  </tr>
+  <tr><th>職種</th><td style="word-break:break-all;"></td></tr>
+  <tr><th class="output">出力項目</th><td style="word-break:break-all;">個人コード</td></tr>
+</table>
+</div>
+
+3913件　検索時間：0.015秒　<br />
+
+<a href="javascript:void(0);" onclick="onCSVDownLoad();">CSV出力</a>
+
+ （クリックするとダウンロードを開始します。）<br />
+以上
+
+<form method="POST" id="form1" name="form1" action="ADDR103.aspx" target="_blank">
+<input type="hidden" id="chkTen_09" name="chkTen_09" value="0" />
+<input type="hidden" id="chkTen_11" name="chkTen_11" value="0" />
+<input type="hidden" id="chkTen_15" name="chkTen_15" value="0" />
+<input type="hidden" id="chkTen_10" name="chkTen_10" value="0" />
+<input type="hidden" id="chkTen_26" name="chkTen_26" value="0" />
+<input type="hidden" id="chkTen_12" name="chkTen_12" value="0" />
+<input type="hidden" id="chkTen_13" name="chkTen_13" value="0" />
+<input type="hidden" id="chkTen_14" name="chkTen_14" value="0" />
+<input type="hidden" id="chkTen_16" name="chkTen_16" value="0" />
+<input type="hidden" id="chkTen_17" name="chkTen_17" value="0" />
+<input type="hidden" id="chkTen_19" name="chkTen_19" value="0" />
+<input type="hidden" id="chkTen_27" name="chkTen_27" value="0" />
+<!--<input type="hidden" id="chkTen_30" name="chkTen_30" value="0" />-->
+<input type="hidden" id="chkTen_31" name="chkTen_31" value="0" />
+<input type="hidden" id="chkTen_32" name="chkTen_32" value="0">
+<input type="hidden" id="chkTen_46" name="chkTen_46" value="0" />
+<input type="hidden" id="chkTen_36" name="chkTen_36" value="0" />
+<input type="hidden" id="chkTen_66" name="chkTen_66" value="0" />
+<input type="hidden" id="txtSosikiCode" name="txtSosikiCode" value="" />
+<input type="hidden" id="txtSosikiName" name="txtSosikiName" value="" />
+<input type="hidden" id="chkJG_001" name="chkJG_001" value="0" />
+<input type="hidden" id="chkJG_002" name="chkJG_002" value="1" />
+<input type="hidden" id="chkKKubun_001" name="chkKKubun_001" value="1" />
+<input type="hidden" id="chkKKubun_002" name="chkKKubun_002" value="0" />
+<input type="hidden" id="chkKKubun_003" name="chkKKubun_003" value="0" />
+<input type="hidden" id="chkKKubun_004" name="chkKKubun_004" value="0" />
+<input type="hidden" id="txtKojinCode" name="txtKojinCode" value="" />
+<input type="hidden" id="rdoKyoryoku" name="rdoKyoryoku" value="0" />
+<input type="hidden" id="txtKyoryoku" name="txtKyoryoku" value="" />
+<input type="hidden" id="chkHonKen_001" name="chkHonKen_001" value="0" />
+<input type="hidden" id="chkHonKen_002" name="chkHonKen_002" value="0" />
+<input type="hidden" id="chkHonKen_003" name="chkHonKen_003" value="0" />
+<input type="hidden" id="chkHonKen_004" name="chkHonKen_004" value="0" />
+<input type="hidden" id="ddtSecRankS" name="ddtSecRankS" value="" />
+<input type="hidden" id="ddtSecRankE" name="ddtSecRankE" value="" />
+<input type="hidden" id="rdoYaku" name="rdoYaku" value="0" />
+<input type="hidden" id="txtYaku" name="txtYaku" value="" />
+<input type="hidden" id="rdoJuKubun" name="rdoJuKubun" value="0" />
+<input type="hidden" id="txtJuKubun" name="txtJuKubun" value="" />
+<input type="hidden" id="chkSyoku_001" name="chkSyoku_001" value="0" />
+<input type="hidden" id="chkSyoku_002" name="chkSyoku_002" value="0" />
+<input type="hidden" id="chkSyoku_003" name="chkSyoku_003" value="0" />
+<input type="hidden" id="chkSyoku_004" name="chkSyoku_004" value="0" />
+<input type="hidden" id="chkSyoku_005" name="chkSyoku_005" value="0" />
+<input type="hidden" id="chkSyoku_006" name="chkSyoku_006" value="0" />
+
+<input type="hidden" id="hidKojinCode" name="hidKojinCode" value="1" />
+<input type="hidden" id="hidHonken" name="hidHonken" value="0" />
+<input type="hidden" id="hidKojinName" name="hidKojinName" value="0" />
+<input type="hidden" id="hidKojinKana" name="hidKojinKana" value="0" />
+<input type="hidden" id="hidRank" name="hidRank" value="0" />
+<input type="hidden" id="hidMailAddress" name="hidMailAddress" value="0" />
+<input type="hidden" id="hidYaku" name="hidYaku" value="0" />
+<input type="hidden" id="hidTenCode" name="hidTenCode" value="0" />
+<input type="hidden" id="hidJukubun" name="hidJukubun" value="0" />
+<input type="hidden" id="hidTenMei" name="hidTenMei" value="0" />
+<input type="hidden" id="hidJukubunName" name="hidJukubunName" value="0" />
+<input type="hidden" id="hidSosikiCode" name="hidSosikiCode" value="0" />
+<input type="hidden" id="hidSyoku" name="hidSyoku" value="0" />
+<input type="hidden" id="hidSosikiMei" name="hidSosikiMei" value="0" />
+<input type="hidden" id="hidNaisen" name="hidNaisen" value="0" />
+<input type="hidden" id="hidJGKubun" name="hidJGKubun" value="0" />
+<input type="hidden" id="hidGaisen" name="hidGaisen" value="0" />
+<input type="hidden" id="hidKoujiKubun" name="hidKoujiKubun" value="0" />
+<input type="hidden" id="hidWorksite" name="hidWorksite" value="0" />
+</form>
+
+
+</body>
+</html>
+
+
 Expected CSV data in ADDR102.aspx response, but got: text/html; charset=utf-8
 
 if ($response->getStatusCode() === 200) {
