@@ -1,13 +1,16 @@
 <?php
 
+namespace App\Http\Controllers;
+
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\DomCrawler\Crawler;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\UriTemplate\UriTemplate;
+use Illuminate\Support\Facades\Storage;
 
-class ObayashiAddressSearcher
+class ObayashiAddressSearchController extends Controller
 {
     private $cookieJar;
     private $client;
@@ -38,7 +41,17 @@ class ObayashiAddressSearcher
         ]);
     }
 
-    public function login()
+    public function run()
+    {
+        try {
+            $this->login();
+        } catch (\Exception $e) {
+            return 'Error: ' . $e->getMessage();
+        }
+        return 'CSV file downloaded and uploaded to Box successfully.';
+    }
+
+    private function login()
     {
         $loginUrl = 'http://login.fc.obayashi.co.jp/sso/UI/Login';
         $successRedirectUrl = 'http://www.fc.obayashi.co.jp/';
@@ -159,7 +172,7 @@ class ObayashiAddressSearcher
             if ($csvResponse->getStatusCode() === 200) {
                 $csvData = $csvResponse->getBody();
                 $this->uploadToBox($csvData, 'address_search_result.csv');
-                echo 'CSV file downloaded and uploaded to Box successfully.';
+                return 'CSV file downloaded and uploaded to Box successfully.';
             } else {
                 throw new \Exception("Error downloading CSV file: " . $csvResponse->getStatusCode());
             }
@@ -202,21 +215,7 @@ class ObayashiAddressSearcher
             throw new \Exception('Error communicating with Box API: ' . $e->getMessage());
         }
     }
-
-    public function run()
-    {
-        try {
-            $this->login();
-        } catch (\Exception $e) {
-            echo 'Error: ' . $e->getMessage() . PHP_EOL;
-        }
-    }
 }
-
-$searcher = new ObayashiAddressSearcher();
-$searcher->run();
-
-?>
 
 
 source code
