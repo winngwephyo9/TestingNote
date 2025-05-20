@@ -1,3 +1,94 @@
+payload
+xtSosikiCode
+txtSosikiName
+chkJG_002
+1
+chkKKubun_001
+1
+chkKKubun_003
+1
+txtKojinCode
+txtKyoryoku
+ddtSecRankS
+ddtSecRankE
+txtYaku
+txtJuKubun
+hidKojinCode
+1
+hidHonken
+hidKojinName
+hidKojinKana
+hidRank
+hidMailAddress
+hidYaku
+hidTenCode
+hidJukubun
+hidTenMei
+hidJukubunName
+hidSosikiCode
+hidSyoku
+hidSosikiMei
+hidNaisen
+hidJGKubun
+hidGaisen
+hidKoujiKubun
+hidWorksite
+
+header :
+Request URL
+http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR101.aspx
+Request method
+POST
+Status code
+200 OK
+Remote address
+127.0.0.1:9000
+Referrer policy
+strict-origin-when-cross-origin
+cache-control
+private
+connection
+close
+content-length
+6931
+content-type
+text/html; charset=utf-8
+date
+Tue, 20 May 2025 01:59:45 GMT
+server
+Microsoft-IIS/10.0
+x-aspnet-version
+2.0.50727
+x-powered-by
+ASP.NET
+accept
+text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+accept-encoding
+gzip, deflate
+accept-language
+ja,en-US;q=0.9,en;q=0.8
+cache-control
+no-cache
+content-length
+387
+content-type
+application/x-www-form-urlencoded
+cookie
+_ga=GA1.3.1806337504.1747208801; _ga_54DX7MV5YR=GS2.1.s1747214293$o2$g0$t1747214293$j60$l0$h0; amlbcookie=01; iPlanetDirectoryPro=AQIC5wM2LY4SfcxVOtB04BXH-vplR52rZinBXrcw8kAtNEw.*AAJTSQACMDMAAlNLABM0NzYxNzY3NjgyNTkyMzIzNjYyAAJTMQACMDE.*; ID=U53439; userID=53439; secCode=7; staffCode=0; yakCode=999; jyuCode=50; syoCode=09332; multiCode=0130; RedirectID=11010; TAMURL=http://www.fc.obayashi.co.jp/; ASP.NET_SessionId=lpa2o54535h1qe55i2yhaw55
+host
+it-nw.isc.obayashi.co.jp
+origin
+http://it-nw.isc.obayashi.co.jp
+pragma
+no-cache
+proxy-connection
+keep-alive
+referer
+http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR001.aspx
+upgrade-insecure-requests
+1
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36
 ![image](https://github.com/user-attachments/assets/84789764-db68-421b-a5ed-71f18e64541d)
 
 source code
