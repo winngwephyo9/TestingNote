@@ -1,3 +1,13 @@
+^ "Response"
+^ GuzzleHttp\Psr7\Stream {#928 ▼
+  -stream: stream resource @559 ▶}
+  -size: null
+  -seekable: true
+  -readable: true
+  -writable: true
+  -uri: "php://temp"
+  -customMetadata: []
+}
 
 
 
