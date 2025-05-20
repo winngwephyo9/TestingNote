@@ -1,3 +1,5 @@
+Expected CSV data in ADDR102.aspx response, but got: text/html; charset=utf-8
+
 if ($response->getStatusCode() === 200) {
             $contentType = $response->getHeaderLine('Content-Type');
             if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
