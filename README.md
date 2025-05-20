@@ -1,4 +1,19 @@
-<?php
+if ($response->getStatusCode() === 200) {
+            $contentType = $response->getHeaderLine('Content-Type');
+            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
+                $csvData = (string) $response->getBody();
+                $this->uploadToBox($csvData, 'address_search_result.csv');
+                return 'CSV file downloaded and uploaded to Box successfully.';
+            } else {
+                throw new \Exception("Expected CSV data in ADDR102.aspx response, but got: " . $contentType);
+            }
+        } else {
+            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
+        }
+        
+        
+        
+        <?php
 
 namespace App\Http\Controllers;
 
