@@ -1,3 +1,143 @@
+php artisan make:command ScrapeEmailData
+
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use App\Http\Controllers\EmailDataScraperController;
+use Illuminate\Support\Facades\Log;
+
+class ScrapeEmailData extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'scrape:emaildata';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Scrapes email data, uploads to Box, and notifies Teams';
+
+    /**
+     * Create a new command instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    /**
+     * Execute the console command.
+     *
+     * @return int
+     */
+    public function handle()
+    {
+        $this->info('Starting email data scraping process via command...');
+        Log::channel('scheduler')->info('ScrapeEmailData command initiated.'); // Using a dedicated log channel
+
+        try {
+            $scraperController = new EmailDataScraperController();
+            $result = $scraperController->scrapeAndStoreEmailData(); // This method now handles logging and Teams notification
+
+            if (strpos(strtolower($result), 'error') !== false) {
+                $this->error("Scraping process completed with errors: " . $result);
+                Log::channel('scheduler')->error("ScrapeEmailData command finished with error: " . $result);
+                return Command::FAILURE;
+            }
+
+            $this->info("Scraping process completed successfully: " . $result);
+            Log::channel('scheduler')->info("ScrapeEmailData command finished successfully: " . $result);
+            return Command::SUCCESS;
+
+        } catch (\Exception $e) {
+            $this->error('An unexpected error occurred: ' . $e->getMessage());
+            Log::channel('scheduler')->error('ScrapeEmailData command failed: ' . $e->getMessage() . PHP_EOL . $e->getTraceAsString());
+            // The controller's scrapeAndStoreEmailData should also send a Teams notification on error
+            return Command::FAILURE;
+        }
+    }
+}
+
+
+
+'channels' => [
+    // ... other channels
+    'scheduler' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/scheduler.log'),
+        'level' => 'info', // or 'debug'
+    ],
+],
+
+
+
+<?php
+
+namespace App\Console;
+
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+
+class Kernel extends ConsoleKernel
+{
+    /**
+     * The Artisan commands provided by your application.
+     *
+     * @var array
+     */
+    protected $commands = [
+        Commands\ScrapeEmailData::class, // Register your command
+    ];
+
+    /**
+     * Define the application's command schedule.
+     *
+     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
+     * @return void
+     */
+    protected function schedule(Schedule $schedule)
+    {
+        // Run on the 1st and 15th day of the month at 2:00 AM server time.
+        // Adjust day and time as needed.
+        $schedule->command('scrape:emaildata')
+                 ->twiceMonthly(1, 15, '02:00')
+                 ->timezone('Asia/Tokyo'); // Set your server's timezone or desired timezone
+                //  ->emailOutputOnFailure('your-admin-email@example.com'); // Optional: email if fails
+    }
+
+    /**
+     * Register the commands for the application.
+     *
+     * @return void
+     */
+    protected function commands()
+    {
+        $this->load(__DIR__.'/Commands');
+
+        require base_path('routes/console.php');
+    }
+}
+
+
+* * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
+
+
+
+
+
+
+
+
+
 <?php
 
 namespace App\Http\Controllers;
