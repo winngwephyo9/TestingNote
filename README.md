@@ -2,34 +2,51 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Common\Box;
+use App\Http\Controllers\Common\Box; // Assuming this Box class exists and handles Box API interactions
 use Illuminate\Http\Request;
-
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\DomCrawler\Crawler;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
-use App\Models\LoginModel;
+use App\Models\LoginModel; // Although not used in the provided snippet, keeping it if it's used elsewhere
 
 class EmailDataScraperController extends Controller
 {
     private $cookieJar;
     private $client;
-    private $username = '53439'; // 実際のユーザー名に置き換えてください
-    private $password = 'daiD627'; // 実際のパスワードに置き換えてください
-    private $groupCompanyCode = 'U'; // 必要なグループ会社コードに置き換えてください
-    // private $boxAccessToken = 'YOUR_BOX_ACCESS_TOKEN'; // あなたのBoxのアクセストークンに置き換えてください
-    // private $boxFolderId = '322230918978'; // 保存先のBoxフォルダIDに置き換えてください
-    // private $boxFolderId = '322352598808'; // 保存先のBoxフォルダIDに置き換えてください
-    private $boxFolderIdPhoneBookData = '322352598808';
-    private $boxFolderIdOrgInfo = '322352598808';
+    private $username;
+    private $password;
+    private $groupCompanyCode;
 
-    private $boxFolderIdOrgInfo_doboku = '322352598808';
+    // Box Folder IDs
+    private $boxFolderIdPhoneBookData;
+    private $boxFolderIdOrgInfo;
+    private $boxFolderIdOrgInfoDoboku;
+
+    // URLs
+    private const LOGIN_URL = 'http://login.fc.obayashi.co.jp/sso/UI/Login';
+    private const MANUAL_ADDR_MAN_URL = 'http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm';
+    private const MANUAL_MOKUJI_URL = 'http://it-nw.isc.obayashi.co.jp/pick/manual/mokuji.htm';
+    private const ADDR001_URL = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR001.aspx';
+    private const ADDR002_URL = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR002.aspx';
+    private const ADDR003_URL = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR003.aspx';
+    private const ADDR103_URL = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR103.aspx';
 
     public function __construct()
     {
+        // It's better to get these from environment variables or a configuration file
+        // For example: config('services.scraper.username'), config('services.scraper.password')
+        $this->username = env('SCRAPER_USERNAME', '53439');
+        $this->password = env('SCRAPER_PASSWORD', 'daiD627');
+        $this->groupCompanyCode = env('SCRAPER_GROUP_COMPANY_CODE', 'U');
+
+        $this->boxFolderIdPhoneBookData = env('BOX_FOLDER_ID_PHONE_BOOK_DATA', '322352598808');
+        $this->boxFolderIdOrgInfo = env('BOX_FOLDER_ID_ORG_INFO', '322352598808');
+        $this->boxFolderIdOrgInfoDoboku = env('BOX_FOLDER_ID_ORG_INFO_DOBOKU', '322352598808');
+
+
         $this->cookieJar = new CookieJar();
         $this->client = new Client([
             'cookies' => $this->cookieJar,
@@ -43,378 +60,254 @@ class EmailDataScraperController extends Controller
                 'Connection' => 'keep-alive',
                 'Origin' => 'http://login.fc.obayashi.co.jp',
                 'Pragma' => 'no-cache',
-                // 'Referer' => 'http://it-nw.isc.obayashi.co.jp/pick/manual/mokuji.htm',
                 'Referer' => 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR101.aspx',
                 'Upgrade-Insecure-Requests' => '1',
             ],
         ]);
     }
+
     public function scrapeAndStoreEmailData()
     {
-
         try {
             $this->login();
+            $this->callFinalUrl();
+            // All operations successful
+            return 'CSV files downloaded and uploaded to Box successfully.';
         } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::error('Scraping and storage failed: ' . $e->getMessage(), ['exception' => $e]);
             return 'Error: ' . $e->getMessage();
         }
-        return 'CSV file downloaded and uploaded to Box successfully.';
-
-
-        // return view('協力会社管理.partnerCompanyInfo');
     }
 
-    public function login()
+    private function getLoginFormParams(): array
     {
-        $loginUrl = 'http://login.fc.obayashi.co.jp/sso/UI/Login';
-        $successRedirectUrl = 'http://www.fc.obayashi.co.jp/';
+        return [
+            'IDToken0-0' => $this->groupCompanyCode,
+            'IDToken0' => $this->groupCompanyCode,
+            'IDToken1' => $this->groupCompanyCode . $this->username,
+            'IDToken2' => $this->password,
+            'Login.Submit' => 'ログイン',
+            'goto' => 'aHR0cDovL2ludHJhbG9naW4uZmMub2JheWFzaGkuY28uanAvY2dpLWJpbi9jbG9naW4uY2dpP2FjY2Vzcz1odHRwOi8vd3d3LmZjLm9iYXlhc2hpLmNvLmpwLw==',
+            'gotoOnFail' => '',
+            'SunQueryParamsString' => 'dHlwZT1vYmF5YXNoaQ==',
+            'encoded' => 'true',
+            'type' => 'obayashi',
+            'gx_charset' => 'UTF-8',
+            'IDButton' => 'ログイン',
+        ];
+    }
 
+    private function getSearchFormParamsPhoneBook(): array
+    {
+        return [
+            'chkTen_09' => '0', 'chkTen_11' => '0', 'chkTen_15' => '0', 'chkTen_10' => '0',
+            'chkTen_26' => '0', 'chkTen_12' => '0', 'chkTen_13' => '0', 'chkTen_14' => '0',
+            'chkTen_16' => '0', 'chkTen_17' => '0', 'chkTen_19' => '0', 'chkTen_27' => '0',
+            'chkTen_31' => '0', 'chkTen_32' => '0', 'chkTen_46' => '0', 'chkTen_36' => '0',
+            'chkTen_66' => '0', 'txtSosikiCode' => '', 'txtSosikiName' => '',
+            'chkJG_001' => '0', 'chkJG_002' => '1', // 現場
+            'chkKKubun_001' => '1', // 国内土木
+            'chkKKubun_002' => '0',
+            'chkKKubun_003' => '1', // 国内建築
+            'chkKKubun_004' => '0',
+            'txtKojinCode' => '', 'rdoKyoryoku' => '0', 'txtKyoryoku' => '',
+            'chkHonKen_001' => '0', 'chkHonKen_002' => '0', 'chkHonKen_003' => '0', 'chkHonKen_004' => '0',
+            'ddtSecRankS' => '', 'ddtSecRankE' => '', 'rdoYaku' => '0', 'txtYaku' => '',
+            'rdoJuKubun' => '0', 'txtJuKubun' => '',
+            'chkSyoku_001' => '0', 'chkSyoku_002' => '0', 'chkSyoku_003' => '0', 'chkSyoku_004' => '0',
+            'chkSyoku_005' => '0', 'chkSyoku_006' => '0',
+            'hidKojinCode' => '1', 'hidHonken' => '1', 'hidKojinName' => '1', 'hidKojinKana' => '0',
+            'hidRank' => '0', 'hidMailAddress' => '0', 'hidYaku' => '0', 'hidTenCode' => '1',
+            'hidJukubun' => '0', 'hidTenMei' => '1', 'hidJukubunName' => '0', 'hidSosikiCode' => '1',
+            'hidSyoku' => '1', 'hidSosikiMei' => '1', 'hidNaisen' => '0', 'hidJGKubun' => '1',
+            'hidGaisen' => '0', 'hidKoujiKubun' => '1', 'hidWorksite' => '0',
+        ];
+    }
+
+    private function getSearchFormParamsOrgInfo(): array
+    {
+        return [
+            'chkTen_09' => '0', 'chkTen_11' => '0', 'chkTen_15' => '0', 'chkTen_10' => '0',
+            'chkTen_26' => '0', 'chkTen_12' => '0', 'chkTen_13' => '0', 'chkTen_14' => '0',
+            'chkTen_16' => '0', 'chkTen_17' => '0', 'chkTen_19' => '0', 'chkTen_27' => '0',
+            'chkTen_31' => '0', 'chkTen_32' => '0', 'chkTen_46' => '0', 'chkTen_36' => '0',
+            'chkTen_66' => '0', 'txtSosikiCode' => '', 'txtSosikiName' => '',
+            'chkJG_001' => '0', 'chkJG_002' => '0', 'chkKKubun_001' => '0', 'chkKKubun_002' => '0',
+            'chkKKubun_003' => '0', 'chkKKubun_004' => '0', 'txtKojinCode' => '',
+            'rdoKyoryoku' => '0', 'txtKyoryoku' => '',
+            'chkHonKen_001' => '0', 'chkHonKen_002' => '0', 'chkHonKen_003' => '0', 'chkHonKen_004' => '0',
+            'ddtSecRankS' => '', 'ddtSecRankE' => '', 'rdoYaku' => '0', 'txtYaku' => '',
+            'rdoJuKubun' => '0', 'txtJuKubun' => '',
+            'chkSyoku_001' => '0', 'chkSyoku_002' => '0', 'chkSyoku_003' => '0', 'chkSyoku_004' => '0',
+            'chkSyoku_005' => '0', 'chkSyoku_006' => '0',
+            'hidKojinCode' => '0', 'hidHonken' => '0', 'hidKojinName' => '0', 'hidKojinKana' => '0',
+            'hidRank' => '0', 'hidMailAddress' => '0', 'hidYaku' => '0', 'hidTenCode' => '1',
+            'hidJukubun' => '0', 'hidTenMei' => '1', 'hidJukubunName' => '0', 'hidSosikiCode' => '1',
+            'hidSyoku' => '0', 'hidSosikiMei' => '1', 'hidNaisen' => '0', 'hidJGKubun' => '1',
+            'hidGaisen' => '0', 'hidKoujiKubun' => '1', 'hidWorksite' => '0',
+        ];
+    }
+
+    private function getSearchFormParamsOrgInfoDoboku(): array
+    {
+        return [
+            'chkTen_09' => '0', 'chkTen_11' => '0', 'chkTen_15' => '0', 'chkTen_10' => '0',
+            'chkTen_26' => '0', 'chkTen_12' => '0', 'chkTen_13' => '0', 'chkTen_14' => '0',
+            'chkTen_16' => '0', 'chkTen_17' => '0', 'chkTen_19' => '0', 'chkTen_27' => '0',
+            'chkTen_31' => '0', 'chkTen_32' => '0', 'chkTen_46' => '0', 'chkTen_36' => '0',
+            'chkTen_66' => '0', 'txtSosikiCode' => '', 'txtSosikiName' => '',
+            'chkJG_001' => '0', 'chkJG_002' => '0', 'chkKKubun_001' => '0', 'chkKKubun_002' => '0',
+            'chkKKubun_003' => '0', 'chkKKubun_004' => '0', 'txtKojinCode' => '',
+            'rdoKyoryoku' => '0', 'txtKyoryoku' => '',
+            'chkHonKen_001' => '1', // 本社 (assuming this is for doboku based on original code)
+            'chkHonKen_002' => '0', 'chkHonKen_003' => '0', 'chkHonKen_004' => '0',
+            'ddtSecRankS' => '', 'ddtSecRankE' => '', 'rdoYaku' => '0', 'txtYaku' => '',
+            'rdoJuKubun' => '0', 'txtJuKubun' => '',
+            'chkSyoku_001' => '0', 'chkSyoku_002' => '1', // 土木 (assuming this is for doboku based on original code)
+            'chkSyoku_003' => '0', 'chkSyoku_004' => '0', 'chkSyoku_005' => '0', 'chkSyoku_006' => '0',
+            'hidKojinCode' => '1', 'hidHonken' => '1', 'hidKojinName' => '1', 'hidKojinKana' => '0',
+            'hidRank' => '0', 'hidMailAddress' => '0', 'hidYaku' => '0', 'hidTenCode' => '1',
+            'hidJukubun' => '0', 'hidTenMei' => '1', 'hidJukubunName' => '0', 'hidSosikiCode' => '1',
+            'hidSyoku' => '0', 'hidSosikiMei' => '1', 'hidNaisen' => '0', 'hidJGKubun' => '1',
+            'hidGaisen' => '0', 'hidKoujiKubun' => '1', 'hidWorksite' => '0',
+        ];
+    }
+
+    public function login(): void
+    {
         try {
-            $response = $this->client->get($loginUrl);
-            $loginData = [
-                'IDToken0-0' => $this->groupCompanyCode,
-                'IDToken0' => $this->groupCompanyCode,
-                'IDToken1' => $this->groupCompanyCode . $this->username,
-                'IDToken2' => $this->password,
-                'Login.Submit' => 'ログイン',
-                'goto' => 'aHR0cDovL2ludHJhbG9naW4uZmMub2JheWFzaGkuY28uanAvY2dpLWJpbi9jbG9naW4uY2dpP2FjY2Vzcz1odHRwOi8vd3d3LmZjLm9iYXlhc2hpLmNvLmpwLw==',
-                'gotoOnFail' => '',
-                'SunQueryParamsString' => 'dHlwZT1vYmF5YXNoaQ==',
-                'encoded' => 'true',
-                'type' => 'obayashi',
-                'gx_charset' => 'UTF-8',
-                'IDButton' => 'ログイン',
-            ];
+            $response = $this->client->get(self::LOGIN_URL);
+            // Consider checking the initial response to ensure it's a login page
 
-            $response = $this->client->post($loginUrl, [
-                'form_params' => $loginData,
-            ]);
+            $loginData = $this->getLoginFormParams();
+            $response = $this->client->post(self::LOGIN_URL, ['form_params' => $loginData]);
 
-            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
-                $this->callFinalUrl();
-            } else {
+            if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
                 $loginHtml = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'SJIS-win');
-                throw new \Exception('Login failed: ' . $loginHtml);
+                throw new \Exception('Login failed. Status Code: ' . $response->getStatusCode() . ' Body: ' . $loginHtml);
             }
+            \Log::info('Successfully logged in.');
         } catch (GuzzleException $e) {
-            throw new \Exception('An error occurred during login: ' . $e->getMessage());
+            throw new \Exception('An error occurred during login: ' . $e->getMessage(), 0, $e);
         }
     }
 
-    private function callFinalUrl()
+    private function callFinalUrl(): void
     {
         try {
-            $this->client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm");
-            $mokujiResponse = $this->client->get("http://it-nw.isc.obayashi.co.jp/pick/manual/mokuji.htm");
+            $this->client->get(self::MANUAL_ADDR_MAN_URL);
+            $mokujiResponse = $this->client->get(self::MANUAL_MOKUJI_URL);
             $mokujiHtml = mb_convert_encoding((string) $mokujiResponse->getBody(), 'UTF-8', 'shift_jis');
             $mokujiCrawler = new Crawler($mokujiHtml);
             $formNode = $mokujiCrawler->filter('form[name="f"]');
+
+            if ($formNode->count() === 0) {
+                throw new \Exception('Form not found on mokuji.htm page.');
+            }
+
             $formAction = $formNode->attr('action');
             $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
-            $baseUri = new Uri("http://it-nw.isc.obayashi.co.jp/pick/manual/");
+            $baseUri = new Uri(self::MANUAL_MOKUJI_URL);
             $absoluteNextPageUrl = (string) UriResolver::resolve($baseUri, new Uri($formAction));
+
             $this->client->post($absoluteNextPageUrl, ['form_params' => ['prev' => $prevValue]]);
+
             $this->searchAndDownloadCsv();
             $this->eyachoData_1();
             $this->eyachoData_2();
+            \Log::info('Successfully navigated and prepared for data download.');
         } catch (GuzzleException $e) {
-            throw new \Exception("Error accessing manual pages: " . $e->getMessage());
+            throw new \Exception("Error accessing manual pages: " . $e->getMessage(), 0, $e);
+        } catch (\Exception $e) {
+            throw $e; // Re-throw specific exceptions caught within this method
         }
     }
 
-    private function searchAndDownloadCsv()
-    {
-        $searchUrl1 = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR001.aspx';
-        $this->client->post($searchUrl1, [
-            'form_params' => [
-                'chkJG_002' => '1', // 現場
-                'chkKKubun_001' => '1', // 国内土木
-                'chkKKubun_003' => '1', // 国内建築
-            ],
-        ]);
-
-        $searchUrl2 = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR002.aspx';
-        $this->client->post($searchUrl2, [
-            'form_params' => [
-                'chkKojinCode' => '1', // 個人コード
-                'chkKojinName' => '0', // 氏名 (チェックしない)
-            ],
-        ]);
-
-        $searchUrl3 = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR003.aspx';
-        $response = $this->client->post($searchUrl3);
-        if ($response->getStatusCode() !== 200) {
-            throw new \Exception("Error submitting search on ADDR003.aspx: " . $response->getStatusCode());
-        }
-
-        $searchResultUrl = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR103.aspx';
-        $response = $this->client->post($searchResultUrl, [
-            'form_params' => [
-                'chkTen_09' => '0',
-                'chkTen_11' => '0',
-                'chkTen_15' => '0',
-                'chkTen_10' => '0',
-                'chkTen_26' => '0',
-                'chkTen_12' => '0',
-                'chkTen_13' => '0',
-                'chkTen_14' => '0',
-                'chkTen_16' => '0',
-                'chkTen_17' => '0',
-                'chkTen_19' => '0',
-                'chkTen_27' => '0',
-                'chkTen_31' => '0',
-                'chkTen_32' => '0',
-                'chkTen_46' => '0',
-                'chkTen_36' => '0',
-                'chkTen_66' => '0',
-                'txtSosikiCode' => '',
-                'txtSosikiName' => '',
-                'chkJG_001' => '0',
-                'chkJG_002' => '1',
-                'chkKKubun_001' => '1',
-                'chkKKubun_002' => '0',
-                'chkKKubun_003' => '1',
-                'chkKKubun_004' => '0',
-                'txtKojinCode' => '',
-                'rdoKyoryoku' => '0',
-                'txtKyoryoku' => '',
-                'chkHonKen_001' => '0',
-                'chkHonKen_002' => '0',
-                'chkHonKen_003' => '0',
-                'chkHonKen_004' => '0',
-                'ddtSecRankS' => '',
-                'ddtSecRankE' => '',
-                'rdoYaku' => '0',
-                'txtYaku' => '',
-                'rdoJuKubun' => '0',
-                'txtJuKubun' => '',
-                'chkSyoku_001' => '0',
-                'chkSyoku_002' => '0',
-                'chkSyoku_003' => '0',
-                'chkSyoku_004' => '0',
-                'chkSyoku_005' => '0',
-                'chkSyoku_006' => '0',
-                'hidKojinCode' => '1',
-                'hidHonken' => '1',
-                'hidKojinName' => '1',
-                'hidKojinKana' => '0',
-                'hidRank' => '0',
-                'hidMailAddress' => '0',
-                'hidYaku' => '0',
-                'hidTenCode' => '1',
-                'hidJukubun' => '0',
-                'hidTenMei' => '1',
-                'hidJukubunName' => '0',
-                'hidSosikiCode' => '1',
-                'hidSyoku' => '1',
-                'hidSosikiMei' => '1',
-                'hidNaisen' => '0',
-                'hidJGKubun' => '1',
-                'hidGaisen' => '0',
-                'hidKoujiKubun' => '1',
-                'hidWorksite' => '0',
-            ],
-        ]);
-
-        if ($response->getStatusCode() === 200) {
-            $contentType = $response->getHeaderLine('Content-Type');
-            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
-                $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
-                $fileName = '電話帳Data_' . date('Ymd') . '.csv';
-                $this->uploadToBox($this->boxFolderIdPhoneBookData, $csvData, $fileName);
-                // $box = new Box();
-                // $box->upload_file($this->boxFolderId, $csvData, 'address_search_result.csv');
-                dump('CSV file downloaded and uploaded to Box successfully.');
-            } else {
-                throw new \Exception("Expected CSV data in ADDR102.aspx response, but got: " . $contentType);
-            }
-        } else {
-            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
-        }
-    }
-
-    private function eyachoData_1()
-    {
-        $searchResultUrl = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR103.aspx';
-        $response = $this->client->post($searchResultUrl, [
-            'form_params' => [
-                'chkTen_09' => '0',
-                'chkTen_11' => '0',
-                'chkTen_15' => '0',
-                'chkTen_10' => '0',
-                'chkTen_26' => '0',
-                'chkTen_12' => '0',
-                'chkTen_13' => '0',
-                'chkTen_14' => '0',
-                'chkTen_16' => '0',
-                'chkTen_17' => '0',
-                'chkTen_19' => '0',
-                'chkTen_27' => '0',
-                'chkTen_31' => '0',
-                'chkTen_32' => '0',
-                'chkTen_46' => '0',
-                'chkTen_36' => '0',
-                'chkTen_66' => '0',
-                'txtSosikiCode' => '',
-                'txtSosikiName' => '',
-                'chkJG_001' => '0',
-                'chkJG_002' => '0',
-                'chkKKubun_001' => '0',
-                'chkKKubun_002' => '0',
-                'chkKKubun_003' => '0',
-                'chkKKubun_004' => '0',
-                'txtKojinCode' => '',
-                'rdoKyoryoku' => '0',
-                'txtKyoryoku' => '',
-                'chkHonKen_001' => '0',
-                'chkHonKen_002' => '0',
-                'chkHonKen_003' => '0',
-                'chkHonKen_004' => '0',
-                'ddtSecRankS' => '',
-                'ddtSecRankE' => '',
-                'rdoYaku' => '0',
-                'txtYaku' => '',
-                'rdoJuKubun' => '0',
-                'txtJuKubun' => '',
-                'chkSyoku_001' => '0',
-                'chkSyoku_002' => '0',
-                'chkSyoku_003' => '0',
-                'chkSyoku_004' => '0',
-                'chkSyoku_005' => '0',
-                'chkSyoku_006' => '0',
-                'hidKojinCode' => '0',
-                'hidHonken' => '0',
-                'hidKojinName' => '0',
-                'hidKojinKana' => '0',
-                'hidRank' => '0',
-                'hidMailAddress' => '0',
-                'hidYaku' => '0',
-                'hidTenCode' => '1',
-                'hidJukubun' => '0',
-                'hidTenMei' => '1',
-                'hidJukubunName' => '0',
-                'hidSosikiCode' => '1',
-                'hidSyoku' => '0',
-                'hidSosikiMei' => '1',
-                'hidNaisen' => '0',
-                'hidJGKubun' => '1',
-                'hidGaisen' => '0',
-                'hidKoujiKubun' => '1',
-                'hidWorksite' => '0',
-            ],
-        ]);
-
-        if ($response->getStatusCode() === 200) {
-            $contentType = $response->getHeaderLine('Content-Type');
-            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
-                $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
-                $fileName = '組織情報_' . date('Ymd') . '.csv';
-                $this->uploadToBox($this->boxFolderIdOrgInfo, $csvData, $fileName);
-                dump('CSV file downloaded and uploaded to Box successfully.');
-            } else {
-                throw new \Exception("Expected CSV data in ADDR102.aspx response, but got: " . $contentType);
-            }
-        } else {
-            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
-        }
-    }
-
-    private function eyachoData_2()
-    {
-        $searchResultUrl = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR103.aspx';
-        $response = $this->client->post($searchResultUrl, [
-            'form_params' => [
-                'chkTen_09' => '0',
-                'chkTen_11' => '0',
-                'chkTen_15' => '0',
-                'chkTen_10' => '0',
-                'chkTen_26' => '0',
-                'chkTen_12' => '0',
-                'chkTen_13' => '0',
-                'chkTen_14' => '0',
-                'chkTen_16' => '0',
-                'chkTen_17' => '0',
-                'chkTen_19' => '0',
-                'chkTen_27' => '0',
-                'chkTen_31' => '0',
-                'chkTen_32' => '0',
-                'chkTen_46' => '0',
-                'chkTen_36' => '0',
-                'chkTen_66' => '0',
-                'txtSosikiCode' => '',
-                'txtSosikiName' => '',
-                'chkJG_001' => '0',
-                'chkJG_002' => '0',
-                'chkKKubun_001' => '0',
-                'chkKKubun_002' => '0',
-                'chkKKubun_003' => '0',
-                'chkKKubun_004' => '0',
-                'txtKojinCode' => '',
-                'rdoKyoryoku' => '0',
-                'txtKyoryoku' => '',
-                'chkHonKen_001' => '1',
-                'chkHonKen_002' => '0',
-                'chkHonKen_003' => '0',
-                'chkHonKen_004' => '0',
-                'ddtSecRankS' => '',
-                'ddtSecRankE' => '',
-                'rdoYaku' => '0',
-                'txtYaku' => '',
-                'rdoJuKubun' => '0',
-                'txtJuKubun' => '',
-                'chkSyoku_001' => '0',
-                'chkSyoku_002' => '1',
-                'chkSyoku_003' => '0',
-                'chkSyoku_004' => '0',
-                'chkSyoku_005' => '0',
-                'chkSyoku_006' => '0',
-                'hidKojinCode' => '1',
-                'hidHonken' => '1',
-                'hidKojinName' => '1',
-                'hidKojinKana' => '0',
-                'hidRank' => '0',
-                'hidMailAddress' => '0',
-                'hidYaku' => '0',
-                'hidTenCode' => '1',
-                'hidJukubun' => '0',
-                'hidTenMei' => '1',
-                'hidJukubunName' => '0',
-                'hidSosikiCode' => '1',
-                'hidSyoku' => '0',
-                'hidSosikiMei' => '1',
-                'hidNaisen' => '0',
-                'hidJGKubun' => '1',
-                'hidGaisen' => '0',
-                'hidKoujiKubun' => '1',
-                'hidWorksite' => '0',
-            ],
-        ]);
-
-        if ($response->getStatusCode() === 200) {
-            $contentType = $response->getHeaderLine('Content-Type');
-            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
-                $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
-                $fileName = '組織情報＿土木_' . date('Ymd') . '.csv';
-                $this->uploadToBox($this->boxFolderIdOrgInfo_doboku, $csvData, $fileName);
-                // $box = new Box();
-                // $box->upload_file($this->boxFolderId, $csvData, 'address_search_result.csv');
-                dump('CSV file downloaded and uploaded to Box successfully.');
-            } else {
-                throw new \Exception("Expected CSV data in ADDR102.aspx response, but got: " . $contentType);
-            }
-        } else {
-            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
-        }
-    }
-
-    private  function uploadToBox($folder_id, $upload_file, $upload_file_name)
+    private function searchAndDownloadCsv(): void
     {
         try {
-            $request_url    = 'https://upload.box.com/api/2.0/files/content';
-            $access_token   = session('access_token');
-            $header         = [
+            $this->client->post(self::ADDR001_URL, [
+                'form_params' => [
+                    'chkJG_002' => '1', // 現場
+                    'chkKKubun_001' => '1', // 国内土木
+                    'chkKKubun_003' => '1', // 国内建築
+                ],
+            ]);
+
+            $this->client->post(self::ADDR002_URL, [
+                'form_params' => [
+                    'chkKojinCode' => '1', // 個人コード
+                    'chkKojinName' => '0', // 氏名 (チェックしない)
+                ],
+            ]);
+
+            $response = $this->client->post(self::ADDR003_URL);
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception("Error submitting search on ADDR003.aspx: " . $response->getStatusCode());
+            }
+
+            $response = $this->client->post(self::ADDR103_URL, ['form_params' => $this->getSearchFormParamsPhoneBook()]);
+
+            $this->handleCsvDownload($response, $this->boxFolderIdPhoneBookData, '電話帳Data_');
+            \Log::info('Phone book data CSV downloaded and uploaded.');
+        } catch (GuzzleException $e) {
+            throw new \Exception("Error during phone book CSV search and download: " . $e->getMessage(), 0, $e);
+        }
+    }
+
+    private function eyachoData_1(): void
+    {
+        try {
+            $response = $this->client->post(self::ADDR103_URL, ['form_params' => $this->getSearchFormParamsOrgInfo()]);
+            $this->handleCsvDownload($response, $this->boxFolderIdOrgInfo, '組織情報_');
+            \Log::info('Organization info data CSV (type 1) downloaded and uploaded.');
+        } catch (GuzzleException $e) {
+            throw new \Exception("Error during organization info CSV (type 1) search and download: " . $e->getMessage(), 0, $e);
+        }
+    }
+
+    private function eyachoData_2(): void
+    {
+        try {
+            $response = $this->client->post(self::ADDR103_URL, ['form_params' => $this->getSearchFormParamsOrgInfoDoboku()]);
+            $this->handleCsvDownload($response, $this->boxFolderIdOrgInfoDoboku, '組織情報＿土木_');
+            \Log::info('Organization info data CSV (type 2) downloaded and uploaded.');
+        } catch (GuzzleException $e) {
+            throw new \Exception("Error during organization info CSV (type 2) search and download: " . $e->getMessage(), 0, $e);
+        }
+    }
+
+    private function handleCsvDownload($response, string $folderId, string $filePrefix): void
+    {
+        if ($response->getStatusCode() === 200) {
+            $contentType = $response->getHeaderLine('Content-Type');
+            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
+                $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
+                $fileName = $filePrefix . date('Ymd') . '.csv';
+                $this->uploadToBox($folderId, $csvData, $fileName);
+                dump("{$fileName} downloaded and uploaded to Box successfully.");
+            } else {
+                throw new \Exception("Expected CSV data in response, but got: " . $contentType);
+            }
+        } else {
+            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
+        }
+    }
+
+    private function uploadToBox(string $folder_id, string $upload_file, string $upload_file_name): void
+    {
+        try {
+            $request_url = 'https://upload.box.com/api/2.0/files/content';
+            $access_token = session('access_token'); // Ensure this session variable is set
+            if (!$access_token) {
+                throw new \Exception('Box access token not found in session.');
+            }
+
+            $header = [
                 "Authorization" => "Bearer " . $access_token,
             ];
-            $multipart      =  [
+            $multipart =  [
                 [
                     'name'     => 'attributes',
                     'contents' => json_encode([
@@ -427,15 +320,43 @@ class EmailDataScraperController extends Controller
                     'contents' => $upload_file,
                     'filename' => $upload_file_name,
                 ]
-
             ];
-            $client         = new \GuzzleHttp\Client();
-            $response       = $client->request('POST', $request_url, [
+
+            $client = new \GuzzleHttp\Client();
+            $response = $client->request('POST', $request_url, [
                 'headers'   => $header,
                 'multipart' => $multipart
             ]);
+
+            if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
+                throw new \Exception('Failed to upload file to Box. Status Code: ' . $response->getStatusCode() . ' Body: ' . $response->getBody());
+            }
+            \Log::info("File '{$upload_file_name}' uploaded to Box folder '{$folder_id}' successfully.");
         } catch (GuzzleException $e) {
-            throw new \Exception($e);
+            throw new \Exception("Error uploading to Box: " . $e->getMessage(), 0, $e);
+        } catch (\Exception $e) {
+            throw $e; // Re-throw other exceptions
         }
     }
 }
+
+
+
+
+
+// app/Console/Kernel.php
+
+protected function schedule(Schedule $schedule): void
+{
+    // Schedule to run on the 1st and 15th of every month at a specific time (e.g., 2:00 AM)
+    $schedule->call([app(App\Http\Controllers\EmailDataScraperController::class), 'scrapeAndStoreEmailData'])
+             ->monthlyOn(1, '02:00')
+             ->monthlyOn(15, '02:00')
+             ->timezone('Asia/Tokyo') // Set the timezone to JST
+             ->sendOutputTo(storage_path('logs/email_scraper.log')) // Optional: log output
+             ->emailOutputOnFailure('your_email@example.com'); // Optional: email on failure
+}
+
+
+
+* * * * * cd /path-to-your-laravel-project && php artisan schedule:run >> /dev/null 2>&1
