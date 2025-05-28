@@ -1,3 +1,10 @@
+    if ($request->header('X-API-KEY') !== $this->apiKey) {
+        Log::warning('API call with invalid API Key. Expected: [' . $this->apiKey . '], Received: [' . $request->header('X-API-KEY') . ']'); // Modified Log
+        return Response::json(['error' => 'Unauthorized: Invalid API Key'], 401);
+    }
+
+
+
 <?php
 
 // Add these at the top if not already there
