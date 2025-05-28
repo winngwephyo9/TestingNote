@@ -1,7 +1,16 @@
 {
-    "fileName": "電話帳Data_20231027_103045.csv",
-    "csvData": "column1,column2\r\ndata1,data2",
-    "boxFolderId": "322352598808"
+    "type": "object",
+    "properties": {
+        "fileName": {
+            "type": "string"
+        },
+        "csvData": {
+            "type": "string"
+        },
+        "boxFolderId": {
+            "type": "string"
+        }
+    }
 }
 
 
