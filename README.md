@@ -1,4 +1,7 @@
-    if ($request->header('X-API-KEY') !== $this->apiKey) {
+ Action 'HTTP_1' failed: The provided 'Http' action URI 'http://localhost:8080/ccc/admin/scrape-email-data' is not valid. The URI must be a well formed absolute URI not referencing local host or UNC path.
+
+
+   if ($request->header('X-API-KEY') !== $this->apiKey) {
         Log::warning('API call with invalid API Key. Expected: [' . $this->apiKey . '], Received: [' . $request->header('X-API-KEY') . ']'); // Modified Log
         return Response::json(['error' => 'Unauthorized: Invalid API Key'], 401);
     }
