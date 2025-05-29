@@ -1,3 +1,11 @@
+私たちのPCにインストールされている Zscalerというセキュリティシステム（特にZscaler Private Accessという機能）が、社内専用の「電話帳」（内部DNS）へのアクセスを仲介しているためです。Zscalerを通じて、私たちのPCはログインサービスの正しい社内「内線番号」（100.64.1.12のような、インターネットからは直接見えないIPアドレス）を知ることができます。
+Azure上のアプリケーションには、このZscalerの仲介機能がありません。そのため、公共の「電話帳」しか見ることができず、社内専用の「内線番号」を見つけることができません。これが、Azureのアプリケーションがログインサービスに接続できない根本的な原因です。
+この問題を解決するためには、主に2つの方向性があります。これはログインサービスを管理しているITチームと相談する必要があります。
+サービスを（限定的にでも）公開する: ログインサービスに、Azureアプリケーションからもアクセス可能な、何らかの形で公開された「連絡先」（公開IPアドレスや特別な設定）を設けてもらう。
+Azureと社内ネットワークを専用線で繋ぐ: 私たちのAzureアプリケーションから社内ネットワークへ、安全な専用の「電話回線」（VPNやExpressRouteなど）を確立します。そして、Azureアプリケーションも社内の「電話帳」を使えるように設定します。
+次のステップとして、このZscalerの状況とAzureの課題を踏まえ、login.fc.obayashi.co.jpを管理しているITチームに相談し、Azureアプリケーションからの安全な接続方法について最善の解決策を決定したいと考えております。
+
+
 Okay, explaining this to a non-technical leader requires simplifying the core concepts. Here's how you can phrase it in English and Japanese, focusing on the main facts:
 
 Key Facts to Convey:
