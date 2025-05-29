@@ -1,3 +1,17 @@
+nslookup login.fc.obayashi.co.jp
+サーバー:  mobileap.qualcomm.com
+Address:  192.168.0.1
+
+DNS request timed out.
+    timeout was 2 seconds.
+DNS request timed out.
+    timeout was 2 seconds.
+権限のない回答:
+名前:    kite00.fc.obayashi.co.jp
+Address:  100.64.1.12
+Aliases:  login.fc.obayashi.co.jp
+
+
 C:\home>nameresolver.exe login.fc.obayashi.co.jp
 Server: 168.63.129.16
 
