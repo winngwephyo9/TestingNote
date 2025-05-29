@@ -1,4 +1,11 @@
- Action 'HTTP_1' failed: The provided 'Http' action URI 'http://localhost:8080/ccc/admin/scrape-email-data' is not valid. The URI must be a well formed absolute URI not referencing local host or UNC path.
+composer require symfony/dom-crawler
+
+API call received for report type: org_info  
+[2025-05-29 11:50:01] local.ERROR: Guzzle error during login: cURL error 6: Could not resolve host: login.fc.obayashi.co.jp (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) {"exception":"[object] (GuzzleHttp\\Exception\\ConnectException(code: 0): cURL error 6: Could not resolve host: login.fc.obayashi.co.jp (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) at C:\\home\\site\\wwwroot\\ccc\\vendor\\guzzlehttp\\guzzle\\src\\Handler\\CurlFactory.php:200)
+[stacktrace]
+
+
+Action 'HTTP_1' failed: The provided 'Http' action URI 'http://localhost:8080/ccc/admin/scrape-email-data' is not valid. The URI must be a well formed absolute URI not referencing local host or UNC path.
 
 
    if ($request->header('X-API-KEY') !== $this->apiKey) {
