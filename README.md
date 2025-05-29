@@ -1,3 +1,173 @@
+Okay, explaining this to a non-technical leader requires simplifying the core concepts. Here's how you can phrase it in English and Japanese, focusing on the main facts:
+
+Key Facts to Convey:
+
+The Problem: Our Azure application cannot find the login service (login.fc.obayashi.co.jp) on the internet.
+
+Why it works locally: Your computer can find it because it uses a special, private "address book" (DNS) that's not available to the public internet (where our Azure app lives).
+
+The Address: The login service has an "address" (100.64.1.12) that is like an internal company phone extension – not a public phone number.
+
+The Solution (Concept): To fix this, we either need:
+
+The login service to get a public "phone number" (public IP and DNS).
+
+Or, our Azure application needs a secure, private "phone line" (VPN/ExpressRoute and internal DNS) to connect to the company's internal network.
+
+Next Step: We need to talk to the IT team managing the login service to decide which solution is best and how to implement it.
+
+English Explanation for a Non-Technical Leader:
+
+"Hi [Leader's Name],
+
+We've identified an issue where our new Azure application is unable to connect to the login.fc.obayashi.co.jp login service.
+
+Essentially, our Azure application, which lives on the public internet, is trying to look up this login service in the public 'phone book' (public DNS), but it's finding that the address isn't listed there, or the listing says the address doesn't exist for public access.
+
+You might have noticed that this login service works fine from your local computer. This is because your computer (or our office network) uses a special, private 'company phone book' (internal DNS). This private phone book has the correct internal 'extension number' (an IP address like 100.64.1.12) for the login service. This internal extension isn't something the public internet, and therefore our Azure application, can directly dial.
+
+To solve this, we have a couple of main options that we need to discuss with the IT team responsible for the login service:
+
+Make it Public: They could give the login service a proper public 'phone number' (a public IP address and public DNS record) so our Azure application can easily find and connect to it.
+
+Create a Private Connection: We could set up a secure, private 'phone line' (like a VPN or a dedicated ExpressRoute connection) from our Azure application directly into the company's internal network. Our Azure app would then also use the company's internal 'phone book' to find the login service. This is more complex but might be necessary if the service must remain internal.
+
+Our next step is to consult with the IT team that manages login.fc.obayashi.co.jp to determine the best way forward. This is more of a networking and infrastructure matter than a simple application bug.
+
+Please let me know if you'd like more details."
+
+Japanese Explanation for a Non-Technical Leader (日本語での説明):
+
+「[リーダーの名前]様
+
+Azureで開発中のアプリケーションが、ログインサービス（login.fc.obayashi.co.jp）に接続できない問題が判明しましたのでご報告します。
+
+簡単に申しますと、私たちのAzureアプリケーションはインターネット上にあり、このログインサービスを公共の「電話帳」（パブリックDNS）で探そうとしています。しかし、その「電話帳」にはこのサービスのアドレスが載っていない、あるいは「このアドレスは公開されていません」と表示されてしまう状態です。
+
+[リーダーの名前]様のローカルPCからはこのログインサービスが問題なく動作することにお気づきかもしれません。これは、ローカルPCや社内ネットワークが、特別な社内専用の「電話帳」（内部DNS）を使用しているためです。この社内「電話帳」には、ログインサービスの正しい社内「内線番号」（100.64.1.12のようなIPアドレス）が記録されています。この「内線番号」は、インターネット上のAzureアプリケーションからは直接ダイヤルできないものとお考えください。
+
+この問題を解決するためには、主に2つの選択肢があり、ログインサービスを管理しているITチームと相談する必要があります。
+
+サービスを公開する: ログインサービスに正式な公共の「電話番号」（公開IPアドレスと公開DNSレコード）を割り当ててもらう方法です。これにより、私たちのAzureアプリケーションが簡単に見つけて接続できるようになります。
+
+プライベートな接続を確立する: 私たちのAzureアプリケーションから社内のネットワークへ、安全な専用の「電話回線」（VPNや専用線であるExpressRouteなど）を設ける方法です。そして、Azureアプリケーションも社内の「電話帳」を使ってログインサービスを探せるようにします。これは少し複雑になりますが、サービスを社内向けに限定する必要がある場合には有効な手段です。
+
+次のステップとして、login.fc.obayashi.co.jpを管理しているITチームに相談し、最善の解決策を決定したいと考えております。これは単純なアプリケーションの不具合というよりは、ネットワークやインフラに関わる問題です。
+
+ご不明な点がございましたら、お気軽にお尋ねください。」
+
+Key phrases and their simpler analogies:
+
+DNS (Domain Name System): "Address book" or "Phone book" (電話帳 - denwachou)
+
+IP Address: "Address" or "Phone number" / "Extension number" (住所 - juusho / 電話番号 - denwa bangou / 内線番号 - naisen bangou)
+
+Public DNS / Public IP: Accessible by anyone on the internet. (公共の - koukyou no)
+
+Internal DNS / Private IP / CGNAT IP: Only accessible from within a specific private network. (社内の - shanai no / 内部の - naibu no)
+
+Azure App Service: Our application "living on the public internet." (インターネット上に存在する - internet jou ni sonzai suru)
+
+VPN / ExpressRoute: "Secure, private phone line" or "Dedicated private connection." (安全な専用線 - anzen na senyousen)
+
+This should help your leader understand the core issue and why IT team collaboration is essential.
+
+
+
+
+This nslookup output from your local machine is extremely revealing and confirms Reason 1: Split-Brain DNS / Internal DNS Resolution.
+
+Let's break down what this output means:
+
+サーバー: mobileap.qualcomm.com
+Address: 192.168.0.1
+
+This indicates your local machine is using a DNS server at the IP address 192.168.0.1.
+
+192.168.0.1 is a private IP address, typically used for local network routers (like your home Wi-Fi router or a mobile hotspot's router functionality).
+
+The hostname mobileap.qualcomm.com associated with it suggests this might be related to a mobile access point or tethering, or just how that router identifies itself.
+
+Crucially, this is not a public internet DNS server.
+
+DNS request timed out. (repeated twice)
+
+This means your local DNS server (192.168.0.1) initially struggled or failed to resolve the name directly and might have had to forward the request or look it up in a specific way. This is common if the local DNS server has specific forwarding rules for certain domains or relies on upstream DNS servers that might be slow or have specific configurations.
+
+権限のない回答: (Non-authoritative answer:)
+
+This means the DNS server (192.168.0.1) that gave you the answer is not the primary or authoritative DNS server for the fc.obayashi.co.jp domain. It likely got the information from another DNS server it's configured to use or has cached.
+
+名前: kite00.fc.obayashi.co.jp
+Address: 100.64.1.12
+Aliases: login.fc.obayashi.co.jp
+
+This is the core of the information:
+
+login.fc.obayashi.co.jp is an alias (CNAME record) for the actual hostname kite00.fc.obayashi.co.jp.
+
+The hostname kite00.fc.obayashi.co.jp resolves to the IP address 100.64.1.12.
+
+The IP Address 100.64.1.12:
+
+This IP address falls within the 100.64.0.0/10 range (from 100.64.0.0 to 100.127.255.255).
+
+This address block is reserved for Carrier-Grade NAT (CGNAT). It's used by ISPs and mobile carriers to share a limited number of public IPv4 addresses among many customers.
+
+While technically not a "private" RFC 1918 address (like 10.x.x.x, 192.168.x.x), IPs in the CGNAT range are not generally routable or directly accessible from the public internet. They are used within the carrier's network.
+
+This strongly implies that login.fc.obayashi.co.jp (via kite00.fc.obayashi.co.jp) is intended to be accessed from within a specific network environment (e.g., Obayashi's corporate network, or a network provided by a specific carrier that has a route to this CGNAT IP).
+
+Conclusion from this nslookup:
+
+The hostname login.fc.obayashi.co.jp is not resolving to a standard public IP address that would be reachable from your Azure App Service (which is on the public internet).
+
+Your local machine can resolve it because your local DNS server (192.168.0.1) has access to DNS information (possibly provided by your company's network or a specific ISP/carrier configuration) that maps it to an IP (100.64.1.12) within a CGNAT or private-like address space.
+
+Azure's public DNS resolver (168.63.129.16) correctly reports "Non-existent domain" (or would report no A/CNAME record publicly) because this mapping is not available in the global public DNS system.
+
+How to Fix (for your Azure App Service):
+
+Since your Azure App Service needs to reach this, and it appears to be an internal or specially networked resource, you cannot rely on public DNS resolution.
+
+You need one of the solutions for connecting Azure to a private/internal network:
+
+Confirm the Nature of login.fc.obayashi.co.jp with Obayashi IT:
+
+Present this nslookup finding to the IT team responsible for login.fc.obayashi.co.jp.
+
+Ask them:
+
+Is this service intended to be accessible only from within the Obayashi corporate network or a specific partner network?
+
+What is the recommended way for an externally hosted application (like your Azure App Service) to securely access this login service?
+
+If Obayashi IT confirms it's internal and provides a way to connect (e.g., VPN/ExpressRoute):
+
+Azure VNet Integration: You'll need to integrate your Azure App Service with an Azure Virtual Network (VNet).
+
+Site-to-Site VPN or ExpressRoute: This VNet will need to be connected to Obayashi's on-premises network (where 100.64.1.12 is reachable) via a Site-to-Site VPN Gateway or an ExpressRoute circuit. This is a task for network administrators.
+
+Custom DNS in Azure VNet: The Azure VNet must be configured to use Obayashi's internal DNS servers. These DNS servers must be reachable from the Azure VNet over the VPN/ExpressRoute. These internal DNS servers will be the ones that can resolve login.fc.obayashi.co.jp to 100.64.1.12.
+
+Route All (likely needed): For your App Service to send DNS queries for login.fc.obayashi.co.jp to the internal DNS servers, you'll likely need to enable "Route All" outbound traffic from the App Service through the VNet.
+
+Network Security Groups (NSGs) / Firewalls: Ensure that NSGs on the App Service's delegated subnet and any firewalls (Azure Firewall or on-premises) allow traffic from your App Service's outbound IPs to 100.64.1.12 on the required ports (HTTP/80, HTTPS/443).
+
+If Obayashi IT can make login.fc.obayashi.co.jp publicly accessible (less likely given the CGNAT IP):
+
+They would need to update their public DNS records to point login.fc.obayashi.co.jp (or a new, public hostname) to a globally routable public IP address where the service is hosted.
+
+The service at that public IP would need to be configured to accept connections from the internet (or specifically from Azure IP ranges).
+
+This is now primarily a networking and infrastructure challenge, not just a simple code or Azure App Service configuration fix. You need to collaborate with the team that owns and manages the login.fc.obayashi.co.jp service and its network environment.
+
+Your immediate next step should be to share these findings with the relevant Obayashi IT personnel. Your Azure App Service is behaving correctly by not finding a publicly listed domain for login.fc.obayashi.co.jp.
+
+
+
+
+
 nslookup login.fc.obayashi.co.jp
 サーバー:  mobileap.qualcomm.com
 Address:  192.168.0.1
