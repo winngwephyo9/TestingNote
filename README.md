@@ -1,3 +1,8 @@
+C:\home>nameresolver.exe login.fc.obayashi.co.jp
+Server: 168.63.129.16
+
+*** 168.63.129.16 can't find login.fc.obayashi.co.jp: Non-existent domain
+
 composer require symfony/dom-crawler
 
 API call received for report type: org_info  
