@@ -1,3 +1,7 @@
+-v >> "C:\php_version_debug.log" 2>&1
+
+
+
 $schedule->command('scrape:email-data')
              ->everyFiveMinutes()
              ->appendOutputTo(storage_path('logs/scrape_command_output.log'))
