@@ -1,3 +1,6 @@
+artisan schedule:run >> "C:\xampp\htdocs\EmailData\scheduler_output.log" 2>&1
+
+
 ![image](https://github.com/user-attachments/assets/427776e1-0dd7-42ea-9b4d-03a013fa5168)
 
 
