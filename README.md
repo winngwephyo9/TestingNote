@@ -1,4 +1,10 @@
-[2025-06-02T17:20:03+09:00] Running scheduled command: "C:\xampp\php\php.exe" "artisan" scrape:email-data > "NUL" 2>&1
+$schedule->command('scrape:email-data')
+                 ->everyFiveMinutes()
+                 ->appendOutputTo(storage_path('logs/scrape_command_output.log')) // Add this line
+                 ->withoutOverlapping(); // Recommended for scheduled tasks
+    
+    
+    [2025-06-02T17:20:03+09:00] Running scheduled command: "C:\xampp\php\php.exe" "artisan" scrape:email-data > "NUL" 2>&1
 
 artisan schedule:run >> "C:\xampp\htdocs\EmailData\scheduler_output.log" 2>&1
 
