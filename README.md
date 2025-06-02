@@ -1,5 +1,43 @@
-
+ログの名前:         Microsoft-Windows-TaskScheduler/Operational
+ソース:           Microsoft-Windows-TaskScheduler
+日付:            2025/06/02 14:20:21
+イベント ID:       201
+タスクのカテゴリ:      操作が完了しました
+レベル:           情報
+キーワード:         
+ユーザー:          SYSTEM
+コンピューター:       K22080031.o365-obayashi.co.jp
+説明:
+タスク スケジューラは、タスク "\EmailDataScraper\ScrapeEmailData"、インスタンス "{3b4b3bd4-b907-4763-b91b-54b353c97e17}"、操作 "C:\xampp\php\php.exe" を正常に完了しました。リターン コード: 2147942401
+イベント XML:
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft-Windows-TaskScheduler" Guid="{de7b24ea-73c8-4a09-985d-5bdadcfa9017}" />
+    <EventID>201</EventID>
+    <Version>2</Version>
+    <Level>4</Level>
+    <Task>201</Task>
+    <Opcode>2</Opcode>
+    <Keywords>0x8000000000000000</Keywords>
+    <TimeCreated SystemTime="2025-06-02T05:20:21.4031479Z" />
+    <EventRecordID>67665</EventRecordID>
+    <Correlation ActivityID="{3b4b3bd4-b907-4763-b91b-54b353c97e17}" />
+    <Execution ProcessID="2548" ThreadID="17812" />
+    <Channel>Microsoft-Windows-TaskScheduler/Operational</Channel>
+    <Computer>K22080031.o365-obayashi.co.jp</Computer>
+    <Security UserID="S-1-5-18" />
+  </System>
+  <EventData Name="ActionSuccess">
+    <Data Name="TaskName">\EmailDataScraper\ScrapeEmailData</Data>
+    <Data Name="TaskInstanceId">{3b4b3bd4-b907-4763-b91b-54b353c97e17}</Data>
+    <Data Name="ActionName">C:\xampp\php\php.exe</Data>
+    <Data Name="ResultCode">2147942401</Data>
+    <Data Name="EnginePID">14200</Data>
+  </EventData>
+</Event>
 ![Uploading image.png…]()
+
+
 C:\xampp\php\php.exe
 
 
