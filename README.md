@@ -1,3 +1,84 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Http\Controllers\EmailDataScraperController;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+
+class ScrapeEmailDataCommand extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'scrape:email-data';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Scrapes email data and stores it locally and in Box.';
+
+    /**
+     * Execute the console command.
+     */
+    public function handle()
+    {
+        Log::info('ScrapeEmailDataCommand started.');
+        try {
+            $controller = new EmailDataScraperController();
+            $controller->scrapeAndStoreEmailData();
+            $this->info('Email data scraped and stored successfully.');
+            Log::info('ScrapeEmailDataCommand finished successfully.');
+        } catch (\Exception $e) {
+            $this->error('Error scraping email data: ' . $e->getMessage());
+            Log::error('ScrapeEmailDataCommand failed: ' . $e->getMessage(), ['exception' => $e]);
+        }
+    }
+}
+
+
+
+<?php
+
+namespace App\Console;
+
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+
+class Kernel extends ConsoleKernel
+{
+    /**
+     * Define the application's command schedule.
+     */
+    protected function schedule(Schedule $schedule): void
+    {
+        // Run the email data scraper every Monday at 3:00 AM (adjust time as needed)
+        $schedule->command('scrape:email-data')->weeklyOn(1, '03:00'); // 1 = Monday
+    }
+
+    /**
+     * Register the commands for the application.
+     */
+    protected function commands(): void
+    {
+        $this->load(__DIR__.'/Commands');
+
+        require base_path('routes/console.php');
+    }
+}
+
+
+
+
+
+
+
+
+
 Route::get('/scrape-email-data', [EmailDataScraperController::class, 'scrapeAndStoreEmailData']);
 
 class EmailDataScraperController extends Controller
