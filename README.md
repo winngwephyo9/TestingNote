@@ -1,4 +1,19 @@
 $schedule->command('scrape:email-data')
+             ->everyFiveMinutes()
+             ->appendOutputTo(storage_path('logs/scrape_command_output.log'))
+             ->withoutOverlapping(); // Keep this if you plan to use it
+
+    // --- ADD THIS TEMPORARY TEST COMMAND ---
+    $schedule->call(function () {
+        \Illuminate\Support\Facades\Log::info('Scheduler Test: Running at ' . now());
+        file_put_contents(storage_path('logs/scheduler_test.log'), 'Scheduler Test: Running at ' . now() . PHP_EOL, FILE_APPEND);
+    })->everyMinute() // Run every minute to quickly test
+      ->appendOutputTo(storage_path('logs/scheduler_test_output.log')); // Capture its output too
+    // --- END TEMPORARY TEST COMMAND ---
+
+
+
+$schedule->command('scrape:email-data')
                  ->everyFiveMinutes()
                  ->appendOutputTo(storage_path('logs/scrape_command_output.log')) // Add this line
                  ->withoutOverlapping(); // Recommended for scheduled tasks
