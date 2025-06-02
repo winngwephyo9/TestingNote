@@ -1,3 +1,24 @@
+![image](https://github.com/user-attachments/assets/427776e1-0dd7-42ea-9b4d-03a013fa5168)
+
+
+PS C:\xampp\htdocs\EmailDataScraper\EmailDataScraper> php artisan schedule:list
++----------------------------------------------------+-------------+-------------+----------------------------+
+| Command                                            | Interval    | Description | Next Due                   |
++----------------------------------------------------+-------------+-------------+----------------------------+
+| "C:\xampp\php\php.exe" "artisan" scrape:email-data | */5 * * * * |             | 2025-06-02 16:55:00 +09:00 |
++----------------------------------------------------+-------------+-------------+----------------------------+
+PS C:\xampp\htdocs\EmailDataScraper\EmailDataScraper> php artisan schedule:list
++----------------------------------------------------+-------------+-------------+----------------------------+
+| Command                                            | Interval    | Description | Next Due                   |
++----------------------------------------------------+-------------+-------------+----------------------------+
+| "C:\xampp\php\php.exe" "artisan" scrape:email-data | */5 * * * * |             | 2025-06-02 17:10:00 +09:00 |
++----------------------------------------------------+-------------+-------------+----------------------------+
+PS C:\xampp\htdocs\EmailDataScraper\EmailDataScraper>
+
+
+
+
+
 ![image](https://github.com/user-attachments/assets/6e2195de-4fa7-4d79-9144-8d283cb7a7f4)
 
 
