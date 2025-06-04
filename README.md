@@ -1,3 +1,6 @@
+                $filePath = 'C:\Users\UHR757\Box\0933232情報技術課\■001_個人データ\ウィングウェピョー\TestingData\\' . $fileName; // Make sure this folder exists and is writable
+
+
 -v >> "C:\php_version_debug.log" 2>&1
 
 
