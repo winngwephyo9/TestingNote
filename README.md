@@ -1,4 +1,14 @@
-   private function handleCsvDownload($response, string $folderId, string $filePrefix): void
+        $rawCsvData = (string) $response->getBody();
+
+            // Convert from Shift_JIS to UTF-8
+            $csvData = mb_convert_encoding($rawCsvData, 'UTF-8', 'Shift_JIS');
+
+            // --- ADD THIS LINE TO PREPEND THE UTF-8 BOM ---
+            // The UTF-8 BOM is represented by these three bytes: EF BB BF
+            $csvDataWithBom = "\xEF\xBB\xBF" . $csvData;
+
+
+private function handleCsvDownload($response, string $folderId, string $filePrefix): void
     {
         if ($response->getStatusCode() === 200) {
             $contentType = $response->getHeaderLine('Content-Type');
