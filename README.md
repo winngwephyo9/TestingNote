@@ -1,3 +1,88 @@
+ActionFailed
+An action failed. No dependent actions succeeded.
+
+{
+    "foreachItems": [
+        {
+            "Id": "1881490694089",
+            "Name": "組織情報_20250603.csv",
+            "DisplayName": "組織情報_20250603.csv",
+            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報_20250603.csv",
+            "LastModified": "2025-06-03T06:50:19+00:00",
+            "Size": 1777540,
+            "MediaType": "text/csv",
+            "IsFolder": false,
+            "ETag": "\"0\"",
+            "FileLocator": "1881490694089",
+            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
+        },
+        {
+            "Id": "1882256567679",
+            "Name": "組織情報_20250604.csv",
+            "DisplayName": "組織情報_20250604.csv",
+            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報_20250604.csv",
+            "LastModified": "2025-06-03T23:26:01+00:00",
+            "Size": 1777179,
+            "MediaType": "text/csv",
+            "IsFolder": false,
+            "ETag": "\"0\"",
+            "FileLocator": "1882256567679",
+            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
+        },
+        {
+            "Id": "1881508288693",
+            "Name": "組織情報＿土木_20250603.csv",
+            "DisplayName": "組織情報＿土木_20250603.csv",
+            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報＿土木_20250603.csv",
+            "LastModified": "2025-06-03T06:50:19+00:00",
+            "Size": 306731,
+            "MediaType": "text/csv",
+            "IsFolder": false,
+            "ETag": "\"0\"",
+            "FileLocator": "1881508288693",
+            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
+        },
+        {
+            "Id": "1882259611083",
+            "Name": "組織情報＿土木_20250604.csv",
+            "DisplayName": "組織情報＿土木_20250604.csv",
+            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報＿土木_20250604.csv",
+            "LastModified": "2025-06-03T23:26:01+00:00",
+            "Size": 306635,
+            "MediaType": "text/csv",
+            "IsFolder": false,
+            "ETag": "\"0\"",
+            "FileLocator": "1882259611083",
+            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
+        },
+        {
+            "Id": "1881506953439",
+            "Name": "電話帳Data_20250603.csv",
+            "DisplayName": "電話帳Data_20250603.csv",
+            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/電話帳Data_20250603.csv",
+            "LastModified": "2025-06-03T06:50:17+00:00",
+            "Size": 1220163,
+            "MediaType": "text/csv",
+            "IsFolder": false,
+            "ETag": "\"0\"",
+            "FileLocator": "1881506953439",
+            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
+        },
+        {
+            "Id": "1882256264754",
+            "Name": "電話帳Data_20250604.csv",
+            "DisplayName": "電話帳Data_20250604.csv",
+            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/電話帳Data_20250604.csv",
+            "LastModified": "2025-06-03T23:25:51+00:00",
+            "Size": 1220337,
+            "MediaType": "text/csv",
+            "IsFolder": false,
+            "ETag": "\"0\"",
+            "FileLocator": "1882256264754",
+            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
+        }
+    ]
+}
                 $filePath = 'C:\Users\UHR757\Box\0933232情報技術課\■001_個人データ\ウィングウェピョー\TestingData\\' . $fileName; // Make sure this folder exists and is writable
 
 
