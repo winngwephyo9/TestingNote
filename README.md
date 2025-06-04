@@ -1,4 +1,25 @@
-ActionFailed
+   private function handleCsvDownload($response, string $folderId, string $filePrefix): void
+    {
+        if ($response->getStatusCode() === 200) {
+            $contentType = $response->getHeaderLine('Content-Type');
+            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
+                // $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
+                $csvData = (string) $response->getBody();
+                $fileName = $filePrefix . date('Ymd') . '.csv';
+                $filePath = 'C:\Users\UHR757\Box\0933232情報技術課\■001_個人データ\ウィングウェピョー\TestingData\\' . $fileName; // Make sure this folder exists and is writable
+                file_put_contents($filePath, $csvData);
+                dump("{$fileName} downloaded and uploaded to Box successfully.");
+            } else {
+                throw new \Exception("Expected CSV data in response, but got: " . $contentType);
+            }
+        } else {
+            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
+        }
+    }
+    
+    
+    
+    ActionFailed
 An action failed. No dependent actions succeeded.
 
 {
