@@ -1,3 +1,18 @@
+{"host":{"apiId":"subscriptions/01287833-ce5d-4ca5-aafa-a25c8469f6d7/providers/Microsoft.Web/locations/japaneast/runtimes/Japan-001/apis/sharepointonline","connectionReferenceName":"shared_sharepointonline","operationId":"HttpRequest"},"parameters":{"dataset":"https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/","parameters/method":"POST","parameters/uri":"_api/web/GetFolderByServerRelativeUrl('/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data')/Files/add(url='電話帳Data_20250604.csv',overwrite=true)","parameters/headers":{"Content-Type":"text/csv;charset=utf-8","Accept":"application/json;odata=verbose"},"parameters/body":{"$content-type":"application/octet-stream","$content":"44Kz44O844OJIiwi5rCP5ZCNIiwi5bqX44Kz44O844OJIiwi5bqX5ZCNIiwi57WE57mU44Kz44O844OJIiwi57WE57mU5ZCNIiwi5bi46Kit54++5aC0Iiwi5bel5LqL5Yy65YiGIiwi5pys5YuZ5YW85YuZIiwi6IG356iuIg0KIjI0MTg0Iiwi6IKl5b6M5qGC5LuLIiwiMTAiLCLlpKfpmKrmnKzlupciLCIxMDUxMDAwIiwi5LiJ5LqV5YWr5bmh6YCg5oiQ5bel5LqL5LqL5YuZ5omAIiwi54++5aC0Iiwi5Zu95YaF5Zyf5pyoIiwi5pys5YuZIiwi5Zyf5pyoIg0KIjk4ODkzIiwi5b6z5rC45pWP5b2mIiwiMTAiLCLlpKfpmKrmnKzlupciLCIxMDUxMDAwIiwi5LiJ5LqV5YWr5bmh6YCg5oiQ5bel5LqL5LqL5YuZ5omAIiwi54++5aC0Iiwi5Zu95YaF5Zyf5pyoIiwi5YW85YuZIiwi5LqL5YuZIg0KIjM2MjY5Iiwi5YWr5pyo6ZqG5LmLIiwiMTAiLCLlpKfpmKrmnKzlupciLCIxMDUxMDAwIiwi5LiJ5LqV5YWr5bmh6YCg5oiQ5bel5LqL5LqL5YuZ5omAIiwi54++5aC0Iiwi5Zu95YaF5Zyf5pyoIiwi5pys5YuZIiwi5Zyf5pyoIg0KIjQyMjQ3Iiwi5Li45bGx5Y+L5LmfIiwiMTAiLCLlpKfpmKrmnKzlupciLCI
+
+
+
+{
+  "status": 400,
+  "message": "Server relative urls must start with SPWeb.ServerRelativeUrl\r\nclientRequestId: 521407f2-d1ec-47cd-9acc-ca0baf8cb0f6\r\nserviceRequestId: 190ba5a1-004d-5000-4df1-99089c8d853a",
+  "source": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/web/GetFolderByServerRelativeUrl('/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data')/Files/add(url='%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250604.csv',overwrite=true)",
+  "errors": [
+    "-2147024809",
+    "System.ArgumentException"
+  ]
+}
+
+
 Unable to process template language expressions in action 'Send_an_HTTP_request_to_SharePoint' inputs at line '0' and column '0': 'The template language expression 'outputs('Get_file_content_using_id_1')?['body']?['Name']' cannot be evaluated because property 'Name' cannot be selected. Property selection is not supported on values of type 'String'. Please see https://aka.ms/logicexpressions for usage details.'.
 
 ![image](https://github.com/user-attachments/assets/1bddec08-9013-4181-9a74-faf693d1620d)
