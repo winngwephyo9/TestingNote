@@ -1,3 +1,6 @@
+![image](https://github.com/user-attachments/assets/daba9f95-59dd-4407-a65e-7cef80b96c8f)
+
+
 string(body('Get_file_content_using_id_1'))
 substring(outputs('Compose1'), 3)
 base64ToBinary(base64(outputs('Compose2')))
