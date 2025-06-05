@@ -1,3 +1,5 @@
+ing(outputs("蛟倶ｺｺ繧ｳ繝ｼ繝・	豌丞錐	蠎励さ繝ｼ繝・,蠎怜錐"	邨・ｹ斐さ繝ｼ繝・,邨・ｹ泌錐"	蟶ｸ險ｭ迴ｾ蝣ｴ	蟾･莠句玄蛻・,譛ｬ蜍吝・蜍・	閨ｷ遞ｮ
+
 ![image](https://github.com/user-attachments/assets/e131e105-1a92-4683-8537-a270be7b947a)
 
 
