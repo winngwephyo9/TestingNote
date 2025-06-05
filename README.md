@@ -1,8 +1,19 @@
+string(outputs(@{body('Get_file_content_using_id_1')})?['body'])
+replace(outputs(@{outputs('Compose')}), 'ï»¿', '')
+base64ToBinary(base64(outputs(@{outputs('Compose_1')})))
+base64ToBinary(base64(outputs(replace(outputs(string(outputs("蛟倶ｺｺ繧ｳ繝ｼ繝・
+
+
 string(outputs('Get_file_content_(Box)')?['body'])
 replace(outputs('Compose_-_Convert_to_String'), 'ï»¿', '')
 substring(outputs('Compose_-_Convert_to_String'), 3)
 base64ToBinary(base64(outputs('Compose_-_Remove_BOM')))
 
+
+string(outputs(@{body('Get_file_content_using_id_1')})?['body'])
+replace(outputs(@{outputs('Compose')}), 'ï»¿', '')
+base64ToBinary(base64(outputs(@{outputs('Compose_1')})))
+base64ToBinary(base64(outputs(replace(outputs(string(outputs("蛟倶ｺｺ繧ｳ繝ｼ繝・
 
 
 $rawCsvData = (string) $response->getBody();
