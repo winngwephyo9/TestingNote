@@ -1,3 +1,12 @@
+![image](https://github.com/user-attachments/assets/ca21816d-8d7f-471f-b5ee-2face689da10)
+
+![image](https://github.com/user-attachments/assets/69a720e7-74f9-4b1f-87d7-dd2872669610)
+
+
+
+
+
+
 string(outputs(@{body('Get_file_content_using_id_1')})?['body'])
 replace(outputs(@{outputs('Compose')}), 'ï»¿', '')
 base64ToBinary(base64(outputs(@{outputs('Compose_1')})))
