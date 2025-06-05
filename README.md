@@ -1,3 +1,11 @@
+https://obayashig.sharepoint.com/teams/EmailDataScraperTesting
+
+_api/web/GetFolderByServerRelativeUrl('/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data')/Files/add(url='@{outputs('Get_file_content_using_id_1')?['body']?['Name']}',overwrite=true)
+
+Content-Type : text/csv;charset=utf-8
+Accept application/json;odata=verbose
+
+
 ![image](https://github.com/user-attachments/assets/daba9f95-59dd-4407-a65e-7cef80b96c8f)
 
 
