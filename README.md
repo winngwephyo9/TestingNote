@@ -1,3 +1,23 @@
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+
+// Let's assume $csvData is already UTF-8 decoded string
+$rows = explode("\n", $csvData);
+foreach ($rows as $rowIndex => $row) {
+    $columns = str_getcsv($row);
+    foreach ($columns as $colIndex => $value) {
+        $sheet->setCellValueByColumnAndRow($colIndex + 1, $rowIndex + 1, $value);
+    }
+}
+
+$fileName = $filePrefix . date('Ymd') . '.xlsx';
+$writer = new Xlsx($spreadsheet);
+$writer->save($filePath);
+
+   
    private function handleCsvDownload($response, $filePath, string $filePrefix): void
     {
         if ($response->getStatusCode() === 200) {
