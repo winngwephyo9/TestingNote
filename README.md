@@ -1,3 +1,8 @@
+Unable to process template language expressions in action 'Send_an_HTTP_request_to_SharePoint' inputs at line '0' and column '0': 'The template language expression 'outputs('Get_file_content_using_id_1')?['body']?['Name']' cannot be evaluated because property 'Name' cannot be selected. Property selection is not supported on values of type 'String'. Please see https://aka.ms/logicexpressions for usage details.'.
+
+![image](https://github.com/user-attachments/assets/1bddec08-9013-4181-9a74-faf693d1620d)
+
+
 https://obayashig.sharepoint.com/teams/EmailDataScraperTesting
 
 _api/web/GetFolderByServerRelativeUrl('/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data')/Files/add(url='@{outputs('Get_file_content_using_id_1')?['body']?['Name']}',overwrite=true)
