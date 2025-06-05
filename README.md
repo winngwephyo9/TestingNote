@@ -1,4 +1,11 @@
-        $rawCsvData = (string) $response->getBody();
+string(outputs('Get_file_content_(Box)')?['body'])
+replace(outputs('Compose_-_Convert_to_String'), 'ï»¿', '')
+substring(outputs('Compose_-_Convert_to_String'), 3)
+base64ToBinary(base64(outputs('Compose_-_Remove_BOM')))
+
+
+
+$rawCsvData = (string) $response->getBody();
 
             // Convert from Shift_JIS to UTF-8
             $csvData = mb_convert_encoding($rawCsvData, 'UTF-8', 'Shift_JIS');
