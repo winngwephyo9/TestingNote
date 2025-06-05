@@ -1,793 +1,92 @@
-{"host":{"apiId":"subscriptions/01287833-ce5d-4ca5-aafa-a25c8469f6d7/providers/Microsoft.Web/locations/japaneast/runtimes/Japan-001/apis/sharepointonline","connectionReferenceName":"shared_sharepointonline","operationId":"HttpRequest"},"parameters":{"dataset":"https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/","parameters/method":"POST","parameters/uri":"_api/web/GetFolderByServerRelativeUrl('/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data')/Files/add(url='電話帳Data_20250604.csv',overwrite=true)","parameters/headers":{"Content-Type":"text/csv;charset=utf-8","Accept":"application/json;odata=verbose"},"parameters/body":{"$content-type":"application/octet-stream","$content":"44Kz44O844OJIiwi5rCP5ZCNIiwi5bqX44Kz44O844OJIiwi5bqX5ZCNIiwi57WE57mU44Kz44O844OJIiwi57WE57mU5ZCNIiwi5bi46Kit54++5aC0Iiwi5bel5LqL5Yy65YiGIiwi5pys5YuZ5YW85YuZIiwi6IG356iuIg0KIjI0MTg0Iiwi6IKl5b6M5qGC5LuLIiwiMTAiLCLlpKfpmKrmnKzlupciLCIxMDUxMDAwIiwi5LiJ5LqV5YWr5bmh6YCg5oiQ5bel5LqL5LqL5YuZ5omAIiwi54++5aC0Iiwi5Zu95YaF5Zyf5pyoIiwi5pys5YuZIiwi5Zyf5pyoIg0KIjk4ODkzIiwi5b6z5rC45pWP5b2mIiwiMTAiLCLlpKfpmKrmnKzlupciLCIxMDUxMDAwIiwi5LiJ5LqV5YWr5bmh6YCg5oiQ5bel5LqL5LqL5YuZ5omAIiwi54++5aC0Iiwi5Zu95YaF5Zyf5pyoIiwi5YW85YuZIiwi5LqL5YuZIg0KIjM2MjY5Iiwi5YWr5pyo6ZqG5LmLIiwiMTAiLCLlpKfpmKrmnKzlupciLCIxMDUxMDAwIiwi5LiJ5LqV5YWr5bmh6YCg5oiQ5bel5LqL5LqL5YuZ5omAIiwi54++5aC0Iiwi5Zu95YaF5Zyf5pyoIiwi5pys5YuZIiwi5Zyf5pyoIg0KIjQyMjQ3Iiwi5Li45bGx5Y+L5LmfIiwiMTAiLCLlpKfpmKrmnKzlupciLCI
-
-
-
 {
-  "status": 400,
-  "message": "Server relative urls must start with SPWeb.ServerRelativeUrl\r\nclientRequestId: 521407f2-d1ec-47cd-9acc-ca0baf8cb0f6\r\nserviceRequestId: 190ba5a1-004d-5000-4df1-99089c8d853a",
-  "source": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/web/GetFolderByServerRelativeUrl('/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data')/Files/add(url='%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250604.csv',overwrite=true)",
-  "errors": [
-    "-2147024809",
-    "System.ArgumentException"
-  ]
-}
-
-
-Unable to process template language expressions in action 'Send_an_HTTP_request_to_SharePoint' inputs at line '0' and column '0': 'The template language expression 'outputs('Get_file_content_using_id_1')?['body']?['Name']' cannot be evaluated because property 'Name' cannot be selected. Property selection is not supported on values of type 'String'. Please see https://aka.ms/logicexpressions for usage details.'.
-
-![image](https://github.com/user-attachments/assets/1bddec08-9013-4181-9a74-faf693d1620d)
-
-
-https://obayashig.sharepoint.com/teams/EmailDataScraperTesting
-
-_api/web/GetFolderByServerRelativeUrl('/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data')/Files/add(url='@{outputs('Get_file_content_using_id_1')?['body']?['Name']}',overwrite=true)
-
-Content-Type : text/csv;charset=utf-8
-Accept application/json;odata=verbose
-
-
-![image](https://github.com/user-attachments/assets/daba9f95-59dd-4407-a65e-7cef80b96c8f)
-
-
-string(body('Get_file_content_using_id_1'))
-substring(outputs('Compose1'), 3)
-base64ToBinary(base64(outputs('Compose2')))
-
-
-ing(outputs("蛟倶ｺｺ繧ｳ繝ｼ繝・	豌丞錐	蠎励さ繝ｼ繝・,蠎怜錐"	邨・ｹ斐さ繝ｼ繝・,邨・ｹ泌錐"	蟶ｸ險ｭ迴ｾ蝣ｴ	蟾･莠句玄蛻・,譛ｬ蜍吝・蜍・	閨ｷ遞ｮ
-
-![image](https://github.com/user-attachments/assets/e131e105-1a92-4683-8537-a270be7b947a)
-
-
-
-![image](https://github.com/user-attachments/assets/0a0e3bfc-f47f-488f-940e-a6d61b4c6ae1)
-![image](https://github.com/user-attachments/assets/2cf173da-1e04-40cc-8d8c-f118988b1920)
-![image](https://github.com/user-attachments/assets/62d513f4-b900-4c5f-8b52-ec42f604eedf)
-![image](https://github.com/user-attachments/assets/63a89fb7-1b15-4e75-82c7-1329d7ff3bd6)
-![image](https://github.com/user-attachments/assets/f5b61bd8-fb39-4230-a6c3-4b8d61cc6778)
-
-
-
-
-
-
-
-
-![image](https://github.com/user-attachments/assets/ca21816d-8d7f-471f-b5ee-2face689da10)
-
-![image](https://github.com/user-attachments/assets/69a720e7-74f9-4b1f-87d7-dd2872669610)
-
-
-
-
-
-
-string(outputs(@{body('Get_file_content_using_id_1')})?['body'])
-replace(outputs(@{outputs('Compose')}), 'ï»¿', '')
-base64ToBinary(base64(outputs(@{outputs('Compose_1')})))
-base64ToBinary(base64(outputs(replace(outputs(string(outputs("蛟倶ｺｺ繧ｳ繝ｼ繝・
-
-
-string(outputs('Get_file_content_(Box)')?['body'])
-replace(outputs('Compose_-_Convert_to_String'), 'ï»¿', '')
-substring(outputs('Compose_-_Convert_to_String'), 3)
-base64ToBinary(base64(outputs('Compose_-_Remove_BOM')))
-
-
-string(outputs(@{body('Get_file_content_using_id_1')})?['body'])
-replace(outputs(@{outputs('Compose')}), 'ï»¿', '')
-base64ToBinary(base64(outputs(@{outputs('Compose_1')})))
-base64ToBinary(base64(outputs(replace(outputs(string(outputs("蛟倶ｺｺ繧ｳ繝ｼ繝・
-
-
-$rawCsvData = (string) $response->getBody();
-
-            // Convert from Shift_JIS to UTF-8
-            $csvData = mb_convert_encoding($rawCsvData, 'UTF-8', 'Shift_JIS');
-
-            // --- ADD THIS LINE TO PREPEND THE UTF-8 BOM ---
-            // The UTF-8 BOM is represented by these three bytes: EF BB BF
-            $csvDataWithBom = "\xEF\xBB\xBF" . $csvData;
-
-
-private function handleCsvDownload($response, string $folderId, string $filePrefix): void
-    {
-        if ($response->getStatusCode() === 200) {
-            $contentType = $response->getHeaderLine('Content-Type');
-            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
-                // $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
-                $csvData = (string) $response->getBody();
-                $fileName = $filePrefix . date('Ymd') . '.csv';
-                $filePath = 'C:\Users\UHR757\Box\0933232情報技術課\■001_個人データ\ウィングウェピョー\TestingData\\' . $fileName; // Make sure this folder exists and is writable
-                file_put_contents($filePath, $csvData);
-                dump("{$fileName} downloaded and uploaded to Box successfully.");
-            } else {
-                throw new \Exception("Expected CSV data in response, but got: " . $contentType);
-            }
-        } else {
-            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
-        }
-    }
-    
-    
-    
-    ActionFailed
-An action failed. No dependent actions succeeded.
-
-{
-    "foreachItems": [
-        {
-            "Id": "1881490694089",
-            "Name": "組織情報_20250603.csv",
-            "DisplayName": "組織情報_20250603.csv",
-            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報_20250603.csv",
-            "LastModified": "2025-06-03T06:50:19+00:00",
-            "Size": 1777540,
-            "MediaType": "text/csv",
-            "IsFolder": false,
-            "ETag": "\"0\"",
-            "FileLocator": "1881490694089",
-            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
-        },
-        {
-            "Id": "1882256567679",
-            "Name": "組織情報_20250604.csv",
-            "DisplayName": "組織情報_20250604.csv",
-            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報_20250604.csv",
-            "LastModified": "2025-06-03T23:26:01+00:00",
-            "Size": 1777179,
-            "MediaType": "text/csv",
-            "IsFolder": false,
-            "ETag": "\"0\"",
-            "FileLocator": "1882256567679",
-            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
-        },
-        {
-            "Id": "1881508288693",
-            "Name": "組織情報＿土木_20250603.csv",
-            "DisplayName": "組織情報＿土木_20250603.csv",
-            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報＿土木_20250603.csv",
-            "LastModified": "2025-06-03T06:50:19+00:00",
-            "Size": 306731,
-            "MediaType": "text/csv",
-            "IsFolder": false,
-            "ETag": "\"0\"",
-            "FileLocator": "1881508288693",
-            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
-        },
-        {
-            "Id": "1882259611083",
-            "Name": "組織情報＿土木_20250604.csv",
-            "DisplayName": "組織情報＿土木_20250604.csv",
-            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/組織情報＿土木_20250604.csv",
-            "LastModified": "2025-06-03T23:26:01+00:00",
-            "Size": 306635,
-            "MediaType": "text/csv",
-            "IsFolder": false,
-            "ETag": "\"0\"",
-            "FileLocator": "1882259611083",
-            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
-        },
-        {
-            "Id": "1881506953439",
-            "Name": "電話帳Data_20250603.csv",
-            "DisplayName": "電話帳Data_20250603.csv",
-            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/電話帳Data_20250603.csv",
-            "LastModified": "2025-06-03T06:50:17+00:00",
-            "Size": 1220163,
-            "MediaType": "text/csv",
-            "IsFolder": false,
-            "ETag": "\"0\"",
-            "FileLocator": "1881506953439",
-            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
-        },
-        {
-            "Id": "1882256264754",
-            "Name": "電話帳Data_20250604.csv",
-            "DisplayName": "電話帳Data_20250604.csv",
-            "Path": "/すべてのファイル/0933232情報技術課/■001_個人データ/ウィングウェピョー/TestingData/電話帳Data_20250604.csv",
-            "LastModified": "2025-06-03T23:25:51+00:00",
-            "Size": 1220337,
-            "MediaType": "text/csv",
-            "IsFolder": false,
-            "ETag": "\"0\"",
-            "FileLocator": "1882256264754",
-            "LastModifiedBy": "ウィングウェピョ  ＤＸ本部高度デジタルソリューションセンター先進技術部情報技術課"
-        }
-    ]
-}
-                $filePath = 'C:\Users\UHR757\Box\0933232情報技術課\■001_個人データ\ウィングウェピョー\TestingData\\' . $fileName; // Make sure this folder exists and is writable
-
-
--v >> "C:\php_version_debug.log" 2>&1
-
-
-
-$schedule->command('scrape:email-data')
-             ->everyFiveMinutes()
-             ->appendOutputTo(storage_path('logs/scrape_command_output.log'))
-             ->withoutOverlapping(); // Keep this if you plan to use it
-
-    // --- ADD THIS TEMPORARY TEST COMMAND ---
-    $schedule->call(function () {
-        \Illuminate\Support\Facades\Log::info('Scheduler Test: Running at ' . now());
-        file_put_contents(storage_path('logs/scheduler_test.log'), 'Scheduler Test: Running at ' . now() . PHP_EOL, FILE_APPEND);
-    })->everyMinute() // Run every minute to quickly test
-      ->appendOutputTo(storage_path('logs/scheduler_test_output.log')); // Capture its output too
-    // --- END TEMPORARY TEST COMMAND ---
-
-
-
-$schedule->command('scrape:email-data')
-                 ->everyFiveMinutes()
-                 ->appendOutputTo(storage_path('logs/scrape_command_output.log')) // Add this line
-                 ->withoutOverlapping(); // Recommended for scheduled tasks
-    
-    
-    [2025-06-02T17:20:03+09:00] Running scheduled command: "C:\xampp\php\php.exe" "artisan" scrape:email-data > "NUL" 2>&1
-
-artisan schedule:run >> "C:\xampp\htdocs\EmailData\scheduler_output.log" 2>&1
-
-
-![image](https://github.com/user-attachments/assets/427776e1-0dd7-42ea-9b4d-03a013fa5168)
-
-
-PS C:\xampp\htdocs\EmailDataScraper\EmailDataScraper> php artisan schedule:list
-+----------------------------------------------------+-------------+-------------+----------------------------+
-| Command                                            | Interval    | Description | Next Due                   |
-+----------------------------------------------------+-------------+-------------+----------------------------+
-| "C:\xampp\php\php.exe" "artisan" scrape:email-data | */5 * * * * |             | 2025-06-02 16:55:00 +09:00 |
-+----------------------------------------------------+-------------+-------------+----------------------------+
-PS C:\xampp\htdocs\EmailDataScraper\EmailDataScraper> php artisan schedule:list
-+----------------------------------------------------+-------------+-------------+----------------------------+
-| Command                                            | Interval    | Description | Next Due                   |
-+----------------------------------------------------+-------------+-------------+----------------------------+
-| "C:\xampp\php\php.exe" "artisan" scrape:email-data | */5 * * * * |             | 2025-06-02 17:10:00 +09:00 |
-+----------------------------------------------------+-------------+-------------+----------------------------+
-PS C:\xampp\htdocs\EmailDataScraper\EmailDataScraper>
-
-
-
-
-
-![image](https://github.com/user-attachments/assets/6e2195de-4fa7-4d79-9144-8d283cb7a7f4)
-
-
-
-![image](https://github.com/user-attachments/assets/3752af46-9662-4f31-9872-568213bb4aa0)
-![image](https://github.com/user-attachments/assets/d75e8614-7059-4d94-94ae-19d3e4532222)
-
-
-
-![image](https://github.com/user-attachments/assets/d4838317-d8a3-4ba7-86ca-6eb1e6f041a4)
-
-
-
-ログの名前:         Microsoft-Windows-TaskScheduler/Operational
-ソース:           Microsoft-Windows-TaskScheduler
-日付:            2025/06/02 14:20:21
-イベント ID:       201
-タスクのカテゴリ:      操作が完了しました
-レベル:           情報
-キーワード:         
-ユーザー:          SYSTEM
-コンピューター:       K22080031.o365-obayashi.co.jp
-説明:
-タスク スケジューラは、タスク "\EmailDataScraper\ScrapeEmailData"、インスタンス "{3b4b3bd4-b907-4763-b91b-54b353c97e17}"、操作 "C:\xampp\php\php.exe" を正常に完了しました。リターン コード: 2147942401
-イベント XML:
-<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
-  <System>
-    <Provider Name="Microsoft-Windows-TaskScheduler" Guid="{de7b24ea-73c8-4a09-985d-5bdadcfa9017}" />
-    <EventID>201</EventID>
-    <Version>2</Version>
-    <Level>4</Level>
-    <Task>201</Task>
-    <Opcode>2</Opcode>
-    <Keywords>0x8000000000000000</Keywords>
-    <TimeCreated SystemTime="2025-06-02T05:20:21.4031479Z" />
-    <EventRecordID>67665</EventRecordID>
-    <Correlation ActivityID="{3b4b3bd4-b907-4763-b91b-54b353c97e17}" />
-    <Execution ProcessID="2548" ThreadID="17812" />
-    <Channel>Microsoft-Windows-TaskScheduler/Operational</Channel>
-    <Computer>K22080031.o365-obayashi.co.jp</Computer>
-    <Security UserID="S-1-5-18" />
-  </System>
-  <EventData Name="ActionSuccess">
-    <Data Name="TaskName">\EmailDataScraper\ScrapeEmailData</Data>
-    <Data Name="TaskInstanceId">{3b4b3bd4-b907-4763-b91b-54b353c97e17}</Data>
-    <Data Name="ActionName">C:\xampp\php\php.exe</Data>
-    <Data Name="ResultCode">2147942401</Data>
-    <Data Name="EnginePID">14200</Data>
-  </EventData>
-</Event>
-![Uploading image.png…]()
-
-
-C:\xampp\php\php.exe
-
-
-![image](https://github.com/user-attachments/assets/51d10f1b-3f99-4f90-b1bc-340324862498)
-<?php
-
-namespace App\Console\Commands;
-
-use App\Http\Controllers\EmailDataScraperController;
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Log;
-
-class ScrapeEmailDataCommand extends Command
-{
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'scrape:email-data';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Scrapes email data and stores it locally and in Box.';
-
-    /**
-     * Execute the console command.
-     */
-    public function handle()
-    {
-        Log::info('ScrapeEmailDataCommand started.');
-        try {
-            $controller = new EmailDataScraperController();
-            $controller->scrapeAndStoreEmailData();
-            $this->info('Email data scraped and stored successfully.');
-            Log::info('ScrapeEmailDataCommand finished successfully.');
-        } catch (\Exception $e) {
-            $this->error('Error scraping email data: ' . $e->getMessage());
-            Log::error('ScrapeEmailDataCommand failed: ' . $e->getMessage(), ['exception' => $e]);
-        }
-    }
-}
-
-
-
-<?php
-
-namespace App\Console;
-
-use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-
-class Kernel extends ConsoleKernel
-{
-    /**
-     * Define the application's command schedule.
-     */
-    protected function schedule(Schedule $schedule): void
-    {
-        // Run the email data scraper every Monday at 3:00 AM (adjust time as needed)
-        $schedule->command('scrape:email-data')->weeklyOn(1, '03:00'); // 1 = Monday
-    }
-
-    /**
-     * Register the commands for the application.
-     */
-    protected function commands(): void
-    {
-        $this->load(__DIR__.'/Commands');
-
-        require base_path('routes/console.php');
-    }
-}
-
-
-
-
-
-
-
-
-
-Route::get('/scrape-email-data', [EmailDataScraperController::class, 'scrapeAndStoreEmailData']);
-
-class EmailDataScraperController extends Controller
-{
-    private $cookieJar;
-    private $client;
-    private $username = '53439'; //ユーザー名に
-    private $password = 'daiD627'; //パスワードに
-    private $groupCompanyCode = 'U'; //グループ会社コードに
-    // Box Folder IDs
-    private $boxFolderIdPhoneBookData = '322352598808';
-    private $boxFolderIdOrgInfo = '322352598808';
-    private $boxFolderIdOrgInfoDoboku = '322352598808';
-    protected $url_path;
-    protected $box_access_token;
-
-    // URLs
-    private const LOGIN_URL = 'http://login.fc.obayashi.co.jp/sso/UI/Login';
-    private const MANUAL_ADDR_MAN_URL = 'http://it-nw.isc.obayashi.co.jp/pick/manual/addr_man.htm';
-    private const MANUAL_MOKUJI_URL = 'http://it-nw.isc.obayashi.co.jp/pick/manual/mokuji.htm';
-    private const ADDR103_URL = 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR103.aspx';
-
-    public function __construct()
-    {
-        // It's better to get these from environment variables or a configuration file
-        // For example: config('services.scraper.username'), config('services.scraper.password')
-        $this->username = env('SCRAPER_USERNAME', '53439');
-        $this->password = env('SCRAPER_PASSWORD', 'daiD627');
-        $this->groupCompanyCode = env('SCRAPER_GROUP_COMPANY_CODE', 'U');
-
-        $this->boxFolderIdPhoneBookData = env('BOX_FOLDER_ID_PHONE_BOOK_DATA', '322352598808');
-        $this->boxFolderIdOrgInfo = env('BOX_FOLDER_ID_ORG_INFO', '322352598808');
-        $this->boxFolderIdOrgInfoDoboku = env('BOX_FOLDER_ID_ORG_INFO_DOBOKU', '322352598808');
-
-
-        $this->cookieJar = new CookieJar();
-        $this->client = new Client([
-            'cookies' => $this->cookieJar,
-            'allow_redirects' => true,
-            'headers' => [
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Encoding' => 'gzip, deflate',
-                'Accept-Language' => 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
-                'Cache-Control' => 'no-cache',
-                'Connection' => 'keep-alive',
-                'Origin' => 'http://login.fc.obayashi.co.jp',
-                'Pragma' => 'no-cache',
-                'Referer' => 'http://it-nw.isc.obayashi.co.jp/pick/frm/ADDR101.aspx',
-                'Upgrade-Insecure-Requests' => '1',
-            ],
-        ]);
-    }
-
-    public function scrapeAndStoreEmailData()
-    {
-        try {
-            if (session()->has('url_path')) {
-                $this->url_path = session('url_path');
-                Log::info('url_path ' . $this->url_path);
-            }
-            // $this->box_access_token = $this->getBoxAccessToken(); // Get token dynamically
-            $this->login();
-            $this->callFinalUrl();
-            // All operations successful
-            return 'CSV files downloaded and uploaded to Box successfully.';
-        } catch (\Exception $e) {
-            // Log the error for debugging
-            log::error('Scraping and storage failed: ' . $e->getMessage(), ['exception' => $e]);
-            return 'Error: ' . $e->getMessage();
-        }
-    }
-
-    private function getLoginFormParams(): array
-    {
-        return [
-            'IDToken0-0' => $this->groupCompanyCode,
-            'IDToken0' => $this->groupCompanyCode,
-            'IDToken1' => $this->groupCompanyCode . $this->username,
-            'IDToken2' => $this->password,
-            'Login.Submit' => 'ログイン',
-            'goto' => 'aHR0cDovL2ludHJhbG9naW4uZmMub2JheWFzaGkuY28uanAvY2dpLWJpbi9jbG9naW4uY2dpP2FjY2Vzcz1odHRwOi8vd3d3LmZjLm9iYXlhc2hpLmNvLmpwLw==',
-            'gotoOnFail' => '',
-            'SunQueryParamsString' => 'dHlwZT1vYmF5YXNoaQ==',
-            'encoded' => 'true',
-            'type' => 'obayashi',
-            'gx_charset' => 'UTF-8',
-            'IDButton' => 'ログイン',
-        ];
-    }
-
-    private function getSearchFormParamsPhoneBook(): array
-    {
-        return [
-            'chkTen_09' => '0',
-            'chkTen_11' => '0',
-            'chkTen_15' => '0',
-            'chkTen_10' => '0',
-            'chkTen_26' => '0',
-            'chkTen_12' => '0',
-            'chkTen_13' => '0',
-            'chkTen_14' => '0',
-            'chkTen_16' => '0',
-            'chkTen_17' => '0',
-            'chkTen_19' => '0',
-            'chkTen_27' => '0',
-            'chkTen_31' => '0',
-            'chkTen_32' => '0',
-            'chkTen_46' => '0',
-            'chkTen_36' => '0',
-            'chkTen_66' => '0',
-            'txtSosikiCode' => '',
-            'txtSosikiName' => '',
-            'chkJG_001' => '0',
-            'chkJG_002' => '1', // 現場
-            'chkKKubun_001' => '1', // 国内土木
-            'chkKKubun_002' => '0',
-            'chkKKubun_003' => '1', // 国内建築
-            'chkKKubun_004' => '0',
-            'txtKojinCode' => '',
-            'rdoKyoryoku' => '0',
-            'txtKyoryoku' => '',
-            'chkHonKen_001' => '0',
-            'chkHonKen_002' => '0',
-            'chkHonKen_003' => '0',
-            'chkHonKen_004' => '0',
-            'ddtSecRankS' => '',
-            'ddtSecRankE' => '',
-            'rdoYaku' => '0',
-            'txtYaku' => '',
-            'rdoJuKubun' => '0',
-            'txtJuKubun' => '',
-            'chkSyoku_001' => '0',
-            'chkSyoku_002' => '0',
-            'chkSyoku_003' => '0',
-            'chkSyoku_004' => '0',
-            'chkSyoku_005' => '0',
-            'chkSyoku_006' => '0',
-            'hidKojinCode' => '1',
-            'hidHonken' => '1',
-            'hidKojinName' => '1',
-            'hidKojinKana' => '0',
-            'hidRank' => '0',
-            'hidMailAddress' => '0',
-            'hidYaku' => '0',
-            'hidTenCode' => '1',
-            'hidJukubun' => '0',
-            'hidTenMei' => '1',
-            'hidJukubunName' => '0',
-            'hidSosikiCode' => '1',
-            'hidSyoku' => '1',
-            'hidSosikiMei' => '1',
-            'hidNaisen' => '0',
-            'hidJGKubun' => '1',
-            'hidGaisen' => '0',
-            'hidKoujiKubun' => '1',
-            'hidWorksite' => '0',
-        ];
-    }
-
-    private function getSearchFormParamsOrgInfo(): array
-    {
-        return [
-            'chkTen_09' => '0',
-            'chkTen_11' => '0',
-            'chkTen_15' => '0',
-            'chkTen_10' => '0',
-            'chkTen_26' => '0',
-            'chkTen_12' => '0',
-            'chkTen_13' => '0',
-            'chkTen_14' => '0',
-            'chkTen_16' => '0',
-            'chkTen_17' => '0',
-            'chkTen_19' => '0',
-            'chkTen_27' => '0',
-            'chkTen_31' => '0',
-            'chkTen_32' => '0',
-            'chkTen_46' => '0',
-            'chkTen_36' => '0',
-            'chkTen_66' => '0',
-            'txtSosikiCode' => '',
-            'txtSosikiName' => '',
-            'chkJG_001' => '0',
-            'chkJG_002' => '0',
-            'chkKKubun_001' => '0',
-            'chkKKubun_002' => '0',
-            'chkKKubun_003' => '0',
-            'chkKKubun_004' => '0',
-            'txtKojinCode' => '',
-            'rdoKyoryoku' => '0',
-            'txtKyoryoku' => '',
-            'chkHonKen_001' => '0',
-            'chkHonKen_002' => '0',
-            'chkHonKen_003' => '0',
-            'chkHonKen_004' => '0',
-            'ddtSecRankS' => '',
-            'ddtSecRankE' => '',
-            'rdoYaku' => '0',
-            'txtYaku' => '',
-            'rdoJuKubun' => '0',
-            'txtJuKubun' => '',
-            'chkSyoku_001' => '0',
-            'chkSyoku_002' => '0',
-            'chkSyoku_003' => '0',
-            'chkSyoku_004' => '0',
-            'chkSyoku_005' => '0',
-            'chkSyoku_006' => '0',
-            'hidKojinCode' => '0',
-            'hidHonken' => '0',
-            'hidKojinName' => '0',
-            'hidKojinKana' => '0',
-            'hidRank' => '0',
-            'hidMailAddress' => '0',
-            'hidYaku' => '0',
-            'hidTenCode' => '1',
-            'hidJukubun' => '0',
-            'hidTenMei' => '1',
-            'hidJukubunName' => '0',
-            'hidSosikiCode' => '1',
-            'hidSyoku' => '0',
-            'hidSosikiMei' => '1',
-            'hidNaisen' => '0',
-            'hidJGKubun' => '1',
-            'hidGaisen' => '0',
-            'hidKoujiKubun' => '1',
-            'hidWorksite' => '0',
-        ];
-    }
-
-    private function getSearchFormParamsOrgInfoDoboku(): array
-    {
-        return [
-            'chkTen_09' => '0',
-            'chkTen_11' => '0',
-            'chkTen_15' => '0',
-            'chkTen_10' => '0',
-            'chkTen_26' => '0',
-            'chkTen_12' => '0',
-            'chkTen_13' => '0',
-            'chkTen_14' => '0',
-            'chkTen_16' => '0',
-            'chkTen_17' => '0',
-            'chkTen_19' => '0',
-            'chkTen_27' => '0',
-            'chkTen_31' => '0',
-            'chkTen_32' => '0',
-            'chkTen_46' => '0',
-            'chkTen_36' => '0',
-            'chkTen_66' => '0',
-            'txtSosikiCode' => '',
-            'txtSosikiName' => '',
-            'chkJG_001' => '0',
-            'chkJG_002' => '0',
-            'chkKKubun_001' => '0',
-            'chkKKubun_002' => '0',
-            'chkKKubun_003' => '0',
-            'chkKKubun_004' => '0',
-            'txtKojinCode' => '',
-            'rdoKyoryoku' => '0',
-            'txtKyoryoku' => '',
-            'chkHonKen_001' => '1', // 本社 (assuming this is for doboku based on original code)
-            'chkHonKen_002' => '0',
-            'chkHonKen_003' => '0',
-            'chkHonKen_004' => '0',
-            'ddtSecRankS' => '',
-            'ddtSecRankE' => '',
-            'rdoYaku' => '0',
-            'txtYaku' => '',
-            'rdoJuKubun' => '0',
-            'txtJuKubun' => '',
-            'chkSyoku_001' => '0',
-            'chkSyoku_002' => '1', // 土木 (assuming this is for doboku based on original code)
-            'chkSyoku_003' => '0',
-            'chkSyoku_004' => '0',
-            'chkSyoku_005' => '0',
-            'chkSyoku_006' => '0',
-            'hidKojinCode' => '1',
-            'hidHonken' => '1',
-            'hidKojinName' => '1',
-            'hidKojinKana' => '0',
-            'hidRank' => '0',
-            'hidMailAddress' => '0',
-            'hidYaku' => '0',
-            'hidTenCode' => '1',
-            'hidJukubun' => '0',
-            'hidTenMei' => '1',
-            'hidJukubunName' => '0',
-            'hidSosikiCode' => '1',
-            'hidSyoku' => '0',
-            'hidSosikiMei' => '1',
-            'hidNaisen' => '0',
-            'hidJGKubun' => '1',
-            'hidGaisen' => '0',
-            'hidKoujiKubun' => '1',
-            'hidWorksite' => '0',
-        ];
-    }
-
-    public function login(): void
-    {
-        try {
-            $response = $this->client->get(self::LOGIN_URL);
-            // Consider checking the initial response to ensure it's a login page
-
-            $loginData = $this->getLoginFormParams();
-            $response = $this->client->post(self::LOGIN_URL, ['form_params' => $loginData]);
-
-            if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
-                $loginHtml = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'SJIS-win');
-                throw new \Exception('Login failed. Status Code: ' . $response->getStatusCode() . ' Body: ' . $loginHtml);
-            }
-            log::info('Successfully logged in.');
-        } catch (GuzzleException $e) {
-            throw new \Exception('An error occurred during login: ' . $e->getMessage(), 0, $e);
-        }
-    }
-
-    private function callFinalUrl(): void
-    {
-        try {
-            $this->client->get(self::MANUAL_ADDR_MAN_URL);
-            $mokujiResponse = $this->client->get(self::MANUAL_MOKUJI_URL);
-            $mokujiHtml = mb_convert_encoding((string) $mokujiResponse->getBody(), 'UTF-8', 'shift_jis');
-            $mokujiCrawler = new Crawler($mokujiHtml);
-            $formNode = $mokujiCrawler->filter('form[name="f"]');
-
-            if ($formNode->count() === 0) {
-                throw new \Exception('Form not found on mokuji.htm page.');
-            }
-
-            $formAction = $formNode->attr('action');
-            $prevValue = $formNode->filter('input[name="prev"]')->attr('value');
-            $baseUri = new Uri(self::MANUAL_MOKUJI_URL);
-            $absoluteNextPageUrl = (string) UriResolver::resolve($baseUri, new Uri($formAction));
-
-            $this->client->post($absoluteNextPageUrl, ['form_params' => ['prev' => $prevValue]]);
-
-            $this->searchAndDownloadCsv();
-            $this->eyachoData_1();
-            $this->eyachoData_2();
-            log::info('Successfully navigated and prepared for data download.');
-        } catch (GuzzleException $e) {
-            throw new \Exception("Error accessing manual pages: " . $e->getMessage(), 0, $e);
-        } catch (\Exception $e) {
-            throw $e; // Re-throw specific exceptions caught within this method
-        }
-    }
-
-    private function searchAndDownloadCsv(): void
-    {
-        try {
-            $response = $this->client->post(self::ADDR103_URL, ['form_params' => $this->getSearchFormParamsPhoneBook()]);
-
-            $this->handleCsvDownload($response, $this->boxFolderIdPhoneBookData, '電話帳Data_');
-            log::info('Phone book data CSV downloaded and uploaded.');
-        } catch (GuzzleException $e) {
-            throw new \Exception("Error during phone book CSV search and download: " . $e->getMessage(), 0, $e);
-        }
-    }
-
-    private function eyachoData_1(): void
-    {
-        try {
-            $response = $this->client->post(self::ADDR103_URL, ['form_params' => $this->getSearchFormParamsOrgInfo()]);
-            $this->handleCsvDownload($response, $this->boxFolderIdOrgInfo, '組織情報_');
-            log::info('Organization info data CSV (type 1) downloaded and uploaded.');
-        } catch (GuzzleException $e) {
-            throw new \Exception("Error during organization info CSV (type 1) search and download: " . $e->getMessage(), 0, $e);
-        }
-    }
-
-    private function eyachoData_2(): void
-    {
-        try {
-            $response = $this->client->post(self::ADDR103_URL, ['form_params' => $this->getSearchFormParamsOrgInfoDoboku()]);
-            $this->handleCsvDownload($response, $this->boxFolderIdOrgInfoDoboku, '組織情報＿土木_');
-            log::info('Organization info data CSV (type 2) downloaded and uploaded.');
-        } catch (GuzzleException $e) {
-            throw new \Exception("Error during organization info CSV (type 2) search and download: " . $e->getMessage(), 0, $e);
-        }
-    }
-
-    private function handleCsvDownload($response, string $folderId, string $filePrefix): void
-    {
-        if ($response->getStatusCode() === 200) {
-            $contentType = $response->getHeaderLine('Content-Type');
-            if (strpos($contentType, 'text/csv') !== false || strpos($contentType, 'application/octet-stream') !== false) {
-                $csvData = mb_convert_encoding((string) $response->getBody(), 'UTF-8', 'shift_jis');
-                $fileName = $filePrefix . date('Ymd') . '.csv';
-
-                $filePath = 'C:\Users\UHR757\ScrappingDataTesting\\' . $fileName; // Make sure this folder exists and is writable
-                file_put_contents($filePath, $csvData);
-
-                // $this->uploadToBox($folderId, $csvData, $fileName);
-                dump("{$fileName} downloaded and uploaded to Box successfully.");
-            } else {
-                throw new \Exception("Expected CSV data in response, but got: " . $contentType);
-            }
-        } else {
-            throw new \Exception("Error submitting search on ADDR102.aspx: " . $response->getStatusCode());
-        }
-    }
+  "d": {
+    "__metadata": {
+      "id": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data/電話帳Data_20250605.csv')",
+      "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')",
+      "type": "SP.File"
+    },
+    "Author": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/Author"
+      }
+    },
+    "CheckedOutByUser": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/CheckedOutByUser"
+      }
+    },
+    "EffectiveInformationRightsManagementSettings": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/EffectiveInformationRightsManagementSettings"
+      }
+    },
+    "InformationRightsManagementSettings": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/InformationRightsManagementSettings"
+      }
+    },
+    "ListItemAllFields": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/ListItemAllFields"
+      }
+    },
+    "LockedByUser": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/LockedByUser"
+      }
+    },
+    "ModifiedBy": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/ModifiedBy"
+      }
+    },
+    "Properties": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/Properties"
+      }
+    },
+    "VersionEvents": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/VersionEvents"
+      }
+    },
+    "VersionExpirationReport": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/VersionExpirationReport"
+      }
+    },
+    "Versions": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/Versions"
+      }
+    },
+    "Web": {
+      "__deferred": {
+        "uri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/_api/Web/GetFileByServerRelativePath(decodedurl='/teams/EmailDataScraperTesting/Shared%20Documents/02_ICT%E3%83%84%E3%83%BC%E3%83%AB%E5%88%A9%E7%94%A8%E7%8A%B6%E6%B3%81%E9%9B%86%E8%A8%88/%E5%85%B1%E9%80%9A%E3%83%87%E3%83%BC%E3%82%BF/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data/%E9%9B%BB%E8%A9%B1%E5%B8%B3Data_20250605.csv')/Web"
+      }
+    },
+    "CheckInComment": "",
+    "CheckOutType": 2,
+    "ContentTag": "{A422309B-5059-47AB-B861-294D85D1C5B0},1,1",
+    "CustomizedPageStatus": 0,
+    "ETag": "\"{A422309B-5059-47AB-B861-294D85D1C5B0},1\"",
+    "Exists": true,
+    "ExistsAllowThrowForPolicyFailures": true,
+    "ExistsWithException": true,
+    "IrmEnabled": false,
+    "Length": "1570058",
+    "Level": 1,
+    "LinkingUri": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/Shared%20Documents/02_ICTツール利用状況集計/共通データ/電話帳Data/電話帳Data_20250605.csv?d=wa422309b505947abb861294d85d1c5b0",
+    "LinkingUrl": "https://obayashig.sharepoint.com/teams/EmailDataScraperTesting/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data/電話帳Data_20250605.csv?d=wa422309b505947abb861294d85d1c5b0",
+    "MajorVersion": 1,
+    "MinorVersion": 0,
+    "Name": "電話帳Data_20250605.csv",
+    "ServerRelativeUrl": "/teams/EmailDataScraperTesting/Shared Documents/02_ICTツール利用状況集計/共通データ/電話帳Data/電話帳Data_20250605.csv",
+    "TimeCreated": "2025-06-05T05:39:38Z",
+    "TimeLastModified": "2025-06-05T05:39:38Z",
+    "Title": null,
+    "UIVersion": 512,
+    "UIVersionLabel": "1.0",
+    "UniqueId": "a422309b-5059-47ab-b861-294d85d1c5b0"
+  }
 }
