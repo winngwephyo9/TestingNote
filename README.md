@@ -1,3 +1,6 @@
+base64ToBinary(base64(outputs('Get_file_content_using_id_2')?['body']))
+
+
 Unable to process template language expressions in action 'Compose_2' inputs at line '0' and column '0': 'The template language expression 'base64ToBinary(body('Get_file_content_using_id_2')?['$content'])' cannot be evaluated because property '$content' cannot be selected. Property selection is not supported on values of type 'String'. Please see https://aka.ms/logicexpressions for usage details.'.
 
 
