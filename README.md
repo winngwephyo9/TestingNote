@@ -1,3 +1,30 @@
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
+// Convert raw CSV data (Shift_JIS encoded)
+$csvData = mb_convert_encoding($rawCsvData, 'SJIS-win', 'UTF-8');
+$lines = explode("\n", $csvData);
+
+// Create new Excel
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+
+// Fill Excel with CSV lines
+foreach ($lines as $rowIndex => $line) {
+    $columns = str_getcsv($line);
+    foreach ($columns as $colIndex => $cellValue) {
+        $sheet->setCellValueByColumnAndRow($colIndex + 1, $rowIndex + 1, $cellValue);
+    }
+}
+
+// Save as Excel
+$excelFilePath = $filePath . '.xlsx';
+$writer = new Xlsx($spreadsheet);
+$writer->save($excelFilePath);
+
+
+
+
 種類 SP.File は、HTTP PUT メソッドをサポートしていません。
 clientRequestId: 4c1592cb-0257-4be8-8142-81eb3ef1db76
 serviceRequestId: 4157a6a1-80cd-5000-485b-29e0cae007c7
