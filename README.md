@@ -1,3 +1,8 @@
+種類 SP.File は、HTTP PUT メソッドをサポートしていません。
+clientRequestId: 4c1592cb-0257-4be8-8142-81eb3ef1db76
+serviceRequestId: 4157a6a1-80cd-5000-485b-29e0cae007c7
+
+
 {
     "statusCode": 200,
     "headers": {
