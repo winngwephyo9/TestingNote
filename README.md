@@ -1,4 +1,25 @@
-import * as THREE from './library/three.module.js';
+<style>
+        body { margin: 0; overflow: hidden; } /* Hide scrollbars */
+        canvas { display: block; }
+        #objectInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre; /* Respect newlines and spaces */
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 10; /* Ensure it's above the canvas */
+        }
+    </style>
+    
+    
+    
+    import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
 
