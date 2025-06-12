@@ -1,3 +1,54 @@
+objLoader.load(objPath, (object) => {
+    // Traverse the object to apply a material if it doesn't have one
+    // This is important because the OBJ might not have materials defined if the .mtl isn't loaded correctly
+    object.traverse(function (child) {
+        if (child.isMesh) {
+            // Assign a basic material if the object doesn't have one
+            // This ensures visibility even if the MTL fails to load
+            if (!child.material) {
+                child.material = new THREE.MeshStandardMaterial({ color: 0xAAAAAA });
+            }
+            // Enable shadows if you have lights casting them
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    // Calculate the bounding box to center and scale the object
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Center the object
+    object.position.subVectors(object.position, center);
+
+    // Scale the object. Adjust 'scaleFactor' as needed.
+    // A good starting point is to make the largest dimension fit within a reasonable range (e.g., 5-10 units)
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const desiredMaxDim = 5; // Or whatever size you want your object to be in the scene
+    const scaleFactor = desiredMaxDim / maxDim;
+    object.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+    // Optionally move it slightly to adjust its position relative to the origin after scaling
+    // object.position.y = -size.y * scaleFactor / 2; // Example: place base on ground
+
+    scene.add(object);
+    console.log("OBJ loaded and added to scene:", object); // Verify in console
+    console.log("Object bounds:", box);
+    console.log("Object size after scale:", object.scale.clone().multiply(size));
+
+    // Update camera position to view the loaded object better
+    // This might require some experimentation based on your object's final size
+    camera.position.set(0, 0, desiredMaxDim * 2); // Adjust Z based on desiredMaxDim
+    controls.target.set(0, 0, 0); // Point controls at the origin
+    controls.update();
+});
+
+
+
+
+
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
