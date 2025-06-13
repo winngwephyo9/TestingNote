@@ -1,270 +1,389 @@
-import * as THREE from './library/three.module.js';
-import { OrbitControls } from './library/controls/OrbitControls.js';
-import { OBJLoader } from './library/controls/OBJLoader.js';
 
-// --- Scene Setup ---
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xcccccc); // Light gray background
+g スペース 1_5328476
+# GeometryObject.Id:-1
 
-// --- Camera Setup ---
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000); // Increased far plane
-camera.position.set(10, 10, 10); // Initial camera position, will be adjusted after OBJ load
-camera.lookAt(scene.position);
+v 3558 5534 3000
+v 2236 4553 3000
+v 3558 4553 3000
+v 1298 5534 3000
+v 1298 2974 3000
+v 2236 2974 3000
+v 2236 2974 0
+v 1298 2974 0
+v 2236 4553 0
+v 1298 5534 0
+v 3558 5534 0
+v 3558 4553 0
+f 253 254 255
+f 254 253 256
+f 254 257 258
+f 257 254 256
+f 259 260 261
+f 261 260 262
+f 261 263 264
+f 263 261 262
+f 256 253 262
+f 263 262 253
+f 257 256 262
+f 262 260 257
+f 258 257 259
+f 260 259 257
+f 254 258 261
+f 259 261 258
+f 255 254 261
+f 261 264 255
+f 253 255 263
+f 264 263 255
 
-// --- Renderer Setup ---
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true; // Enable shadow mapping
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
-document.body.appendChild(renderer.domElement);
+g Wall_150_9385217
+# GeometryObject.Id:-1
 
-// --- Lighting Setup ---
-const ambientLight = new THREE.AmbientLight(0x606060, 2); // Softer ambient light
-scene.add(ambientLight);
+v 2306 2881 0
+v 2456 2881 0
+v 2306 2881 4500
+v 2456 2881 4500
+v 5306 2881 0
+v 5456 2881 0
+v 5456 2881 4500
+v 5306 2881 4500
+v 5456 3031 4500
+v 5456 3031 0
+v 2306 3031 0
+v 2306 3031 4500
+f 265 266 267
+f 268 267 266
+f 266 269 268
+f 269 270 271
+f 271 272 269
+f 269 272 268
+f 273 274 275
+f 275 276 273
+f 270 269 274
+f 266 275 274
+f 275 266 265
+f 266 274 269
+f 267 268 276
+f 272 273 276
+f 273 272 271
+f 272 276 268
+f 276 275 265
+f 265 267 276
+f 271 270 274
+f 274 273 271
 
-const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
-directionalLight.position.set(50, 100, 75); // Adjusted light position
-directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2048; // Higher shadow map resolution
-directionalLight.shadow.mapSize.height = 2048;
-directionalLight.shadow.camera.near = 0.5;
-directionalLight.shadow.camera.far = 500;
-directionalLight.shadow.camera.left = -100;
-directionalLight.shadow.camera.right = 100;
-directionalLight.shadow.camera.top = 100;
-directionalLight.shadow.camera.bottom = -100;
-scene.add(directionalLight);
+g SD-90-a_9385218
+# GeometryObject.Id:73
 
-const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 1.5 );
-hemiLight.position.set( 0, 50, 0 );
-scene.add( hemiLight );
+v 3391 1441 0
+v 3416 1317 0
+v 3391 1271 0
+v 3416 1271 0
+v 3431 1395 0
+v 3431 1317 0
+v 3416 1395 0
+v 3416 1441 0
+v 4346 1271 0
+v 4371 1271 0
+v 4346 1271 2114
+v 3416 1271 2114
+v 4371 1271 2140
+v 3391 1271 2140
+v 3391 1441 2140
+v 3416 1441 2114
+v 4371 1441 0
+v 4346 1441 0
+v 4346 1441 2114
+v 4371 1441 2140
+v 3416 1395 2114
+v 3431 1395 2100
+v 4346 1395 0
+v 4331 1395 0
+v 4331 1395 2100
+v 4346 1395 2114
+v 3431 1317 2100
+v 4331 1317 0
+v 4346 1317 0
+v 4331 1317 2100
+v 4346 1317 2114
+v 3416 1317 2114
+f 277 278 279
+f 280 279 278
+f 278 281 282
+f 278 277 283
+f 284 283 277
+f 278 283 281
+f 285 286 287
+f 279 280 288
+f 287 289 288
+f 289 287 286
+f 288 290 279
+f 290 288 289
+f 277 279 291
+f 290 291 279
+f 284 277 292
+f 293 294 295
+f 292 291 295
+f 291 292 277
+f 295 296 293
+f 296 295 291
+f 283 284 292
+f 292 297 283
+f 281 283 298
+f 299 300 301
+f 298 297 301
+f 297 298 283
+f 301 302 299
+f 302 301 297
+f 282 281 298
+f 298 303 282
+f 304 305 306
+f 278 282 303
+f 306 307 303
+f 307 306 305
+f 303 308 278
+f 308 303 307
+f 280 278 308
+f 308 288 280
+f 306 301 304
+f 300 304 301
+f 286 305 293
+f 305 286 285
+f 304 300 305
+f 299 293 305
+f 293 299 294
+f 300 299 305
+f 287 307 305
+f 305 285 287
+f 302 295 299
+f 294 299 295
+f 296 289 293
+f 286 293 289
+f 288 308 287
+f 307 287 308
+f 303 298 301
+f 301 306 303
+f 297 292 302
+f 295 302 292
+f 291 290 289
+f 289 296 291
 
-// --- Controls Setup ---
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05; // Smoother damping
-controls.screenSpacePanning = false;
-controls.minDistance = 1;
-controls.maxDistance = 10000;
+g S_F4_9387209
+# GeometryObject.Id:1
 
-// --- Demo Cube (Optional) ---
-const cubeGeometry = new THREE.BoxGeometry();
-const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-cube.name = "Demo Cube";
-cube.castShadow = true;
-cube.receiveShadow = true;
-cube.position.x = -15; // Place it a bit away from the OBJ
-scene.add(cube);
+v -750 -750 0
+v -750 750 0
+v 0 -750 0
+v 750 0 0
+v 750 750 0
+v 750 -750 0
+v -750 -750 1000
+v -750 750 1000
+v 750 750 1000
+v 750 0 1000
+v 750 -750 1000
+v 0 -750 1000
+f 309 310 311
+f 311 310 312
+f 313 312 310
+f 312 314 311
+f 315 316 310
+f 310 309 315
+f 313 310 316
+f 316 317 313
+f 318 319 314
+f 317 318 313
+f 314 312 318
+f 312 313 318
+f 320 315 309
+f 319 320 314
+f 309 311 320
+f 311 314 320
+f 318 317 316
+f 319 318 320
+f 320 316 315
+f 316 320 318
 
-// --- OBJ Loading ---
-const objLoader = new OBJLoader();
-const objPath = './objFiles/standard_testing.obj'; // Make sure MTL is in the same folder
+g Wall_150_9394153
+# GeometryObject.Id:-1
 
-objLoader.load(
-    objPath,
-    (object) => {
-        // 1. Center the object's internal geometry BEFORE scaling and world placement.
-        const initialBox = new THREE.Box3().setFromObject(object);
-        const initialCenter = initialBox.getCenter(new THREE.Vector3());
-        object.traverse((child) => {
-            if (child.isMesh) {
-                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
-                child.castShadow = true; // Enable shadows for OBJ parts
-                child.receiveShadow = true;
-            }
-        });
-        object.position.set(0, 0, 0); // Place the group at origin
+v 2456 1431 4500
+v 2456 1281 4500
+v 2456 1431 0
+v 2456 1281 0
+v 2456 2881 0
+v 2456 2881 4500
+v 2306 2881 4500
+v 2306 2881 0
+v 2306 1281 0
+v 2306 1281 4500
+f 321 322 323
+f 323 322 324
+f 323 325 326
+f 323 326 321
+f 327 328 329
+f 329 330 327
+f 323 329 328
+f 329 323 324
+f 323 328 325
+f 321 327 330
+f 327 321 326
+f 321 330 322
+f 325 328 327
+f 327 326 325
+f 330 329 324
+f 324 322 330
 
-        // 2. Scale the object to a desired maximum dimension in world units.
-        const scaledBox = new THREE.Box3().setFromObject(object); // Recalculate after translation
-        const scaledSize = scaledBox.getSize(new THREE.Vector3());
-        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+g Wall_150_9394301
+# GeometryObject.Id:-1
 
-        const desiredMaxDimension = 50; // Target size for the object's longest side
-        if (maxDim > 0) {
-            const scale = desiredMaxDimension / maxDim;
-            object.scale.set(scale, scale, scale);
-        }
+v 2456 1281 0
+v 3391 1281 0
+v 3391 1281 2140
+v 2456 1281 4500
+v 4371 1281 2140
+v 4371 1281 0
+v 5456 1281 0
+v 5456 1281 4500
+v 5456 1431 4500
+v 5456 1431 0
+v 4371 1431 2140
+v 5306 1431 4500
+v 5306 1431 0
+v 4371 1431 0
+v 3391 1431 0
+v 2456 1431 0
+v 3391 1431 2140
+v 2456 1431 4500
+f 331 332 333
+f 334 333 335
+f 333 334 331
+f 336 337 335
+f 335 338 334
+f 338 335 337
+f 339 340 341
+f 339 341 342
+f 340 343 341
+f 341 343 344
+f 345 346 347
+f 341 347 348
+f 348 347 346
+f 341 348 342
+f 332 331 346
+f 346 345 332
+f 337 336 343
+f 343 340 337
+f 343 336 344
+f 334 338 342
+f 339 342 338
+f 342 348 334
+f 346 331 334
+f 334 348 346
+f 338 337 340
+f 340 339 338
+f 347 332 345
+f 332 347 333
+f 335 333 347
+f 347 341 335
+f 344 335 341
+f 335 344 336
 
-        // 3. Apply desired rotation
-        object.rotation.y = -Math.PI / 2; // Rotate -90 degrees around Y-axis
+g Wall_150_9394336
+# GeometryObject.Id:-1
 
-        scene.add(object);
-        console.log("OBJ loaded, centered, scaled, and rotated:", object);
+v 5456 1431 4500
+v 5456 1431 0
+v 5456 2881 4500
+v 5456 2881 0
+v 5306 2881 4500
+v 5306 2881 0
+v 5306 1431 4500
+v 5306 1431 0
+f 349 350 351
+f 352 351 350
+f 353 354 355
+f 356 355 354
+f 352 350 356
+f 356 354 352
+f 349 351 355
+f 353 355 351
+f 351 354 353
+f 354 351 352
+f 355 350 349
+f 350 355 356
 
-        // 4. Adjust camera to frame the object
-        const finalWorldBox = new THREE.Box3().setFromObject(object);
-        const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
-        const finalWorldSize = finalWorldBox.getSize(new THREE.Vector3());
+g 部屋_検証 18_9394343
+# GeometryObject.Id:-1
 
-        controls.target.copy(finalWorldCenter);
+v 5306 1431 2438
+v 5306 2881 2438
+v 2456 1431 2438
+v 2456 2881 2438
+v 2456 1431 0
+v 2456 2881 0
+v 5306 2881 0
+v 5306 1431 0
+f 357 358 359
+f 360 359 358
+f 361 362 363
+f 363 364 361
+f 360 358 363
+f 363 362 360
+f 359 360 361
+f 362 361 360
+f 357 359 361
+f 361 364 357
+f 358 357 363
+f 364 363 357
 
-        const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-        const aspect = camera.aspect;
-        const effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect);
-        
-        let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
-        const zoomOutFactor = 1.5; // Adjust for more or less initial zoom
-        cameraDistance *= zoomOutFactor;
-        cameraDistance = Math.max(cameraDistance, Math.max(finalWorldSize.x, finalWorldSize.y, finalWorldSize.z) * 0.75);
+g S_F4_9394415
+# GeometryObject.Id:1
 
-        const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
-        camera.position.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
-
-        camera.lookAt(finalWorldCenter);
-        controls.update();
-        updateInfoPanel(); // Update info panel after object load
-    },
-    (xhr) => {
-        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-    },
-    (error) => {
-        console.error('An error happened while loading the OBJ file:', error);
-        const errorDiv = document.createElement('div');
-        errorDiv.textContent = `Error loading OBJ: ${objPath}. Check console, file path, and MTL file.`;
-        errorDiv.style.cssText = `
-            color: red; position: absolute; top: 30px; left: 10px;
-            background-color: white; padding: 10px; z-index: 100; border-radius: 5px;
-        `;
-        document.body.appendChild(errorDiv);
-    }
-);
-
-// --- Object Selection Logic ---
-let selectedObjects = [];
-let isShiftDown = false;
-const originalMaterials = new Map(); // Stores original materials/colors for selected objects
-
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-const highlightColorSingle = new THREE.Color(0xffff00); // Yellow for single select
-const highlightColorMulti = new THREE.Color(0xff0000); // Red for multi-select
-
-// Helper to apply highlight
-const applyHighlight = (obj, color) => {
-    if (!obj.isMesh || !obj.material) return;
-
-    if (!originalMaterials.has(obj.uuid)) {
-        if (Array.isArray(obj.material)) {
-            originalMaterials.set(obj.uuid, obj.material.map(m => m.clone()));
-        } else {
-            originalMaterials.set(obj.uuid, obj.material.clone());
-        }
-    }
-
-    if (Array.isArray(obj.material)) {
-        obj.material.forEach(m => {
-            if(m.color) m.color.set(color);
-            else if (m.emissive) m.emissive.set(color);
-        });
-    } else {
-        if (obj.material.color) obj.material.color.set(color);
-        else if (obj.material.emissive) obj.material.emissive.set(color);
-    }
-};
-
-// Helper to remove highlight
-const removeHighlight = (obj) => {
-    if (!obj.isMesh || !obj.material) return;
-    if (originalMaterials.has(obj.uuid)) {
-        const originalMatSet = originalMaterials.get(obj.uuid);
-        if (Array.isArray(obj.material) && Array.isArray(originalMatSet)) {
-            obj.material = originalMatSet.map(m => m.clone());
-        } else if (!Array.isArray(obj.material) && !Array.isArray(originalMatSet) && originalMatSet) {
-            obj.material = originalMatSet.clone();
-        }
-        // Do not delete from originalMaterials here if you want to toggle selection
-        // It will be cleared on deselect all or new single selection
-    }
-};
-
-window.addEventListener('keydown', (event) => {
-    if (event.key === 'Shift') isShiftDown = true;
-});
-window.addEventListener('keyup', (event) => {
-    if (event.key === 'Shift') isShiftDown = false;
-});
-
-window.addEventListener('click', (event) => {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
-
-    if (intersects.length > 0) {
-        let targetObject = intersects[0].object;
-        // Traverse up to find the main group if the clicked part is a child mesh of a loaded OBJ
-        while (targetObject.parent && targetObject.parent !== scene && !targetObject.name && !(targetObject.userData.isSelectableRoot)) {
-            targetObject = targetObject.parent;
-        }
-        // If still no name and it's part of an OBJ group, try one more parent (often the group loaded by OBJLoader)
-        if (!targetObject.name && targetObject.parent && targetObject.parent !== scene && targetObject.parent.type === "Group") {
-             if (targetObject.parent.children.some(child => child === targetObject)) { // check if it's a direct child of a group
-                targetObject = targetObject.parent;
-            }
-        }
+v -2250 750 0
+v -2250 2250 0
+v -1500 750 0
+v -750 1500 0
+v -750 2250 0
+v -750 750 0
+v -2250 750 1000
+v -2250 2250 1000
+v -750 2250 1000
+v -750 1500 1000
+v -750 750 1000
+v -1500 750 1000
+f 365 366 367
+f 367 366 368
+f 369 368 366
+f 368 370 367
+f 371 372 366
+f 366 365 371
+f 369 366 372
+f 372 373 369
+f 374 375 370
+f 373 374 369
+f 370 368 374
+f 368 369 374
+f 376 371 365
+f 375 376 370
+f 365 367 376
+f 367 370 376
+f 374 373 372
+f 375 374 376
+f 376 372 371
+f 372 376 374
 
 
-        if (targetObject.isMesh || targetObject.isGroup) { // Allow selecting groups too
-            if (isShiftDown) {
-                const index = selectedObjects.findIndex(selObj => selObj.uuid === targetObject.uuid);
-                if (index === -1) {
-                    selectedObjects.push(targetObject);
-                    targetObject.traverse(child => { if (child.isMesh) applyHighlight(child, highlightColorMulti); });
-                } else {
-                    selectedObjects[index].traverse(child => { if (child.isMesh) removeHighlight(child); });
-                    selectedObjects.splice(index, 1);
-                }
-            } else {
-                selectedObjects.forEach(obj => obj.traverse(child => { if (child.isMesh) removeHighlight(child); }));
-                originalMaterials.clear(); // Clear for new single selection state
-
-                selectedObjects = [targetObject];
-                targetObject.traverse(child => { if (child.isMesh) applyHighlight(child, highlightColorSingle); });
-            }
-        }
-    } else {
-        selectedObjects.forEach(obj => obj.traverse(child => { if (child.isMesh) removeHighlight(child); }));
-        selectedObjects = [];
-        originalMaterials.clear();
-    }
-    updateInfoPanel();
-});
-
-// --- Info Panel Update ---
-function updateInfoPanel() {
-    const infoPanel = document.getElementById('objectInfo');
-    if (!infoPanel) return;
-
-    const info = selectedObjects.map(obj => {
-        const pos = obj.getWorldPosition(new THREE.Vector3());
-        let name = obj.name || "Unnamed Group/Object";
-        if (obj.isMesh && obj.parent && obj.parent.name && obj.parent !== scene) {
-            name = `${obj.parent.name} -> ${obj.name || 'Unnamed Mesh'}`;
-        }
-        return `${name}\n  x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}`;
-    }).join('\n\n');
-    infoPanel.textContent = info || 'None';
-}
-
-// --- Window Resize ---
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// --- Animation Loop ---
-function animate() {
-    requestAnimationFrame(animate);
-    cube.rotation.x += 0.005; // Slowed down cube rotation
-    cube.rotation.y += 0.005;
-    controls.update();
-    renderer.render(scene, camera);
-}
-
-// --- Start ---
-animate();
+three.core.js:19394 THREE.BufferGeometry.computeBoundingBox(): Computed min/max have NaN values. The "position" attribute is likely to have NaN values. BufferGeometry {isBufferGeometry: true, uuid: '775efddb-db82-4a73-bb48-a8f51acb450b', name: '', type: 'BufferGeometry', index: null, …}
+computeBoundingBox @ three.core.js:19394
+applyMatrix4 @ three.core.js:19101
+translate @ three.core.js:19207
+(anonymous) @ objViewerStandard.js:74
+traverse @ three.core.js:14187
+traverse @ three.core.js:14193
+(anonymous) @ objViewerStandard.js:72
+(anonymous) @ OBJLoader.js:495
+(anonymous) @ three.core.js:43986
+Promise.then
+load @ three.core.js:43974
+load @ OBJLoader.js:491
+(anonymous) @ objViewerStandard.js:66Understand this error
+three.core.js:19509 THREE.BufferGeometry.computeBoundingSphere(): Computed radius is NaN. The "position" attribute is likely to have NaN values. BufferGeometry {isBufferGeometry: true, uuid: '4f5b7ef3-868b-4ea1-8dd5-9eb570e3e3ac', name: '', type: 'BufferGeometry', index: null, …}
