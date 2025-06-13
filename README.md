@@ -1,4 +1,9 @@
 
+を読み込む際に、以下のエラーが発生し、モデルを正常に表示できない状況です。
+発生しているエラーの概要：
+THREE.BufferGeometry.computeBoundingBox(): Computed min/max have NaN values.
+THREE.BufferGeometry.computeBoundingSphere(): Computed radius is NaN.
+
 g スペース 1_5328476
 # GeometryObject.Id:-1
 
