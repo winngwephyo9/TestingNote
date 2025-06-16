@@ -1,3 +1,23 @@
+
+       #objectInfo {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background-color: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-family: monospace;
+        /* white-space: pre;  <-- Change this or add if not present */
+        white-space: pre-wrap; /* <<< THIS IS THE KEY CHANGE */
+        max-height: 90vh;
+        overflow-y: auto;
+        z-index: 10;
+    }
+
+    
+   
+   
    const pos = obj.getWorldPosition(new THREE.Vector3());
         let rawName = obj.name || "Unnamed Group/Object";
 
