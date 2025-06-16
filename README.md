@@ -1,3 +1,15 @@
+とりあえず、読み込みはできていると思うので、
+選択した要素の名前とIDを見れるような設定って作れますか？
+前半が名前、後半がIDになります。
+ 
+ただし、【標準】の方は「 _ 」アンダーバーが全角になっていると思うので、
+注意してください。
+判定は後ろからカウントして最初にヒットするアンダーバーで判定するといいと思います。
+よろしくお願いします。
+![image](https://github.com/user-attachments/assets/187f03e5-277c-44c7-9984-505eb3fadb5d)
+
+
+
 ![image](https://github.com/user-attachments/assets/30281a8e-afb3-4d78-9e02-c84d7ab9b338)
 ![image](https://github.com/user-attachments/assets/6f639651-b4ba-4976-a4a5-f24ab095d289)
 
