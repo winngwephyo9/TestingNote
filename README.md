@@ -1,3 +1,44 @@
+   const pos = obj.getWorldPosition(new THREE.Vector3());
+        let rawName = obj.name || "Unnamed Group/Object";
+
+        // If the clicked object is a mesh and its parent has a name (and is not the scene itself),
+        // it's likely part of a loaded OBJ group. Use the parent's name as the primary rawName.
+        if (obj.isMesh && obj.parent && obj.parent.name && obj.parent !== scene) {
+            rawName = obj.parent.name;
+        }
+
+        let displayName = rawName;
+        let displayId = "N/A";
+
+        // Try to extract Name and ID based on the pattern "Name_ID" or "Name＿ID"
+        // Find the last underscore (either half-width or full-width)
+        const lastUnderscoreHalf = rawName.lastIndexOf('_');
+        const lastUnderscoreFull = rawName.lastIndexOf('＿'); // Full-width underscore
+        
+        let splitIndex = -1;
+        if (lastUnderscoreHalf !== -1 && lastUnderscoreFull !== -1) {
+            splitIndex = Math.max(lastUnderscoreHalf, lastUnderscoreFull);
+        } else if (lastUnderscoreHalf !== -1) {
+            splitIndex = lastUnderscoreHalf;
+        } else if (lastUnderscoreFull !== -1) {
+            splitIndex = lastUnderscoreFull;
+        }
+
+        if (splitIndex > 0 && splitIndex < rawName.length - 1) { // Ensure underscore is not at start/end
+            displayName = rawName.substring(0, splitIndex);
+            displayId = rawName.substring(splitIndex + 1);
+        } else {
+            // If no underscore or it's at an edge, use rawName as displayName
+            displayName = rawName;
+        }
+        
+        return `名前: ${displayName}\n  ID: ${displayId}\n  x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}`;
+    }).join('\n\n');
+
+
+
+
+
 とりあえず、読み込みはできていると思うので、
 選択した要素の名前とIDを見れるような設定って作れますか？
 前半が名前、後半がIDになります。
