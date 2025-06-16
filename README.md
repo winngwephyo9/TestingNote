@@ -1,3 +1,81 @@
+// --- Object Selection Logic (inside script.js) ---
+// ... (keep selectedObjects, isShiftDown, originalMaterials, raycaster, mouse, highlight colors) ...
+
+window.addEventListener('click', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+
+    if (intersects.length > 0) {
+        let clickedHierarchyObject = intersects[0].object;
+        // Traverse up to find a more meaningful object to select,
+        // typically the group loaded by OBJLoader or an object with a name.
+        while (clickedHierarchyObject.parent && clickedHierarchyObject.parent !== scene && !clickedHierarchyObject.name) {
+            // Prefer a parent if the current object has no name and is not the root of a selectable entity
+            if (clickedHierarchyObject.parent.children.length === 1 && !clickedHierarchyObject.userData.isSelectableRoot) {
+                 // If it's the only child and not marked as a root, likely an intermediate node.
+                clickedHierarchyObject = clickedHierarchyObject.parent;
+            } else if (clickedHierarchyObject.parent.type === "Group" && !clickedHierarchyObject.userData.isSelectableRoot) {
+                // If parent is a group and current is not a root, consider the parent.
+                 // This helps select the whole "g" group from the OBJ.
+                const objGroupParent = clickedHierarchyObject.parent;
+                // Check if this is the root of an OBJ loaded object by looking for geometry in its children
+                if (objGroupParent.children.some(child => child.isMesh && child.geometry)) {
+                    clickedHierarchyObject = objGroupParent;
+                    break; // Found a good candidate group
+                } else {
+                    break; // Don't go further up if parent group has no geometry directly
+                }
+            }
+             else {
+                break; // Stop if current object has a name or no more suitable parent
+            }
+        }
+
+
+        if (clickedHierarchyObject.isMesh || clickedHierarchyObject.isGroup) {
+            if (isShiftDown) {
+                // Multi-selection
+                const index = selectedObjects.findIndex(selObj => selObj.uuid === clickedHierarchyObject.uuid);
+                if (index === -1) { // Not selected, add to selection
+                    selectedObjects.push(clickedHierarchyObject);
+                    clickedHierarchyObject.traverse(child => { if (child.isMesh) applyHighlight(child, highlightColorMulti); });
+                } else { // Already selected, remove from selection
+                    selectedObjects[index].traverse(child => { if (child.isMesh) removeHighlight(child); });
+                    originalMaterials.delete(selectedObjects[index].uuid); // Clean up original material for this specific object
+                    selectedObjects.splice(index, 1);
+                }
+            } else {
+                // Single selection
+                // 1. Deselect all previously selected objects
+                selectedObjects.forEach(obj => {
+                    obj.traverse(child => { if (child.isMesh) removeHighlight(child); });
+                });
+                // 2. Clear the selectedObjects array and originalMaterials map
+                selectedObjects = [];
+                originalMaterials.clear(); // Crucial: Clear all stored original materials
+
+                // 3. Select the new one
+                selectedObjects.push(clickedHierarchyObject);
+                clickedHierarchyObject.traverse(child => { if (child.isMesh) applyHighlight(child, highlightColorSingle); });
+            }
+        }
+    } else {
+        // Clicked on empty space, deselect all
+        selectedObjects.forEach(obj => {
+            obj.traverse(child => { if (child.isMesh) removeHighlight(child); });
+        });
+        selectedObjects = [];
+        originalMaterials.clear(); // Clear all stored original materials
+    }
+    updateInfoPanel();
+});
+
+
+
+
 
        #objectInfo {
         position: absolute;
