@@ -1,3 +1,92 @@
+window.addEventListener('click', (event) => {
+    if (!loadedObjectModelRoot) {
+        console.log("OBJ model not yet loaded.");
+        return;
+    }
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true); // Intersect within the loaded model
+
+    let newlyClickedTargetGroup = null;
+
+    if (intersects.length > 0) {
+        let intersectedMesh = intersects[0].object; // This is the THREE.Mesh that was clicked
+
+        console.log("Directly intersected mesh:", intersectedMesh.name || "unnamed_mesh", intersectedMesh.uuid);
+
+        if (intersectedMesh.parent) {
+            console.log("Parent of mesh:", intersectedMesh.parent.name || "unnamed_group", intersectedMesh.parent.type, intersectedMesh.parent.uuid);
+            if (intersectedMesh.parent.parent) {
+                 console.log("Grandparent of mesh:", intersectedMesh.parent.parent.name || "unnamed_grandparent", intersectedMesh.parent.parent.type, intersectedMesh.parent.parent.uuid);
+            }
+        }
+
+
+        // The 'g' groups from OBJLoader are usually direct children of the 'loadedObjectModelRoot'
+        // and these 'g' groups contain the actual meshes.
+        // So, the parent of the intersectedMesh should be our target group.
+        if (intersectedMesh.parent && 
+            intersectedMesh.parent.isGroup && 
+            intersectedMesh.parent.name && // Check if the parent group has a name
+            intersectedMesh.parent.parent === loadedObjectModelRoot) { // Check if this named group is a child of our main loaded object
+            
+            newlyClickedTargetGroup = intersectedMesh.parent;
+
+        } else if (intersectedMesh.isGroup && intersectedMesh.name && intersectedMesh.parent === loadedObjectModelRoot) {
+            // Less common: If the ray somehow intersected the named group itself directly (e.g. it had a bounding box)
+            // and this group is a child of loadedObjectModelRoot.
+            newlyClickedTargetGroup = intersectedMesh;
+        }
+        // Further fallback if the structure is even more nested or different
+        // This part might be less necessary if the above covers most OBJ outputs
+        else {
+            let current = intersectedMesh;
+            while(current && current !== scene && current !== loadedObjectModelRoot.parent /* Should not happen */){
+                 // Check if 'current' itself is one of the direct children of loadedObjectModelRoot and is a named group
+                if(current.parent === loadedObjectModelRoot && current.isGroup && current.name) {
+                    newlyClickedTargetGroup = current;
+                    break;
+                }
+                // Or if 'current' is a mesh, and its parent is a named group child of loadedObjectModelRoot
+                if(current.isMesh && current.parent && current.parent.isGroup && current.parent.name && current.parent.parent === loadedObjectModelRoot) {
+                    newlyClickedTargetGroup = current.parent;
+                    break;
+                }
+                current = current.parent;
+            }
+        }
+
+
+        if (newlyClickedTargetGroup) {
+            console.log("SUCCESS: Identified target group:", newlyClickedTargetGroup.name);
+        } else {
+            console.warn("WARNING: Could not identify a named target group for the clicked mesh. Clicked object might not be part of a named 'g' group directly under the loaded OBJ root, or ray intersected something else.");
+        }
+    }
+
+    // --- The rest of the logic remains the same ---
+    removeAllHighlights();
+
+    if (newlyClickedTargetGroup) {
+        if (!selectedObjGroup || selectedObjGroup.uuid !== newlyClickedTargetGroup.uuid) {
+            selectedObjGroup = newlyClickedTargetGroup;
+            applyHighlightToMeshesInGroup(selectedObjGroup, highlightColorSingle);
+        } else {
+            // Clicked the same group again, deselect it (highlights already removed by removeAllHighlights)
+            selectedObjGroup = null;
+        }
+    } else {
+        // Clicked on empty space or an unidentifiable part
+        selectedObjGroup = null;
+    }
+
+    updateInfoPanel();
+});
+
+
 ![image](https://github.com/user-attachments/assets/99472d28-3a35-4426-ade8-3bb63ac49027)
 
 
