@@ -1,119 +1,143 @@
 // --- Object Selection Logic (inside script.js) ---
-// ... (keep selectedObjects, isShiftDown, originalMaterials, raycaster, mouse, highlight colors) ...
+let selectedObject = null; // Changed from selectedObjects array to a single object
+let isShiftDown = false; // Kept for potential future multi-select, but current logic focuses on single
+const originalMaterials = new Map();
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+const highlightColorSingle = new THREE.Color(0xffff00); // Yellow for single select
+
+// Helper to apply highlight to an object and its children
+const applyHighlight = (objectToHighlight, color) => {
+    objectToHighlight.traverse((child) => {
+        if (child.isMesh && child.material) {
+            if (!originalMaterials.has(child.uuid)) {
+                if (Array.isArray(child.material)) {
+                    originalMaterials.set(child.uuid, child.material.map(m => m.clone()));
+                } else {
+                    originalMaterials.set(child.uuid, child.material.clone());
+                }
+            }
+
+            if (Array.isArray(child.material)) {
+                child.material.forEach(m => {
+                    if (m.color) m.color.set(color);
+                    else if (m.emissive) m.emissive.set(color); // Fallback
+                });
+            } else {
+                if (child.material.color) child.material.color.set(color);
+                else if (child.material.emissive) child.material.emissive.set(color); // Fallback
+            }
+        }
+    });
+};
+
+// Helper to remove highlight from an object and its children
+const removeHighlight = (objectToUnhighlight) => {
+    if (!objectToUnhighlight) return;
+    objectToUnhighlight.traverse((child) => {
+        if (child.isMesh && child.material) {
+            if (originalMaterials.has(child.uuid)) {
+                const originalMatSet = originalMaterials.get(child.uuid);
+                if (Array.isArray(child.material) && Array.isArray(originalMatSet)) {
+                    child.material = originalMatSet.map(m => m.clone());
+                } else if (!Array.isArray(child.material) && !Array.isArray(originalMatSet) && originalMatSet) {
+                    child.material = originalMatSet.clone();
+                }
+                originalMaterials.delete(child.uuid); // Remove after restoring
+            }
+        }
+    });
+};
+
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Shift') isShiftDown = true;
+});
+window.addEventListener('keyup', (event) => {
+    if (event.key === 'Shift') isShiftDown = false;
+});
 
 window.addEventListener('click', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
+    const intersects = raycaster.intersectObjects(scene.children, true); // true for recursive
+
+    let newlyClickedHierarchyObject = null;
 
     if (intersects.length > 0) {
-        let clickedHierarchyObject = intersects[0].object;
-        // Traverse up to find a more meaningful object to select,
-        // typically the group loaded by OBJLoader or an object with a name.
-        while (clickedHierarchyObject.parent && clickedHierarchyObject.parent !== scene && !clickedHierarchyObject.name) {
-            // Prefer a parent if the current object has no name and is not the root of a selectable entity
-            if (clickedHierarchyObject.parent.children.length === 1 && !clickedHierarchyObject.userData.isSelectableRoot) {
-                 // If it's the only child and not marked as a root, likely an intermediate node.
-                clickedHierarchyObject = clickedHierarchyObject.parent;
-            } else if (clickedHierarchyObject.parent.type === "Group" && !clickedHierarchyObject.userData.isSelectableRoot) {
-                // If parent is a group and current is not a root, consider the parent.
-                 // This helps select the whole "g" group from the OBJ.
-                const objGroupParent = clickedHierarchyObject.parent;
-                // Check if this is the root of an OBJ loaded object by looking for geometry in its children
-                if (objGroupParent.children.some(child => child.isMesh && child.geometry)) {
-                    clickedHierarchyObject = objGroupParent;
-                    break; // Found a good candidate group
+        let intersectObject = intersects[0].object;
+        // Traverse up to find a more meaningful object to select
+        while (intersectObject.parent && intersectObject.parent !== scene && !intersectObject.name) {
+            if (intersectObject.parent.type === "Group") {
+                 // Check if this is likely the root of an OBJ loaded object
+                if (intersectObject.parent.children.some(child => child.isMesh && child.geometry)) {
+                    intersectObject = intersectObject.parent;
+                    break;
                 } else {
-                    break; // Don't go further up if parent group has no geometry directly
-                }
-            }
-             else {
-                break; // Stop if current object has a name or no more suitable parent
-            }
-        }
-
-
-        if (clickedHierarchyObject.isMesh || clickedHierarchyObject.isGroup) {
-            if (isShiftDown) {
-                // Multi-selection
-                const index = selectedObjects.findIndex(selObj => selObj.uuid === clickedHierarchyObject.uuid);
-                if (index === -1) { // Not selected, add to selection
-                    selectedObjects.push(clickedHierarchyObject);
-                    clickedHierarchyObject.traverse(child => { if (child.isMesh) applyHighlight(child, highlightColorMulti); });
-                } else { // Already selected, remove from selection
-                    selectedObjects[index].traverse(child => { if (child.isMesh) removeHighlight(child); });
-                    originalMaterials.delete(selectedObjects[index].uuid); // Clean up original material for this specific object
-                    selectedObjects.splice(index, 1);
+                    break;
                 }
             } else {
-                // Single selection
-                // 1. Deselect all previously selected objects
-                selectedObjects.forEach(obj => {
-                    obj.traverse(child => { if (child.isMesh) removeHighlight(child); });
-                });
-                // 2. Clear the selectedObjects array and originalMaterials map
-                selectedObjects = [];
-                originalMaterials.clear(); // Crucial: Clear all stored original materials
-
-                // 3. Select the new one
-                selectedObjects.push(clickedHierarchyObject);
-                clickedHierarchyObject.traverse(child => { if (child.isMesh) applyHighlight(child, highlightColorSingle); });
+                break;
             }
         }
-    } else {
-        // Clicked on empty space, deselect all
-        selectedObjects.forEach(obj => {
-            obj.traverse(child => { if (child.isMesh) removeHighlight(child); });
-        });
-        selectedObjects = [];
-        originalMaterials.clear(); // Clear all stored original materials
+        newlyClickedHierarchyObject = intersectObject;
     }
+
+    // If there was a previously selected object, unhighlight it
+    if (selectedObject) {
+        removeHighlight(selectedObject);
+        // originalMaterials will be cleared if a new object is selected, or if nothing is selected
+    }
+
+    if (newlyClickedHierarchyObject) {
+        if (selectedObject && selectedObject.uuid === newlyClickedHierarchyObject.uuid) {
+            // Clicked the same object again, so deselect it
+            selectedObject = null;
+            originalMaterials.clear(); // Clear as nothing is selected now
+        } else {
+            // Clicked a new object (or the first object)
+            originalMaterials.clear(); // Clear previous state before highlighting new
+            selectedObject = newlyClickedHierarchyObject;
+            applyHighlight(selectedObject, highlightColorSingle);
+        }
+    } else {
+        // Clicked on empty space
+        selectedObject = null;
+        originalMaterials.clear(); // Clear as nothing is selected now
+    }
+
     updateInfoPanel();
 });
 
+// --- Info Panel Update ---
+function updateInfoPanel() {
+    const infoPanel = document.getElementById('objectInfo');
+    if (!infoPanel) return;
 
+    if (selectedObject) {
+        const pos = selectedObject.getWorldPosition(new THREE.Vector3());
+        let rawName = selectedObject.name || "Unnamed Group/Object";
 
-
-
-       #objectInfo {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background-color: rgba(0,0,0,0.7);
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        font-family: monospace;
-        /* white-space: pre;  <-- Change this or add if not present */
-        white-space: pre-wrap; /* <<< THIS IS THE KEY CHANGE */
-        max-height: 90vh;
-        overflow-y: auto;
-        z-index: 10;
-    }
-
-    
-   
-   
-   const pos = obj.getWorldPosition(new THREE.Vector3());
-        let rawName = obj.name || "Unnamed Group/Object";
-
-        // If the clicked object is a mesh and its parent has a name (and is not the scene itself),
-        // it's likely part of a loaded OBJ group. Use the parent's name as the primary rawName.
-        if (obj.isMesh && obj.parent && obj.parent.name && obj.parent !== scene) {
-            rawName = obj.parent.name;
+        // If the selected object is a mesh and its parent has a name (likely an OBJ group),
+        // prefer the parent's name for grouping context.
+        // This part might need adjustment based on how deep your OBJs nest meaningful names.
+        if (selectedObject.isMesh && selectedObject.parent && selectedObject.parent.name && selectedObject.parent !== scene) {
+             if (selectedObject.parent.children.length > 1 || selectedObject.parent.name.toLowerCase().includes("group")) {
+                rawName = selectedObject.parent.name; // Use group name if mesh is part of a larger named group
+            }
         }
+
 
         let displayName = rawName;
         let displayId = "N/A";
 
-        // Try to extract Name and ID based on the pattern "Name_ID" or "Name＿ID"
-        // Find the last underscore (either half-width or full-width)
         const lastUnderscoreHalf = rawName.lastIndexOf('_');
-        const lastUnderscoreFull = rawName.lastIndexOf('＿'); // Full-width underscore
-        
+        const lastUnderscoreFull = rawName.lastIndexOf('＿');
         let splitIndex = -1;
+
         if (lastUnderscoreHalf !== -1 && lastUnderscoreFull !== -1) {
             splitIndex = Math.max(lastUnderscoreHalf, lastUnderscoreFull);
         } else if (lastUnderscoreHalf !== -1) {
@@ -122,451 +146,16 @@ window.addEventListener('click', (event) => {
             splitIndex = lastUnderscoreFull;
         }
 
-        if (splitIndex > 0 && splitIndex < rawName.length - 1) { // Ensure underscore is not at start/end
+        if (splitIndex > 0 && splitIndex < rawName.length - 1) {
             displayName = rawName.substring(0, splitIndex);
             displayId = rawName.substring(splitIndex + 1);
         } else {
-            // If no underscore or it's at an edge, use rawName as displayName
             displayName = rawName;
         }
         
-        return `名前: ${displayName}\n  ID: ${displayId}\n  x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}`;
-    }).join('\n\n');
-
-
-
-
-
-とりあえず、読み込みはできていると思うので、
-選択した要素の名前とIDを見れるような設定って作れますか？
-前半が名前、後半がIDになります。
- 
-ただし、【標準】の方は「 _ 」アンダーバーが全角になっていると思うので、
-注意してください。
-判定は後ろからカウントして最初にヒットするアンダーバーで判定するといいと思います。
-よろしくお願いします。
-![image](https://github.com/user-attachments/assets/187f03e5-277c-44c7-9984-505eb3fadb5d)
-
-
-
-![image](https://github.com/user-attachments/assets/30281a8e-afb3-4d78-9e02-c84d7ab9b338)
-![image](https://github.com/user-attachments/assets/6f639651-b4ba-4976-a4a5-f24ab095d289)
-
-
-
-
-
-<img width="1069" alt="image" src="https://github.com/user-attachments/assets/8e9e6105-eea4-43e9-9885-c2dd8153e69a" />
-
-
-
-原因として考えられる点（OBJファイル側の問題）：
-OBJファイルの内容を確認したところ、特に最初のgグループ（例：g スペース 1_5328476）において、定義されている頂点数（v行）に対して、面を定義するf行で参照されている頂点インデックスが範囲外（定義されている頂点数よりもはるかに大きな番号）になっている箇所が見受けられました。
-（例）
-g スペース 1_5328476
-v 3558 5534 3000  # 頂点1
-v 2236 4553 3000  # 頂点2
-...
-v 3558 4553 0     # 頂点12
-f 253 254 255    # ← この面定義で参照されている頂点番号 (253等) は、
-                 #   このグループ内で定義されている12個の頂点の範囲を超えています。
-Use code with caution.
-Obj
-OBJLoaderは通常、ファイル全体で通し番号の頂点インデックスを期待しますが、上記のような状況では、存在しない頂点を参照しようとし、結果として頂点座標にNaNが発生している可能性が非常に高いです。
-
-
-
-
-を読み込む際に、以下のエラーが発生し、モデルを正常に表示できない状況です。
-発生しているエラーの概要：
-THREE.BufferGeometry.computeBoundingBox(): Computed min/max have NaN values.
-THREE.BufferGeometry.computeBoundingSphere(): Computed radius is NaN.
-
-g スペース 1_5328476
-# GeometryObject.Id:-1
-
-v 3558 5534 3000
-v 2236 4553 3000
-v 3558 4553 3000
-v 1298 5534 3000
-v 1298 2974 3000
-v 2236 2974 3000
-v 2236 2974 0
-v 1298 2974 0
-v 2236 4553 0
-v 1298 5534 0
-v 3558 5534 0
-v 3558 4553 0
-f 253 254 255
-f 254 253 256
-f 254 257 258
-f 257 254 256
-f 259 260 261
-f 261 260 262
-f 261 263 264
-f 263 261 262
-f 256 253 262
-f 263 262 253
-f 257 256 262
-f 262 260 257
-f 258 257 259
-f 260 259 257
-f 254 258 261
-f 259 261 258
-f 255 254 261
-f 261 264 255
-f 253 255 263
-f 264 263 255
-
-g Wall_150_9385217
-# GeometryObject.Id:-1
-
-v 2306 2881 0
-v 2456 2881 0
-v 2306 2881 4500
-v 2456 2881 4500
-v 5306 2881 0
-v 5456 2881 0
-v 5456 2881 4500
-v 5306 2881 4500
-v 5456 3031 4500
-v 5456 3031 0
-v 2306 3031 0
-v 2306 3031 4500
-f 265 266 267
-f 268 267 266
-f 266 269 268
-f 269 270 271
-f 271 272 269
-f 269 272 268
-f 273 274 275
-f 275 276 273
-f 270 269 274
-f 266 275 274
-f 275 266 265
-f 266 274 269
-f 267 268 276
-f 272 273 276
-f 273 272 271
-f 272 276 268
-f 276 275 265
-f 265 267 276
-f 271 270 274
-f 274 273 271
-
-g SD-90-a_9385218
-# GeometryObject.Id:73
-
-v 3391 1441 0
-v 3416 1317 0
-v 3391 1271 0
-v 3416 1271 0
-v 3431 1395 0
-v 3431 1317 0
-v 3416 1395 0
-v 3416 1441 0
-v 4346 1271 0
-v 4371 1271 0
-v 4346 1271 2114
-v 3416 1271 2114
-v 4371 1271 2140
-v 3391 1271 2140
-v 3391 1441 2140
-v 3416 1441 2114
-v 4371 1441 0
-v 4346 1441 0
-v 4346 1441 2114
-v 4371 1441 2140
-v 3416 1395 2114
-v 3431 1395 2100
-v 4346 1395 0
-v 4331 1395 0
-v 4331 1395 2100
-v 4346 1395 2114
-v 3431 1317 2100
-v 4331 1317 0
-v 4346 1317 0
-v 4331 1317 2100
-v 4346 1317 2114
-v 3416 1317 2114
-f 277 278 279
-f 280 279 278
-f 278 281 282
-f 278 277 283
-f 284 283 277
-f 278 283 281
-f 285 286 287
-f 279 280 288
-f 287 289 288
-f 289 287 286
-f 288 290 279
-f 290 288 289
-f 277 279 291
-f 290 291 279
-f 284 277 292
-f 293 294 295
-f 292 291 295
-f 291 292 277
-f 295 296 293
-f 296 295 291
-f 283 284 292
-f 292 297 283
-f 281 283 298
-f 299 300 301
-f 298 297 301
-f 297 298 283
-f 301 302 299
-f 302 301 297
-f 282 281 298
-f 298 303 282
-f 304 305 306
-f 278 282 303
-f 306 307 303
-f 307 306 305
-f 303 308 278
-f 308 303 307
-f 280 278 308
-f 308 288 280
-f 306 301 304
-f 300 304 301
-f 286 305 293
-f 305 286 285
-f 304 300 305
-f 299 293 305
-f 293 299 294
-f 300 299 305
-f 287 307 305
-f 305 285 287
-f 302 295 299
-f 294 299 295
-f 296 289 293
-f 286 293 289
-f 288 308 287
-f 307 287 308
-f 303 298 301
-f 301 306 303
-f 297 292 302
-f 295 302 292
-f 291 290 289
-f 289 296 291
-
-g S_F4_9387209
-# GeometryObject.Id:1
-
-v -750 -750 0
-v -750 750 0
-v 0 -750 0
-v 750 0 0
-v 750 750 0
-v 750 -750 0
-v -750 -750 1000
-v -750 750 1000
-v 750 750 1000
-v 750 0 1000
-v 750 -750 1000
-v 0 -750 1000
-f 309 310 311
-f 311 310 312
-f 313 312 310
-f 312 314 311
-f 315 316 310
-f 310 309 315
-f 313 310 316
-f 316 317 313
-f 318 319 314
-f 317 318 313
-f 314 312 318
-f 312 313 318
-f 320 315 309
-f 319 320 314
-f 309 311 320
-f 311 314 320
-f 318 317 316
-f 319 318 320
-f 320 316 315
-f 316 320 318
-
-g Wall_150_9394153
-# GeometryObject.Id:-1
-
-v 2456 1431 4500
-v 2456 1281 4500
-v 2456 1431 0
-v 2456 1281 0
-v 2456 2881 0
-v 2456 2881 4500
-v 2306 2881 4500
-v 2306 2881 0
-v 2306 1281 0
-v 2306 1281 4500
-f 321 322 323
-f 323 322 324
-f 323 325 326
-f 323 326 321
-f 327 328 329
-f 329 330 327
-f 323 329 328
-f 329 323 324
-f 323 328 325
-f 321 327 330
-f 327 321 326
-f 321 330 322
-f 325 328 327
-f 327 326 325
-f 330 329 324
-f 324 322 330
-
-g Wall_150_9394301
-# GeometryObject.Id:-1
-
-v 2456 1281 0
-v 3391 1281 0
-v 3391 1281 2140
-v 2456 1281 4500
-v 4371 1281 2140
-v 4371 1281 0
-v 5456 1281 0
-v 5456 1281 4500
-v 5456 1431 4500
-v 5456 1431 0
-v 4371 1431 2140
-v 5306 1431 4500
-v 5306 1431 0
-v 4371 1431 0
-v 3391 1431 0
-v 2456 1431 0
-v 3391 1431 2140
-v 2456 1431 4500
-f 331 332 333
-f 334 333 335
-f 333 334 331
-f 336 337 335
-f 335 338 334
-f 338 335 337
-f 339 340 341
-f 339 341 342
-f 340 343 341
-f 341 343 344
-f 345 346 347
-f 341 347 348
-f 348 347 346
-f 341 348 342
-f 332 331 346
-f 346 345 332
-f 337 336 343
-f 343 340 337
-f 343 336 344
-f 334 338 342
-f 339 342 338
-f 342 348 334
-f 346 331 334
-f 334 348 346
-f 338 337 340
-f 340 339 338
-f 347 332 345
-f 332 347 333
-f 335 333 347
-f 347 341 335
-f 344 335 341
-f 335 344 336
-
-g Wall_150_9394336
-# GeometryObject.Id:-1
-
-v 5456 1431 4500
-v 5456 1431 0
-v 5456 2881 4500
-v 5456 2881 0
-v 5306 2881 4500
-v 5306 2881 0
-v 5306 1431 4500
-v 5306 1431 0
-f 349 350 351
-f 352 351 350
-f 353 354 355
-f 356 355 354
-f 352 350 356
-f 356 354 352
-f 349 351 355
-f 353 355 351
-f 351 354 353
-f 354 351 352
-f 355 350 349
-f 350 355 356
-
-g 部屋_検証 18_9394343
-# GeometryObject.Id:-1
-
-v 5306 1431 2438
-v 5306 2881 2438
-v 2456 1431 2438
-v 2456 2881 2438
-v 2456 1431 0
-v 2456 2881 0
-v 5306 2881 0
-v 5306 1431 0
-f 357 358 359
-f 360 359 358
-f 361 362 363
-f 363 364 361
-f 360 358 363
-f 363 362 360
-f 359 360 361
-f 362 361 360
-f 357 359 361
-f 361 364 357
-f 358 357 363
-f 364 363 357
-
-g S_F4_9394415
-# GeometryObject.Id:1
-
-v -2250 750 0
-v -2250 2250 0
-v -1500 750 0
-v -750 1500 0
-v -750 2250 0
-v -750 750 0
-v -2250 750 1000
-v -2250 2250 1000
-v -750 2250 1000
-v -750 1500 1000
-v -750 750 1000
-v -1500 750 1000
-f 365 366 367
-f 367 366 368
-f 369 368 366
-f 368 370 367
-f 371 372 366
-f 366 365 371
-f 369 366 372
-f 372 373 369
-f 374 375 370
-f 373 374 369
-f 370 368 374
-f 368 369 374
-f 376 371 365
-f 375 376 370
-f 365 367 376
-f 367 370 376
-f 374 373 372
-f 375 374 376
-f 376 372 371
-f 372 376 374
-
-
-three.core.js:19394 THREE.BufferGeometry.computeBoundingBox(): Computed min/max have NaN values. The "position" attribute is likely to have NaN values. BufferGeometry {isBufferGeometry: true, uuid: '775efddb-db82-4a73-bb48-a8f51acb450b', name: '', type: 'BufferGeometry', index: null, …}
-computeBoundingBox @ three.core.js:19394
-applyMatrix4 @ three.core.js:19101
-translate @ three.core.js:19207
-(anonymous) @ objViewerStandard.js:74
-traverse @ three.core.js:14187
-traverse @ three.core.js:14193
-(anonymous) @ objViewerStandard.js:72
-(anonymous) @ OBJLoader.js:495
-(anonymous) @ three.core.js:43986
-Promise.then
-load @ three.core.js:43974
-load @ OBJLoader.js:491
-(anonymous) @ objViewerStandard.js:66Understand this error
-three.core.js:19509 THREE.BufferGeometry.computeBoundingSphere(): Computed radius is NaN. The "position" attribute is likely to have NaN values. BufferGeometry {isBufferGeometry: true, uuid: '4f5b7ef3-868b-4ea1-8dd5-9eb570e3e3ac', name: '', type: 'BufferGeometry', index: null, …}
+        const info = `名前: ${displayName}\n  ID: ${displayId}\n  x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}`;
+        infoPanel.textContent = info;
+    } else {
+        infoPanel.textContent = 'None';
+    }
+}
