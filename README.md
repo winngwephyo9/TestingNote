@@ -1,3 +1,11 @@
+![image](https://github.com/user-attachments/assets/99472d28-3a35-4426-ade8-3bb63ac49027)
+
+
+![image](https://github.com/user-attachments/assets/1704d9f3-b2b4-482c-8fc5-4fc03fb469e7)
+
+
+
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
