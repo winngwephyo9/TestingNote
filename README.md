@@ -1,29 +1,143 @@
-// --- Object Selection Logic (inside script.js) ---
-let selectedHierarchyObject = null; // The main selected object/group
-// let isShiftDown = false; // Not strictly needed for current single-select logic
-const originalMeshMaterials = new Map(); // Stores original materials for individual MESHES that are CURRENTLY highlighted
-const highlightedMeshes = new Set();    // Stores UUIDs of meshes that are currently highlighted
+import * as THREE from './library/three.module.js';
+import { OrbitControls } from './library/controls/OrbitControls.js';
+import { OBJLoader } from './library/controls/OBJLoader.js';
+
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xcccccc);
+
+// --- Camera Setup ---
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
+camera.position.set(10, 10, 10);
+camera.lookAt(scene.position);
+
+// --- Renderer Setup ---
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// --- Lighting Setup ---
+const ambientLight = new THREE.AmbientLight(0x606060, 2);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
+directionalLight.position.set(50, 100, 75);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 500;
+directionalLight.shadow.camera.left = -100;
+directionalLight.shadow.camera.right = 100;
+directionalLight.shadow.camera.top = 100;
+directionalLight.shadow.camera.bottom = -100;
+scene.add(directionalLight);
+
+const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 1.5 );
+hemiLight.position.set( 0, 50, 0 );
+scene.add( hemiLight );
+
+// --- Controls Setup ---
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.screenSpacePanning = false;
+controls.minDistance = 1;
+controls.maxDistance = 10000;
+
+// --- OBJ Loading ---
+const objLoader = new OBJLoader();
+const objPath = './objFiles/standard_testing.obj'; //  <-- MAKE SURE THIS IS YOUR CORRECT OBJ FILE PATH
+
+objLoader.load(
+    objPath,
+    (object) => {
+        const initialBox = new THREE.Box3().setFromObject(object);
+        const initialCenter = initialBox.getCenter(new THREE.Vector3());
+        object.traverse((child) => {
+            if (child.isMesh) {
+                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        object.position.set(0, 0, 0);
+
+        const scaledBox = new THREE.Box3().setFromObject(object);
+        const scaledSize = scaledBox.getSize(new THREE.Vector3());
+        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+
+        const desiredMaxDimension = 50;
+        if (maxDim > 0) {
+            const scale = desiredMaxDimension / maxDim;
+            object.scale.set(scale, scale, scale);
+        }
+
+        object.rotation.x = -Math.PI / 2; // Stand up
+        object.rotation.y = -Math.PI / 2; // Orient front
+
+        scene.add(object);
+        console.log("OBJ loaded, centered, scaled, and rotated:", object);
+
+        const finalWorldBox = new THREE.Box3().setFromObject(object);
+        const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
+        const finalWorldSize = finalWorldBox.getSize(new THREE.Vector3());
+
+        controls.target.copy(finalWorldCenter);
+
+        const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+        const aspect = camera.aspect;
+        const effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect);
+        
+        let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
+        const zoomOutFactor = 1.5;
+        cameraDistance *= zoomOutFactor;
+        cameraDistance = Math.max(cameraDistance, Math.max(finalWorldSize.x, finalWorldSize.y, finalWorldSize.z) * 0.75);
+
+        const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+        camera.position.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
+
+        camera.lookAt(finalWorldCenter);
+        controls.update();
+        updateInfoPanel();
+    },
+    (xhr) => {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    (error) => {
+        console.error('An error happened while loading the OBJ file:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.textContent = `Error loading OBJ: ${objPath}. Check console, file path, and MTL file.`;
+        errorDiv.style.cssText = `
+            color: red; position: absolute; top: 30px; left: 10px;
+            background-color: white; padding: 10px; z-index: 100; border-radius: 5px;
+        `;
+        document.body.appendChild(errorDiv);
+    }
+);
+
+// --- Object Selection Logic ---
+let selectedHierarchyObject = null;
+const originalMeshMaterials = new Map();
+const highlightedMeshes = new Set();
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+const highlightColorSingle = new THREE.Color(0xffff00);
 
-const highlightColorSingle = new THREE.Color(0xffff00); // Yellow for single select
-
-// Helper to apply highlight to MESHES within a given object/group
 const applyHighlightToMeshesOfObject = (objectToHighlightRoot, color) => {
     if (!objectToHighlightRoot) return;
     objectToHighlightRoot.traverse((childMesh) => {
         if (childMesh.isMesh && childMesh.material) {
-            // Only store and highlight if not already highlighted (shouldn't happen if logic is correct, but good check)
             if (!highlightedMeshes.has(childMesh.uuid)) {
-                // Store original material(s) for this specific mesh
                 if (Array.isArray(childMesh.material)) {
                     originalMeshMaterials.set(childMesh.uuid, childMesh.material.map(m => m.clone()));
                 } else {
                     originalMeshMaterials.set(childMesh.uuid, childMesh.material.clone());
                 }
 
-                // Apply highlight color
                 if (Array.isArray(childMesh.material)) {
                     childMesh.material.forEach(m => {
                         if (m.color) m.color.set(color);
@@ -39,10 +153,9 @@ const applyHighlightToMeshesOfObject = (objectToHighlightRoot, color) => {
     });
 };
 
-// Helper to remove highlight from ALL currently highlighted meshes
 const removeAllHighlights = () => {
     highlightedMeshes.forEach(meshUuid => {
-        const mesh = scene.getObjectByProperty('uuid', meshUuid); // Find the mesh in the scene
+        const mesh = scene.getObjectByProperty('uuid', meshUuid);
         if (mesh && mesh.isMesh && originalMeshMaterials.has(meshUuid)) {
             const originalMatSet = originalMeshMaterials.get(meshUuid);
             if (Array.isArray(mesh.material) && Array.isArray(originalMatSet)) {
@@ -56,14 +169,6 @@ const removeAllHighlights = () => {
     originalMeshMaterials.clear();
 };
 
-
-// window.addEventListener('keydown', (event) => { // Not needed for pure single select
-//     if (event.key === 'Shift') isShiftDown = true;
-// });
-// window.addEventListener('keyup', (event) => { // Not needed for pure single select
-//     if (event.key === 'Shift') isShiftDown = false;
-// });
-
 window.addEventListener('click', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -75,19 +180,14 @@ window.addEventListener('click', (event) => {
 
     if (intersects.length > 0) {
         let intersectTarget = intersects[0].object;
-        // Traverse up to find the most logical "selectable" root object (often the Group loaded by OBJLoader).
         while (intersectTarget.parent && intersectTarget.parent !== scene) {
-            // Heuristic: if a parent is a Group and has a name, or if it's a direct child of the scene,
-            // it's a good candidate for the "root" of the selection.
             if (intersectTarget.parent.type === 'Group' && intersectTarget.parent.name) {
                 intersectTarget = intersectTarget.parent;
                 break;
             }
             if (intersectTarget.parent === scene && (intersectTarget.name || intersectTarget.type === 'Group')) {
-                 // If the direct child of the scene is a group or has a name, use it.
                 break;
             }
-             // If the object itself has a name and no named group parent, select it directly.
             if (intersectTarget.name && (!intersectTarget.parent.name || intersectTarget.parent === scene)) {
                 break;
             }
@@ -96,30 +196,22 @@ window.addEventListener('click', (event) => {
         newlyClickedObjectRoot = intersectTarget;
     }
 
-    // Always remove all existing highlights before processing the new click
     removeAllHighlights();
 
     if (newlyClickedObjectRoot) {
-        // If the newly clicked object is different from the previously selected one,
-        // or if nothing was selected, then select and highlight the new one.
         if (!selectedHierarchyObject || selectedHierarchyObject.uuid !== newlyClickedObjectRoot.uuid) {
             selectedHierarchyObject = newlyClickedObjectRoot;
             applyHighlightToMeshesOfObject(selectedHierarchyObject, highlightColorSingle);
         } else {
-            // Clicked the same object again, so it's now deselected (highlights already removed)
             selectedHierarchyObject = null;
         }
     } else {
-        // Clicked on empty space, deselect.
         selectedHierarchyObject = null;
     }
-
     updateInfoPanel();
 });
 
-
 // --- Info Panel Update ---
-// (Your existing updateInfoPanel function should work with selectedHierarchyObject)
 function updateInfoPanel() {
     const infoPanel = document.getElementById('objectInfo');
     if (!infoPanel) return;
@@ -156,3 +248,20 @@ function updateInfoPanel() {
         infoPanel.textContent = 'None';
     }
 }
+
+// --- Window Resize ---
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Animation Loop ---
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// --- Start ---
+animate();
