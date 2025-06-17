@@ -1,3 +1,7 @@
+![image](https://github.com/user-attachments/assets/b74ece0e-51d8-41a5-bc47-fb062c3c7ad9)
+
+
+
 window.addEventListener('click', (event) => {
     if (!loadedObjectModelRoot) {
         console.log("OBJ model not yet loaded.");
