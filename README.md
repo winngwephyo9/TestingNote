@@ -1,3 +1,174 @@
+// --- Object Selection Logic ---
+let selectedObjectOrGroup = null; // Stores the currently selected Mesh or Group
+const originalMeshMaterials = new Map(); // Key: mesh.uuid, Value: original material OR array of original materials
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const highlightColorSingle = new THREE.Color(0xffff00);
+
+// Applies highlight ONLY to the specified mesh or meshes within the specified group
+const applyHighlight = (target, color) => {
+    if (!target) return;
+    console.log("Applying highlight to:", target.name || target.uuid, target.type);
+
+    const meshesToHighlight = [];
+    if (target.isMesh) {
+        meshesToHighlight.push(target);
+    } else if (target.isGroup) {
+        target.traverse((child) => {
+            if (child.isMesh) {
+                meshesToHighlight.push(child);
+            }
+        });
+    }
+
+    meshesToHighlight.forEach(mesh => {
+        if (mesh.material) {
+            if (!originalMeshMaterials.has(mesh.uuid)) {
+                // Store the actual original material instance(s)
+                originalMeshMaterials.set(mesh.uuid, mesh.material);
+            }
+
+            // Create a new material or array of materials for highlighting
+            if (Array.isArray(mesh.material)) {
+                mesh.material = mesh.material.map(originalMat => {
+                    const highlightMat = originalMat.clone();
+                    if (highlightMat.color) highlightMat.color.set(color);
+                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                    return highlightMat;
+                });
+            } else {
+                const highlightMat = mesh.material.clone();
+                if (highlightMat.color) highlightMat.color.set(color);
+                else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                mesh.material = highlightMat;
+            }
+        }
+    });
+};
+
+// Removes highlights from all meshes that had their materials changed
+const removeAllHighlights = () => {
+    console.log("Removing all highlights. Meshes with stored original materials:", originalMeshMaterials.size);
+    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
+        const mesh = scene.getObjectByProperty('uuid', meshUuid);
+        if (mesh && mesh.isMesh) {
+            // Restore the stored original material instance(s)
+            mesh.material = originalMaterialOrArray; // Assign back the original reference
+        }
+    });
+    originalMeshMaterials.clear(); // Clear after restoring
+};
+
+
+window.addEventListener('click', (event) => {
+    // ... (mouse and raycaster setup as before) ...
+    if (!loadedObjectModelRoot) {
+        console.log("OBJ model not yet loaded.");
+        return;
+    }
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true); // Intersect children of the loaded OBJ
+
+    let newlyClickedTarget = null;
+
+    if (intersects.length > 0) {
+        let intersectedObject = intersects[0].object; // This is usually a THREE.Mesh
+
+        console.log("Directly intersected:", intersectedObject.name || "unnamed_object", intersectedObject.type, intersectedObject.uuid);
+        if (intersectedObject.parent) {
+            console.log("Parent of intersected:", intersectedObject.parent.name || "unnamed_parent", intersectedObject.parent.type, intersectedObject.parent.uuid);
+        }
+
+        // Prioritize the named mesh itself if it's a direct child of loadedObjectModelRoot
+        if (intersectedObject.isMesh && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject;
+        }
+        // Else, if the mesh's parent is a named group and a direct child of loadedObjectModelRoot
+        else if (intersectedObject.isMesh &&
+                 intersectedObject.parent &&
+                 intersectedObject.parent.isGroup &&
+                 intersectedObject.parent.name &&
+                 intersectedObject.parent.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject.parent;
+        }
+        // Fallback for directly clicking a named group that is a child of loadedObjectModelRoot
+        else if (intersectedObject.isGroup && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject;
+        }
+
+
+        if (newlyClickedTarget) {
+            console.log("SUCCESS: Identified target object/group:", newlyClickedTarget.name);
+        } else {
+            console.warn("WARNING: Could not identify a distinct named target for the clicked mesh/object under the loaded OBJ root.");
+        }
+    }
+
+    // Always remove previous highlights first
+    removeAllHighlights();
+
+    if (newlyClickedTarget) {
+        if (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== newlyClickedTarget.uuid) {
+            // New object/group selected
+            selectedObjectOrGroup = newlyClickedTarget;
+            applyHighlight(selectedObjectOrGroup, highlightColorSingle);
+        } else {
+            // Clicked the same object/group again, deselect it (highlights already removed)
+            selectedObjectOrGroup = null;
+        }
+    } else {
+        // Clicked on empty space
+        selectedObjectOrGroup = null;
+    }
+
+    updateInfoPanel(); // This will now use selectedObjectOrGroup
+});
+
+// --- Info Panel Update ---
+// Change selectedObjGroup to selectedObjectOrGroup
+function updateInfoPanel() {
+    const infoPanel = document.getElementById('objectInfo');
+    if (!infoPanel) return;
+
+    if (selectedObjectOrGroup) { // Changed variable name here
+        const pos = selectedObjectOrGroup.getWorldPosition(new THREE.Vector3());
+        let rawName = selectedObjectOrGroup.name || "Unnamed Group/Object";
+
+        let displayName = rawName;
+        let displayId = "N/A";
+
+        const lastUnderscoreHalf = rawName.lastIndexOf('_');
+        const lastUnderscoreFull = rawName.lastIndexOf('＿');
+        let splitIndex = -1;
+
+        if (lastUnderscoreHalf !== -1 && lastUnderscoreFull !== -1) {
+            splitIndex = Math.max(lastUnderscoreHalf, lastUnderscoreFull);
+        } else if (lastUnderscoreHalf !== -1) {
+            splitIndex = lastUnderscoreHalf;
+        } else if (lastUnderscoreFull !== -1) {
+            splitIndex = lastUnderscoreFull;
+        }
+
+        if (splitIndex > 0 && splitIndex < rawName.length - 1) {
+            displayName = rawName.substring(0, splitIndex);
+            displayId = rawName.substring(splitIndex + 1);
+        } else {
+            displayName = rawName;
+        }
+        
+        const info = `名前: ${displayName}\n  ID: ${displayId}\n  x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}`;
+        infoPanel.textContent = info;
+    } else {
+        infoPanel.textContent = 'None';
+    }
+}
+
+
 ![image](https://github.com/user-attachments/assets/3bb63301-e5ce-4e0c-b440-1a654b985da9)
 
 
