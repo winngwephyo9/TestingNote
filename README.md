@@ -1,3 +1,73 @@
+window.addEventListener('click', (event) => {
+    if (!loadedObjectModelRoot) {
+        console.log("OBJ model not yet loaded.");
+        return;
+    }
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
+
+    let newlyClickedTarget = null; // This can be a Mesh or a Group
+
+    if (intersects.length > 0) {
+        let intersectedObject = intersects[0].object; // Could be a Mesh
+
+        console.log("Directly intersected:", intersectedObject.name || "unnamed_object", intersectedObject.type, intersectedObject.uuid);
+        if (intersectedObject.parent) {
+            console.log("Parent of intersected:", intersectedObject.parent.name || "unnamed_parent", intersectedObject.parent.type, intersectedObject.parent.uuid);
+        }
+
+        // Scenario 1: The intersected object itself is a named Mesh and a direct child of loadedObjectModelRoot.
+        // This covers the case where 'g' names are applied directly to meshes.
+        if (intersectedObject.isMesh && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject;
+        }
+        // Scenario 2: The intersected mesh's parent is a named Group and a direct child of loadedObjectModelRoot.
+        // This covers the case where 'g' names create an intermediate Group.
+        else if (intersectedObject.isMesh &&
+                 intersectedObject.parent &&
+                 intersectedObject.parent.isGroup &&
+                 intersectedObject.parent.name &&
+                 intersectedObject.parent.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject.parent;
+        }
+        // Scenario 3: The intersected object is a named Group and a direct child of loadedObjectModelRoot
+        // (Less likely to be directly intersected by raycaster unless it has invisible geometry, but good to cover)
+        else if (intersectedObject.isGroup && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject;
+        }
+
+
+        if (newlyClickedTarget) {
+            console.log("SUCCESS: Identified target object/group:", newlyClickedTarget.name);
+        } else {
+            console.warn("WARNING: Could not identify a distinct named target for the clicked mesh/object under the loaded OBJ root.");
+        }
+    }
+
+    // --- The rest of the logic remains the same ---
+    removeAllHighlights(); // This will clear previous state
+
+    if (newlyClickedTarget) {
+        if (!selectedObjGroup || selectedObjGroup.uuid !== newlyClickedTarget.uuid) {
+            selectedObjGroup = newlyClickedTarget; // selectedObjGroup can now be a Mesh or a Group
+            // If the selected target is a mesh, applyHighlightToMeshesInGroup will still work
+            // as traverse() on a mesh will just execute the callback for the mesh itself.
+            applyHighlightToMeshesInGroup(selectedObjGroup, highlightColorSingle);
+        } else {
+            selectedObjGroup = null; // Clicked same object again, deselect
+        }
+    } else {
+        selectedObjGroup = null; // Clicked empty space
+    }
+
+    updateInfoPanel(); // updateInfoPanel will use selectedObjGroup
+});
+
+
 ![image](https://github.com/user-attachments/assets/b81fc37f-aca4-4c39-ae21-63056b031ea0)
 
 
