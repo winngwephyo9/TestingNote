@@ -1,5 +1,7 @@
 ![image](https://github.com/user-attachments/assets/0fcaad28-122a-4a40-9364-0a2b3d1acad3)
 ![image](https://github.com/user-attachments/assets/5a43b242-a7d3-4319-b76a-475acf497730)
+![image](https://github.com/user-attachments/assets/5e36cd18-c213-465d-9fb2-6056c7acc425)
+
 
 // --- Object Selection Logic (inside script.js) ---
 let selectedHierarchyObject = null; // The main selected object/group
