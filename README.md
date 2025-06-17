@@ -1,31 +1,157 @@
-// --- Object Selection Logic (inside script.js) ---
-let selectedObjGroup = null; // Will store the THREE.Group corresponding to a 'g' tag
-const originalMeshMaterials = new Map(); // Stores original materials for individual MESHES
-const highlightedMeshesUuids = new Set();    // Stores UUIDs of meshes that are currently highlighted
+import * as THREE from './library/three.module.js';
+import { OrbitControls } from './library/controls/OrbitControls.js';
+import { OBJLoader } from './library/controls/OBJLoader.js';
+
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xcccccc);
+
+// --- Camera Setup ---
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
+camera.position.set(10, 10, 10);
+camera.lookAt(scene.position);
+
+// --- Renderer Setup ---
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// --- Lighting Setup ---
+const ambientLight = new THREE.AmbientLight(0x606060, 2);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
+directionalLight.position.set(50, 100, 75);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 500;
+directionalLight.shadow.camera.left = -100;
+directionalLight.shadow.camera.right = 100;
+directionalLight.shadow.camera.top = 100;
+directionalLight.shadow.camera.bottom = -100;
+scene.add(directionalLight);
+
+const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 1.5 );
+hemiLight.position.set( 0, 50, 0 );
+scene.add( hemiLight );
+
+// --- Controls Setup ---
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.screenSpacePanning = false;
+controls.minDistance = 1;
+controls.maxDistance = 10000;
+
+// --- Global variable to store the loaded OBJ object ---
+let loadedObjectModelRoot = null;
+
+// --- OBJ Loading ---
+const objLoader = new OBJLoader();
+// MAKE SURE to use your *NEW* OBJ file path if you changed it
+const objPath = './objFiles/standard_testing.obj'; // Or your new file path
+
+objLoader.load(
+    objPath,
+    (object) => {
+        loadedObjectModelRoot = object; // Store the root of the loaded OBJ
+
+        const initialBox = new THREE.Box3().setFromObject(object);
+        const initialCenter = initialBox.getCenter(new THREE.Vector3());
+        object.traverse((child) => {
+            if (child.isMesh) {
+                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        object.position.set(0, 0, 0);
+
+        const scaledBox = new THREE.Box3().setFromObject(object);
+        const scaledSize = scaledBox.getSize(new THREE.Vector3());
+        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+
+        const desiredMaxDimension = 50;
+        if (maxDim > 0) {
+            const scale = desiredMaxDimension / maxDim;
+            object.scale.set(scale, scale, scale);
+        }
+
+        object.rotation.x = -Math.PI / 2; // Stand up
+        object.rotation.y = -Math.PI / 2; // Orient front
+
+        scene.add(object);
+        console.log("OBJ loaded and processed:", object);
+
+        const finalWorldBox = new THREE.Box3().setFromObject(object);
+        const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
+        controls.target.copy(finalWorldCenter);
+
+        const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+        const aspect = camera.aspect;
+        const effectiveSizeDimension = Math.max(finalWorldBox.getSize(new THREE.Vector3()).y, finalWorldBox.getSize(new THREE.Vector3()).x / aspect);
+        
+        let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
+        const zoomOutFactor = 1.5;
+        cameraDistance *= zoomOutFactor;
+        cameraDistance = Math.max(cameraDistance, Math.max(finalWorldBox.getSize(new THREE.Vector3()).x, finalWorldBox.getSize(new THREE.Vector3()).y, finalWorldBox.getSize(new THREE.Vector3()).z) * 0.75);
+
+        const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+        camera.position.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
+
+        camera.lookAt(finalWorldCenter);
+        controls.update();
+        updateInfoPanel();
+    },
+    (xhr) => {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    (error) => {
+        console.error('An error happened while loading the OBJ file:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.textContent = `Error loading OBJ: ${objPath}. Check console, file path, and MTL file. Make sure the OBJ is not corrupted (e.g., has NaN issues).`;
+        errorDiv.style.cssText = `
+            color: red; position: absolute; top: 30px; left: 10px;
+            background-color: white; padding: 10px; z-index: 100; border-radius: 5px;
+        `;
+        document.body.appendChild(errorDiv);
+    }
+);
+
+// --- Object Selection Logic ---
+let selectedObjGroup = null;
+const originalMeshMaterials = new Map();
+const highlightedMeshesUuids = new Set();
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const highlightColorSingle = new THREE.Color(0xffff00);
 
-// Applies highlight ONLY to meshes that are direct children or grandchildren (etc.)
-// of the provided 'groupNode'
 const applyHighlightToMeshesInGroup = (groupNode, color) => {
     if (!groupNode) return;
+    console.log("Applying highlight to group:", groupNode.name);
     groupNode.traverse((childMesh) => {
         if (childMesh.isMesh && childMesh.material) {
-            // Ensure we are only acting on meshes truly within this groupNode's hierarchy
-            let isDescendant = false;
-            let ascendant = childMesh;
-            while (ascendant) {
-                if (ascendant === groupNode) {
-                    isDescendant = true;
+            // Check if this childMesh is a direct descendant of the groupNode
+            // This check is important if groupNode itself might be a mesh (though less likely for OBJs 'g')
+            let isDirectDescendant = false;
+            let p = childMesh.parent;
+            while(p && p !== scene) {
+                if (p === groupNode) {
+                    isDirectDescendant = true;
                     break;
                 }
-                if (ascendant === scene) break; // Stop if we reach the scene
-                ascendant = ascendant.parent;
+                p = p.parent;
             }
+            // If groupNode is the mesh itself
+            if (childMesh === groupNode) isDirectDescendant = true;
 
-            if (isDescendant) {
+
+            if (isDirectDescendant) {
                 if (!originalMeshMaterials.has(childMesh.uuid)) {
                     if (Array.isArray(childMesh.material)) {
                         originalMeshMaterials.set(childMesh.uuid, childMesh.material.map(m => m.clone()));
@@ -41,7 +167,7 @@ const applyHighlightToMeshesInGroup = (groupNode, color) => {
                     });
                 } else {
                     if (childMesh.material.color) childMesh.material.color.set(color);
-                    else if (childMesh.material.emissive) child.material.emissive.set(color);
+                    else if (childMesh.material.emissive) childMesh.material.emissive.set(color);
                 }
                 highlightedMeshesUuids.add(childMesh.uuid);
             }
@@ -49,13 +175,12 @@ const applyHighlightToMeshesInGroup = (groupNode, color) => {
     });
 };
 
-// Removes highlights from all meshes currently tracked
 const removeAllHighlights = () => {
+    console.log("Removing all highlights. Currently highlighted:", highlightedMeshesUuids.size);
     highlightedMeshesUuids.forEach(meshUuid => {
         const mesh = scene.getObjectByProperty('uuid', meshUuid);
         if (mesh && mesh.isMesh && originalMeshMaterials.has(meshUuid)) {
             const originalMatSet = originalMeshMaterials.get(meshUuid);
-            // Restore material
             if (Array.isArray(mesh.material) && Array.isArray(originalMatSet)) {
                 mesh.material = originalMatSet.map(m => m.clone());
             } else if (!Array.isArray(mesh.material) && !Array.isArray(originalMatSet) && originalMatSet) {
@@ -68,78 +193,78 @@ const removeAllHighlights = () => {
 };
 
 window.addEventListener('click', (event) => {
+    if (!loadedObjectModelRoot) { // Don't do anything if OBJ hasn't loaded
+        console.log("OBJ model not yet loaded.");
+        return;
+    }
+
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
+    // Crucially, intersect with the children of the loadedObjectModelRoot
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
 
-    let clickedMesh = null;
+    let newlyClickedTargetGroup = null;
+
     if (intersects.length > 0) {
-        clickedMesh = intersects[0].object;
-    }
+        let intersectedMesh = intersects[0].object; // This must be a THREE.Mesh
 
-    let newSelectedGroup = null;
-    if (clickedMesh && clickedMesh.isMesh) {
-        // Try to find the named THREE.Group that corresponds to the OBJ 'g' tag
-        let parent = clickedMesh.parent;
-        while (parent && parent !== scene) {
-            if (parent.isGroup && parent.name) { // Found a named group
-                newSelectedGroup = parent;
-                break;
+        console.log("Directly intersected mesh:", intersectedMesh.name || "unnamed", intersectedMesh.uuid);
+        if(intersectedMesh.parent) console.log("Parent:", intersectedMesh.parent.name || "unnamed", intersectedMesh.parent.uuid, "Parent of Parent:", intersectedMesh.parent.parent ? (intersectedMesh.parent.parent.name || "unnamed") : "N/A");
+
+
+        // The 'g' groups from OBJLoader are usually direct children of the 'object' passed to the load callback
+        // So, the parent of the intersectedMesh should be our target group, if it has a name.
+        if (intersectedMesh.parent && intersectedMesh.parent.isGroup && intersectedMesh.parent.name && intersectedMesh.parent.parent === loadedObjectModelRoot) {
+            newlyClickedTargetGroup = intersectedMesh.parent;
+        } else if (intersectedMesh.parent && intersectedMesh.parent.isGroup && intersectedMesh.parent.name && intersectedMesh.parent === loadedObjectModelRoot){
+            // This case might happen if the OBJ file has only one 'g' group which becomes the loadedObjectModelRoot itself
+             newlyClickedTargetGroup = intersectedMesh.parent;
+        }
+         else {
+            // Fallback or more complex hierarchy: try to find named group upwards
+            let current = intersectedMesh;
+            while(current && current !== scene){
+                if(current.isGroup && current.name){
+                    newlyClickedTargetGroup = current;
+                    break;
+                }
+                current = current.parent;
             }
-            parent = parent.parent;
-        }
-        // If no named group parent was found, and the mesh itself has a name,
-        // it might be a simple object not from a 'g' tag.
-        // For this specific problem, we are interested in 'g' groups.
-        // If newSelectedGroup is still null here, it means we clicked a mesh not under a named group.
-        // Or if the top-level loaded object is the one with the 'g' name.
-        if (!newSelectedGroup && clickedMesh.parent && clickedMesh.parent.isGroup && clickedMesh.parent.name && clickedMesh.parent.parent === scene) {
-             // Case where the OBJ's top-level object is the named group
-            newSelectedGroup = clickedMesh.parent;
-        } else if (!newSelectedGroup && intersects[0].object.name && intersects[0].object.isGroup) {
-            // Case where the intersection itself is the named group.
-            newSelectedGroup = intersects[0].object;
         }
 
-    } else if (intersects.length > 0 && intersects[0].object.isGroup && intersects[0].object.name) {
-        // Clicked directly on a named group (less likely as groups usually don't have geometry for raycasting)
-        newSelectedGroup = intersects[0].object;
+
+        if (newlyClickedTargetGroup) {
+            console.log("Identified target group:", newlyClickedTargetGroup.name);
+        } else {
+            console.log("Could not identify a named target group for the clicked mesh.");
+        }
     }
 
-
-    // Always remove previous highlights
     removeAllHighlights();
 
-    if (newSelectedGroup) {
-        if (!selectedObjGroup || selectedObjGroup.uuid !== newSelectedGroup.uuid) {
-            // New group selected, or first selection
-            selectedObjGroup = newSelectedGroup;
+    if (newlyClickedTargetGroup) {
+        if (!selectedObjGroup || selectedObjGroup.uuid !== newlyClickedTargetGroup.uuid) {
+            selectedObjGroup = newlyClickedTargetGroup;
             applyHighlightToMeshesInGroup(selectedObjGroup, highlightColorSingle);
         } else {
-            // Clicked the same group again, deselect it (highlights already removed)
             selectedObjGroup = null;
         }
     } else {
-        // Clicked on empty space or an unidentifiable part
         selectedObjGroup = null;
     }
-
-    updateInfoPanel(); // This function will now use selectedObjGroup
+    updateInfoPanel();
 });
 
-
 // --- Info Panel Update ---
-// Modify updateInfoPanel to use selectedObjGroup
 function updateInfoPanel() {
     const infoPanel = document.getElementById('objectInfo');
     if (!infoPanel) return;
 
-    if (selectedObjGroup) { // Use selectedObjGroup
+    if (selectedObjGroup) {
         const pos = selectedObjGroup.getWorldPosition(new THREE.Vector3());
         let rawName = selectedObjGroup.name || "Unnamed Group/Object";
-
         let displayName = rawName;
         let displayId = "N/A";
 
@@ -168,3 +293,20 @@ function updateInfoPanel() {
         infoPanel.textContent = 'None';
     }
 }
+
+// --- Window Resize ---
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Animation Loop ---
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+// --- Start ---
+animate();
