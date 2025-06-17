@@ -1,3 +1,6 @@
+![image](https://github.com/user-attachments/assets/0fcaad28-122a-4a40-9364-0a2b3d1acad3)
+![image](https://github.com/user-attachments/assets/5a43b242-a7d3-4319-b76a-475acf497730)
+
 // --- Object Selection Logic (inside script.js) ---
 let selectedHierarchyObject = null; // The main selected object/group
 let isShiftDown = false; // Kept for potential future multi-select
