@@ -1,4 +1,199 @@
-// --- Window Resize ---
+ const initialBox = new THREE.Box3().setFromObject(object);
+        const initialCenter = initialBox.getCenter(new THREE.Vector3());
+        object.traverse((child) => {
+            if (child.isMesh) {
+                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        object.position.set(0, 0, 0);
+
+        const scaledBox = new THREE.Box3().setFromObject(object);
+        const scaledSize = scaledBox.getSize(new THREE.Vector3());
+        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
+
+        const desiredMaxDimension = 50;
+        if (maxDim > 0) {
+            const scale = desiredMaxDimension / maxDim;
+            object.scale.set(scale, scale, scale);
+        }
+
+        object.rotation.x = -Math.PI / 2; 
+        object.rotation.y = -Math.PI / 2;
+
+        scene.add(object);
+        console.log("OBJ loaded and processed:", object);
+
+        // ... (your existing camera adjustment logic) ...
+        const finalWorldBox = new THREE.Box3().setFromObject(object);
+        const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
+        controls.target.copy(finalWorldCenter);
+        // ... (camera distance calculation) ...
+        const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+        const aspect = camera.aspect;
+        const effectiveSizeDimension = Math.max(finalWorldBox.getSize(new THREE.Vector3()).y, finalWorldBox.getSize(new THREE.Vector3()).x / aspect);
+        let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
+        const zoomOutFactor = 1.5;
+        cameraDistance *= zoomOutFactor;
+        cameraDistance = Math.max(cameraDistance, Math.max(finalWorldBox.getSize(new THREE.Vector3()).x, finalWorldBox.getSize(new THREE.Vector3()).y, finalWorldBox.getSize(new THREE.Vector3()).z) * 0.75);
+        const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+        camera.position.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
+        camera.lookAt(finalWorldCenter);
+
+        controls.update();
+        updateInfoPanel();
+
+        // Hide loader now that everything is ready
+        if (loaderElement) loaderElement.style.display = 'none';
+        if (loaderTextElement) loaderTextElement.style.display = 'none';
+    },
+    (xhr) => { // Progress callback
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        if (loaderTextElement) {
+            const percentLoaded = Math.round(xhr.loaded / xhr.total * 100);
+            if (isFinite(percentLoaded)) {
+                 loaderTextElement.textContent = `Loading 3D Model: ${percentLoaded}%`;
+            } else {
+                 loaderTextElement.textContent = `Loading 3D Model...`; // Fallback if total is 0
+            }
+        }
+    },
+    (error) => { // Error callback
+        console.error('An error happened while loading the OBJ file:', error);
+        const errorDiv = document.createElement('div');
+        // ... (your error message setup) ...
+        document.body.appendChild(errorDiv);
+
+        // Hide loader on error too, or display an error message via the loader
+        if (loaderElement) loaderElement.style.display = 'none';
+        if (loaderTextElement) loaderTextElement.textContent = 'Error loading model.';
+    }
+);
+
+
+
+
+let selectedObjGroup = null;
+const originalMeshMaterials = new Map();
+const highlightedMeshesUuids = new Set();
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const highlightColorSingle = new THREE.Color(0xffff00);
+
+const applyHighlight = (target, color) => { // Renamed from applyHighlightToMeshesInGroup
+    if (!target) return;
+    // console.log("Applying highlight to:", target.name || target.uuid, target.type);
+
+    const meshesToHighlight = [];
+    if (target.isMesh) {
+        meshesToHighlight.push(target);
+    } else if (target.isGroup) {
+        target.traverse((child) => {
+            if (child.isMesh) {
+                meshesToHighlight.push(child);
+            }
+        });
+    }
+
+    meshesToHighlight.forEach(mesh => {
+        if (mesh.material) {
+            if (!originalMeshMaterials.has(mesh.uuid)) {
+                originalMeshMaterials.set(mesh.uuid, mesh.material);
+            }
+            if (Array.isArray(mesh.material)) {
+                mesh.material = mesh.material.map(originalMat => {
+                    const highlightMat = originalMat.clone();
+                    if (highlightMat.color) highlightMat.color.set(color);
+                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                    return highlightMat;
+                });
+            } else {
+                const highlightMat = mesh.material.clone();
+                if (highlightMat.color) highlightMat.color.set(color);
+                else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                mesh.material = highlightMat;
+            }
+        }
+    });
+};
+const removeAllHighlights = () => {
+    // console.log("Removing all highlights. Meshes with stored original materials:", originalMeshMaterials.size);
+    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
+        const mesh = scene.getObjectByProperty('uuid', meshUuid);
+        if (mesh && mesh.isMesh) {
+            mesh.material = originalMaterialOrArray;
+        }
+    });
+    originalMeshMaterials.clear();
+};
+
+window.addEventListener('click', (event) => {
+    if (!loadedObjectModelRoot) {
+        console.log("OBJ model not yet loaded.");
+        return;
+    }
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
+    let newlyClickedTarget = null;
+    if (intersects.length > 0) {
+        let intersectedObject = intersects[0].object;
+        // console.log("Directly intersected:", intersectedObject.name || "unnamed_object", intersectedObject.type, intersectedObject.uuid);
+        // if (intersectedObject.parent) {
+        //     console.log("Parent of intersected:", intersectedObject.parent.name || "unnamed_parent", intersectedObject.parent.type, intersectedObject.parent.uuid);
+        // }
+        if (intersectedObject.isMesh && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject;
+        }
+        else if (intersectedObject.isMesh &&
+                 intersectedObject.parent &&
+                 intersectedObject.parent.isGroup &&
+                 intersectedObject.parent.name &&
+                 intersectedObject.parent.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject.parent;
+        }
+        else if (intersectedObject.isGroup && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = intersectedObject;
+        }
+        // if (newlyClickedTarget) {
+        //     console.log("SUCCESS: Identified target object/group:", newlyClickedTarget.name);
+        // } else {
+        //     console.warn("WARNING: Could not identify a distinct named target for the clicked mesh/object under the loaded OBJ root.");
+        // }
+    }
+    removeAllHighlights();
+    if (newlyClickedTarget) {
+        if (!selectedObjGroup || selectedObjGroup.uuid !== newlyClickedTarget.uuid) {
+            selectedObjGroup = newlyClickedTarget;
+            applyHighlight(selectedObjGroup, highlightColorSingle); // Use generic applyHighlight
+        } else {
+            selectedObjGroup = null;
+        }
+    } else {
+        selectedObjGroup = null;
+    }
+    updateInfoPanel();
+});
+
+
+
+if (lastUnderscoreHalf !== -1 && lastUnderscoreFull !== -1) {
+            splitIndex = Math.max(lastUnderscoreHalf, lastUnderscoreFull);
+        } else if (lastUnderscoreHalf !== -1) {
+            splitIndex = lastUnderscoreHalf;
+        } else if (lastUnderscoreFull !== -1) {
+            splitIndex = lastUnderscoreFull;
+        }
+        if (splitIndex > 0 && splitIndex < rawName.length - 1) {
+            displayName = rawName.substring(0, splitIndex);
+            displayId = rawName.substring(splitIndex + 1);
+        } else {
+            displayName = rawName;
+        }
+        
+        // --- Window Resize ---
 // ... (Your existing resize listener) ...
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
