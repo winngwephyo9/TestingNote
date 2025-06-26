@@ -1,3 +1,11 @@
+            const zoomOutFactor = 1.1;
+                        const desiredMaxDimension = 100;
+
+Scaled Object Size (finalWorldSize): 91.35109548282391 10.543176900189362 100
+objViewerStandard.js:253 Calculated Camera Distance (before zoomOutFactor): 41.791103090298606
+objViewerStandard.js:254 Camera Distance (after zoomOutFactor & Math.max): 41.791103090298606
+
+
 const finalWorldBox = new THREE.Box3().setFromObject(object);
 const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
 const finalWorldSize = finalWorldBox.getSize(new THREE.Vector3());
