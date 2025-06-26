@@ -1,3 +1,10 @@
+表示されているオブジェクトの一覧を表示することは可能ですか？
+![image](https://github.com/user-attachments/assets/0f1fab81-9034-4638-8c39-03f6686f255d)
+
+選択したら、そのオブジェクトに近寄って、他のオブジェクトを半透明とかって可能ですか？
+![image](https://github.com/user-attachments/assets/21b4ebcd-c84a-44f7-98d7-7e6c5d34e7ee)
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
