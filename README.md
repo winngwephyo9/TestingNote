@@ -1,3 +1,15 @@
+const finalWorldBox = new THREE.Box3().setFromObject(object);
+const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
+const finalWorldSize = finalWorldBox.getSize(new THREE.Vector3());
+console.log("Scaled Object Size (finalWorldSize):", finalWorldSize.x, finalWorldSize.y, finalWorldSize.z);
+
+// ... after cameraDistance calculation ...
+console.log("Calculated Camera Distance (before zoomOutFactor):", effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2)));
+console.log("Camera Distance (after zoomOutFactor & Math.max):", cameraDistance);
+
+
+
+
 // --- Scene Setup ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xcccccc);
