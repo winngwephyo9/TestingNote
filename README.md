@@ -1,3 +1,6 @@
+![image](https://github.com/user-attachments/assets/30131c4b-a61a-4be2-b735-b5ffb5d0687e)
+
+            
             const zoomOutFactor = 1.1;
                         const desiredMaxDimension = 100;
 
