@@ -1,3 +1,46 @@
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xcccccc);
+
+// --- Camera Setup ---
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
+let initialCameraPosition = new THREE.Vector3(10, 10, 10); // Store for reset
+let initialCameraLookAt = new THREE.Vector3(0, 0, 0);   // Store for reset
+camera.position.copy(initialCameraPosition);
+camera.lookAt(initialCameraLookAt);
+
+
+// --- Renderer Setup ---
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// --- Lighting Setup ---
+const ambientLight = new THREE.AmbientLight(0x606060, 2);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
+directionalLight.position.set(50, 100, 75);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+// ... (shadow camera properties)
+scene.add(directionalLight);
+const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 1.5 );
+hemiLight.position.set( 0, 50, 0 );
+scene.add( hemiLight );
+
+// --- Controls Setup ---
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.screenSpacePanning = false;
+controls.minDistance = 1;
+controls.maxDistance = 10000;
+
+
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
