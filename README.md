@@ -1,3 +1,43 @@
+const sizeForFittingX = finalWorldSize.x / aspect; // Width adjusted for aspect
+const sizeForFittingY = finalWorldSize.y;         
+
+let effectiveSizeDimension;
+if (aspect > 1) { // Landscape viewport
+    effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect, finalWorldSize.z / aspect /* Heuristic for depth */);
+} else { // Portrait viewport
+    effectiveSizeDimension = Math.max(finalWorldSize.x, finalWorldSize.y / aspect, finalWorldSize.z / aspect /* Heuristic for depth */);
+}
+// Simpler: just take the largest of the viewport-projected width/height. Depth is harder to directly fit with FOV.
+effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect);
+
+
+let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
+
+const zoomOutFactor = 1.1; // Keep this smaller for a tighter initial view
+cameraDistance *= zoomOutFactor;
+
+// Adjust the safety net. We want it to be a minimum, but not too far if the object is deep.
+// Let's make the safety net based on the largest actual dimension of the object.
+const largestObjectDim = Math.max(finalWorldSize.x, finalWorldSize.y, finalWorldSize.z);
+cameraDistance = Math.max(cameraDistance, largestObjectDim * 1.0); // Ensure camera is at least 1x largest dimension away
+
+console.log("Corrected Scaled Object Size (finalWorldSize):", finalWorldSize.x, finalWorldSize.y, finalWorldSize.z);
+console.log("Corrected Effective Size Dimension for FOV:", effectiveSizeDimension);
+console.log("Corrected Camera Distance (before Math.max safety):", (effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2))) * zoomOutFactor);
+console.log("Corrected Camera Distance (after Math.max safety):", cameraDistance);
+
+
+const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+initialCameraPosition.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
+
+camera.position.copy(initialCameraPosition);
+camera.lookAt(initialCameraLookAt);
+controls.update();
+
+
+
+
+
 ![image](https://github.com/user-attachments/assets/30131c4b-a61a-4be2-b735-b5ffb5d0687e)
 
             
