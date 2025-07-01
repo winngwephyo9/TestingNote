@@ -1,35 +1,48 @@
-日本語での説明 (For your Leader):
-件名：モデルツリーが階層表示されない原因についてのご報告
-[リーダーのお名前]様
-お疲れ様です。[あなたのお名前]です。
-現在開発中の3Dビューワーにて、モデルの階層構造（例：構造基礎の中にS_F1が入っているようなツリー表示）が意図した通りに表示されず、フラットなリストになってしまう件について、原因を調査いたしましたのでご報告します。
-結論から申し上げますと、この問題はビューワーのコード側ではなく、エクスポートされたOBJファイルの構造に起因しています。
-原因分析：
-OBJファイルの「g」タグの仕様:
-OBJ形式では、g <グループ名> という行を使ってモデルのパーツを論理的にグループ化します。しかし、標準のOBJ形式にはグループの入れ子（親子関係）を定義する公式な構文が存在しません。ファイル内では、すべてのgタグは同階層のグループとして扱われます。
-現状のOBJファイルの構造:
-ご提供いただいたOBJファイルの内容を確認したところ、以下のように、すべてのパーツがフラットな（階層のない）リストとして出力されていることがわかりました。
-Generated obj
-# ファイルのヘッダー情報...
-g スペース_1_5328476
-# このパーツの頂点・面データ...
+<?php
 
-g Ext_An_350_9263344
-# このパーツの頂点・面データ...
+namespace App\Console\Commands;
 
-g 構造基礎_..._ob_Foundation_ver5-0-1_...  # ← 親子関係の情報が、一つの長い名前に平坦化されている
-# このパーツの頂点・面データ...
-Use code with caution.
-Obj
-Three.jsのOBJLoaderは、このファイルを順番に読み込み、gタグが現れるたびに新しいオブジェクトを生成します。しかし、ファイル自体に親子関係の情報が含まれていないため、すべてのオブジェクトを同じ階層に配置します。その結果、ビューワーのモデルツリーもフラットなリストとして表示されます。
-解決策のご提案：
-この問題を解決し、意図した通りの階層的なモデルツリーを表示するためには、親子関係の階層構造を保持できるファイル形式でモデルをエクスポートする必要があります。
-最も推奨される形式は glTF（.gltfまたは.glb） です。
-glTFとは: Web上での3Dアセット配信における現代的な標準フォーマットです（「3DのJPEG」とも呼ばれます）。
-階層構造の保持: glTFは、モデルの親子関係（ネスト構造）をネイティブでサポートしており、エクスポート時にその情報が失われません。
-パフォーマンス: コンパクトで、Webブラウザでの読み込みが非常に高速です。
-Three.jsには高性能なGLTFLoaderがあり、glTFファイルの階層構造を正しく解釈できます。この形式で出力いただければ、ビューワー側のコードは自動的にネストされたツリー構造を構築することが可能です。
-今後の進め方:
-可能であれば、モデルのエクスポート形式をOBJからglTFに変更いただくことで、この問題は解決できる見込みです。エクスポート方法についてご不明な点があれば、協力して調査いたします。
-ご検討のほど、よろしくお願いいたします。
-[あなたのお名前]
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class SearchValueInDatabase extends Command
+{
+    protected $signature = 'db:search-value {value}';
+    protected $description = 'Search a value in all tables and columns of the database';
+
+    public function handle()
+    {
+        $valueToSearch = $this->argument('value');
+        $databaseName = DB::getDatabaseName();
+        $tables = DB::select("SHOW TABLES");
+
+        $tableKey = "Tables_in_$databaseName";
+
+        foreach ($tables as $table) {
+            $tableName = $table->$tableKey;
+            $columns = Schema::getColumnListing($tableName);
+
+            foreach ($columns as $column) {
+                try {
+                    $results = DB::table($tableName)
+                        ->where($column, $valueToSearch)
+                        ->limit(1)
+                        ->get();
+
+                    if ($results->isNotEmpty()) {
+                        $this->info("Found in table: `$tableName`, column: `$column`");
+                    }
+                } catch (\Exception $e) {
+                    // Handle exceptions like non-searchable columns (JSON, etc.)
+                    $this->warn("Skipped $tableName.$column due to: " . $e->getMessage());
+                }
+            }
+        }
+
+        $this->info('Search complete.');
+    }
+}
+
+
+php artisan db:search-value yourValueHere
