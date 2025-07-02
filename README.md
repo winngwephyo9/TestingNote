@@ -24,10 +24,7 @@ let isIsolateModeActive = false;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const highlightColorSingle = new THREE.Color(0xffff00);
-
-// NEW: A map to store all fetched element data for fast lookups
-const elementIdDataMap = new Map();
-
+const elementIdDataMap = new Map(); // Stores all fetched element data
 
 // --- Scene Setup, Camera, Renderer, Lighting, Controls ---
 const scene = new THREE.Scene();
@@ -45,6 +42,8 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
 directionalLight.position.set(50, 100, 75);
 directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
 hemiLight.position.set(0, 50, 0);
@@ -55,17 +54,44 @@ controls.dampingFactor = 0.05;
 
 // --- Helper Functions ---
 
-async function parseObjHeader(filePath) { /* ... keep this function as is ... */ }
-
-// --- NEW Data Fetching Function ---
-async function fetchAllCategoryData(wscenId, allElementIds) {
-    if (allElementIds.length === 0) {
-        return; // Nothing to fetch
+async function parseObjHeader(filePath) {
+    try {
+        const response = await fetch(filePath);
+        if (!response.ok) {
+            console.error(`Failed to fetch OBJ for header parsing: ${response.statusText}`);
+            return;
+        }
+        const text = await response.text();
+        const lines = text.split(/\r?\n/);
+        if (lines.length > 0) {
+            const firstLine = lines[0].trim();
+            if (firstLine.startsWith("# ")) {
+                const content = firstLine.substring(2).trim();
+                const pattern1Match = content.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_([a-zA-Z0-9]+)$/);
+                if (pattern1Match) {
+                    parsedWSCenID = pattern1Match[1];
+                    parsedPJNo = pattern1Match[2];
+                    return;
+                }
+                if (content.includes("ワークシェアリングされてない") && (content.includes("_PJNo無し") || content.includes("＿PJNo無し"))) {
+                    parsedWSCenID = "";
+                    parsedPJNo = "";
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching or parsing OBJ header:", error);
     }
-    return new Promise((resolve) => {
+}
+
+async function fetchAllCategoryData(wscenId, allElementIds) {
+    if (allElementIds.length === 0) return;
+    return new Promise((resolve, reject) => {
+        // --- YOUR ACTUAL AJAX CALL ---
         $.ajax({
             type: "post",
-            url: url_prefix + "/DLDWH/getDatas", // The NEW route
+            url: url_prefix + "/DLDWH/getDatas", // The NEW batch route
             data: { 
                 _token: CSRF_TOKEN, 
                 WSCenID: wscenId, 
@@ -73,28 +99,50 @@ async function fetchAllCategoryData(wscenId, allElementIds) {
             },
             success: function (data) {
                 console.log("Batch data received:", data);
-                // The backend returns an object keyed by ElementId, so we can create a Map from it
                 for (const elementId in data) {
                     elementIdDataMap.set(elementId, data[elementId]);
                 }
-                resolve(); // Resolve when done
+                resolve();
             },
             error: function (err) {
                 console.error(`Error fetching batch data:`, err);
                 alert("モデル情報の取得に失敗しました。");
-                resolve(); // Resolve anyway so the app doesn't hang
+                reject(err); // Reject the promise on failure
             }
         });
     });
 }
 
-// --- NEW Model Tree Logic ---
-function buildAndPopulateCategorizedTree() {
+function frameObject(objectToFrame) {
+    const box = new THREE.Box3().setFromObject(objectToFrame);
+    if (box.isEmpty()) {
+        camera.position.set(50, 50, 50);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        return;
+    }
+    const center = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const radius = sphere.radius;
+    initialCameraLookAt.copy(center);
+    controls.target.copy(center);
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    const distance = radius / Math.sin(fovInRadians / 2);
+    const zoomOutFactor = 1.3;
+    const finalDistance = distance * zoomOutFactor;
+    const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+    initialCameraPosition.copy(center).addScaledVector(cameraDirection, finalDistance);
+    camera.position.copy(initialCameraPosition);
+    camera.lookAt(initialCameraLookAt);
+    controls.update();
+}
+
+async function buildAndPopulateCategorizedTree() {
     if (!loadedObjectModelRoot || !modelTreeList) return;
-
-    // This function now assumes elementIdDataMap is already populated
+    if (loaderTextElement) loaderTextElement.textContent = "Categorizing objects...";
+    
     const categorizedObjects = {};
-
     loadedObjectModelRoot.traverse(child => {
         if ((child.isGroup || child.isMesh) && child.name && child.parent === loadedObjectModelRoot) {
             let rawName = child.name;
@@ -102,21 +150,18 @@ function buildAndPopulateCategorizedTree() {
             const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
             if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
 
-            let category = "カテゴリー無し"; // Default
+            let category = "カテゴリー無し";
             if (displayId && elementIdDataMap.has(displayId)) {
-                // IMPORTANT: Adjust 'カテゴリー名' to match the exact key from your API response
                 category = elementIdDataMap.get(displayId)['カテゴリー名'] || "カテゴリー無し";
             } else if (!displayId) {
                 category = "名称未分類";
             }
-            
             if (!categorizedObjects[category]) categorizedObjects[category] = [];
             categorizedObjects[category].push(child);
         }
     });
 
     console.log("Data grouped by category:", categorizedObjects);
-
     modelTreeList.innerHTML = '';
     Object.keys(categorizedObjects).sort().forEach(categoryName => {
         createCategoryNode(categoryName, categorizedObjects[categoryName]);
@@ -125,13 +170,215 @@ function buildAndPopulateCategorizedTree() {
 }
 
 function createCategoryNode(categoryName, objectsInCategory) {
-    // ... This function remains the same as before ...
+    const categoryLi = document.createElement('li');
+    const itemContent = document.createElement('div');
+    itemContent.className = 'tree-item';
+    itemContent.style.fontWeight = 'bold';
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler';
+    toggler.textContent = '▼';
+    itemContent.appendChild(toggler);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
+    itemContent.appendChild(nameSpan);
+    const subList = document.createElement('ul');
+    toggler.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCollapsed = subList.style.display === 'none';
+        subList.style.display = isCollapsed ? 'block' : 'none';
+        toggler.textContent = isCollapsed ? '▼' : '▶';
+    });
+    categoryLi.appendChild(itemContent);
+    categoryLi.appendChild(subList);
+    modelTreeList.appendChild(categoryLi);
+    objectsInCategory.forEach(object => createObjectNode(object, subList, 1));
 }
 
 function createObjectNode(object, parentULElement, depth) {
-    // ... This function remains the same as before ...
+    const listItem = document.createElement('li');
+    listItem.dataset.uuid = object.uuid;
+    const itemContent = document.createElement('div');
+    itemContent.className = 'tree-item';
+    itemContent.style.paddingLeft = `${depth * 15 + 10}px`;
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler empty-toggler';
+    toggler.innerHTML = ' ';
+    itemContent.appendChild(toggler);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = object.name;
+    nameSpan.title = object.name;
+    itemContent.appendChild(nameSpan);
+    const visibilityToggle = document.createElement('span');
+    visibilityToggle.className = 'visibility-toggle visible-icon';
+    visibilityToggle.title = 'Hide';
+    itemContent.appendChild(visibilityToggle);
+    listItem.appendChild(itemContent);
+    parentULElement.appendChild(listItem);
+    itemContent.addEventListener('click', () => handleSelection(object));
+    visibilityToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        object.visible = !object.visible;
+        visibilityToggle.classList.toggle('visible-icon', object.visible);
+        visibilityToggle.classList.toggle('hidden-icon', !object.visible);
+        visibilityToggle.title = object.visible ? 'Hide' : 'Show';
+        if (!object.visible && selectedObjectOrGroup && selectedObjectOrGroup.uuid === object.uuid) {
+            handleSelection(null);
+        }
+    });
 }
 
+function applyHighlight(target, color) {
+    if (!target) return;
+    const meshesToHighlight = [];
+    if (target.isMesh) meshesToHighlight.push(target);
+    else if (target.isGroup) target.traverse(child => { if (child.isMesh) meshesToHighlight.push(child); });
+    meshesToHighlight.forEach(mesh => {
+        if (mesh.material) {
+            if (!originalMeshMaterials.has(mesh.uuid)) originalMeshMaterials.set(mesh.uuid, mesh.material);
+            if (Array.isArray(mesh.material)) {
+                mesh.material = mesh.material.map(originalMat => {
+                    const highlightMat = originalMat.clone();
+                    if (highlightMat.color) highlightMat.color.set(color);
+                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                    return highlightMat;
+                });
+            } else {
+                const highlightMat = mesh.material.clone();
+                if (highlightMat.color) highlightMat.color.set(color);
+                else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                mesh.material = highlightMat;
+            }
+        }
+    });
+}
+
+function removeAllHighlights() {
+    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
+        const mesh = scene.getObjectByProperty('uuid', meshUuid);
+        if (mesh && mesh.isMesh) mesh.material = originalMaterialOrArray;
+    });
+    originalMeshMaterials.clear();
+}
+
+function zoomToAndIsolate(targetObject) {
+    if (!targetObject) return;
+    deIsolateAllObjects();
+    isIsolateModeActive = true;
+    const box = new THREE.Box3().setFromObject(targetObject);
+    if (box.isEmpty()) { isIsolateModeActive = false; return; }
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    const aspect = camera.aspect;
+    const effectiveSize = Math.max(size.y, size.x / aspect);
+    let distance = effectiveSize / (2 * Math.tan(fovInRadians / 2));
+    distance = Math.max(distance, maxDim * 1.2);
+    distance *= 1.5;
+    const offsetDirection = camera.position.clone().sub(controls.target).normalize();
+    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
+    camera.position.copy(center).addScaledVector(offsetDirection, distance);
+    controls.target.copy(center);
+    controls.update();
+
+    loadedObjectModelRoot.traverse((object) => {
+        if (object.isMesh) {
+            let isPartOfSelectedTarget = false;
+            let temp = object;
+            while (temp) {
+                if (temp === targetObject) { isPartOfSelectedTarget = true; break; }
+                temp = temp.parent;
+            }
+            if (!isPartOfSelectedTarget) {
+                if (!originalObjectPropertiesForIsolate.has(object.uuid)) {
+                    originalObjectPropertiesForIsolate.set(object.uuid, { material: object.material, visible: object.visible });
+                }
+                if (object.visible) {
+                    const materials = Array.isArray(object.material) ? object.material : [object.material];
+                    object.material = materials.map(mat => {
+                        const newMat = mat.clone();
+                        newMat.transparent = true;
+                        newMat.opacity = 0.1;
+                        return newMat;
+                    });
+                    if (!Array.isArray(object.material)) object.material = object.material[0];
+                }
+            } else {
+                if (originalObjectPropertiesForIsolate.has(object.uuid)) {
+                    const props = originalObjectPropertiesForIsolate.get(object.uuid);
+                    object.material = props.material;
+                    object.visible = props.visible;
+                    originalObjectPropertiesForIsolate.delete(object.uuid);
+                } else {
+                    const materials = Array.isArray(object.material) ? object.material : [object.material];
+                    materials.forEach(mat => { mat.transparent = false; mat.opacity = 1.0; });
+                    object.visible = true;
+                }
+            }
+        }
+    });
+}
+
+function deIsolateAllObjects() {
+    if (!isIsolateModeActive) return;
+    originalObjectPropertiesForIsolate.forEach((props, uuid) => {
+        const object = scene.getObjectByProperty('uuid', uuid);
+        if (object && object.isMesh) {
+            object.material = props.material;
+            object.visible = props.visible;
+        }
+    });
+    originalObjectPropertiesForIsolate.clear();
+    isIsolateModeActive = false;
+}
+
+function handleSelection(target) {
+    removeAllHighlights();
+    deIsolateAllObjects();
+    let newSelection = null;
+    if (target && (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== target.uuid)) {
+        newSelection = target;
+    }
+    selectedObjectOrGroup = newSelection;
+    if (selectedObjectOrGroup) {
+        applyHighlight(selectedObjectOrGroup, highlightColorSingle);
+        zoomToAndIsolate(selectedObjectOrGroup);
+    }
+    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
+    if (selectedObjectOrGroup) {
+        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
+        if (treeItemDiv) treeItemDiv.classList.add('selected');
+    }
+    updateInfoPanel();
+}
+
+function updateInfoPanel() {
+    if (!objectInfoPanel) return;
+    let headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
+    if (parsedWSCenID === "" && parsedPJNo === "") headerInfo = `WSCenID: \nPJNo: \n----\n`;
+    if (selectedObjectOrGroup) {
+        let rawName = selectedObjectOrGroup.name || "Unnamed";
+        let displayName = rawName;
+        let displayId = "N/A";
+        const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
+        if (splitIndex > 0) {
+            displayName = rawName.substring(0, splitIndex);
+            displayId = rawName.substring(splitIndex + 1);
+        } else displayName = rawName;
+        let selectionInfo = `名前: ${displayName}\nID: ${displayId}\n`;
+        if (displayId && elementIdDataMap.has(displayId)) {
+            const data = elementIdDataMap.get(displayId);
+            selectionInfo += `\nカテゴリー名: ${data['カテゴリー名'] || "N/A"}\nファミリ名: ${data['ファミリ名'] || "N/A"}\nタイプ_ID: ${data['タイプ_ID'] || "N/A"}`;
+        } else {
+            selectionInfo += '\nカテゴリー名: "" \nファミリ名: ""';
+        }
+        objectInfoPanel.textContent = headerInfo + selectionInfo;
+    } else {
+        objectInfoPanel.textContent = headerInfo + 'None Selected';
+    }
+}
 
 // --- Main Application Flow ---
 async function main() {
@@ -139,10 +386,8 @@ async function main() {
         if (loaderContainer) loaderContainer.style.display = 'flex';
         const objPath = '/ccc/public/objFiles/240324_GF本社移転_2022_20250618.obj';
         
-        // Step 1: Parse header info
         await parseObjHeader(objPath);
         
-        // Step 2: Load the OBJ model geometry
         const object = await new Promise((resolve, reject) => {
             objLoader.load(objPath, resolve, (xhr) => {
                 if (loaderTextElement) {
@@ -154,12 +399,26 @@ async function main() {
         });
 
         loadedObjectModelRoot = object;
+        const initialBox = new THREE.Box3().setFromObject(object);
+        const initialCenter = initialBox.getCenter(new THREE.Vector3());
+        object.traverse((child) => {
+            if (child.isMesh) {
+                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        object.position.set(0, 0, 0);
+        const scaledBox = new THREE.Box3().setFromObject(object);
+        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
+        const desiredMaxDimension = 150;
+        if (maxDim > 0) {
+            const scale = desiredMaxDimension / maxDim;
+            object.scale.set(scale, scale, scale);
+        }
+        object.rotation.x = -Math.PI / 2;
+        object.rotation.y = -Math.PI / 2;
 
-        // Step 3: Process the loaded model (center, scale, rotate)
-        // ... (Keep the centering and scaling logic as is) ...
-        const desiredMaxDimension = 150; 
-        
-        // Step 4: Collect all IDs and fetch all category data in one batch
         const allIds = [];
         loadedObjectModelRoot.traverse(child => {
             if (child.name && child.parent === loadedObjectModelRoot) {
@@ -167,16 +426,13 @@ async function main() {
                 if (splitIndex > 0) allIds.push(child.name.substring(splitIndex + 1));
             }
         });
-        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]); // Use Set to get unique IDs
-
-        // Step 5: Build the tree with the now-populated data map
-        buildAndPopulateCategorizedTree();
+        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
         
-        // Step 6: NOW add the model to the scene and frame it
+        await buildAndPopulateCategorizedTree();
+        
         scene.add(object);
         frameObject(object);
         
-        // Step 7: Hide the loader
         if (loaderContainer) loaderContainer.style.display = 'none';
 
     } catch (error) {
@@ -186,64 +442,70 @@ async function main() {
     }
 }
 
-
-// --- All other functions (selection, highlighting, isolation, info panel, events) ---
-// IMPORTANT: The updateInfoPanel and generatebukkenInfoByCenId are now REPLACED
-// by a single, synchronous updateInfoPanel function.
-
-function handleSelection(target) { /* ... Keep this function as is ... */ }
-function removeAllHighlights() { /* ... Keep this function as is ... */ }
-function applyHighlight(target, color) { /* ... Keep this function as is ... */ }
-function deIsolateAllObjects() { /* ... Keep this function as is ... */ }
-function zoomToAndIsolate(targetObject) { /* ... Keep this function as is ... */ }
-
-// --- REVISED Info Panel Update ---
-function updateInfoPanel() {
-    if (!objectInfoPanel) return;
-    let headerInfo = "";
-    if (parsedWSCenID || parsedPJNo) {
-        headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
-    } else if (parsedWSCenID === "" && parsedPJNo === "") {
-        headerInfo = `WSCenID: \nPJNo: \n----\n`;
-    }
-
-    if (selectedObjectOrGroup) {
-        let rawName = selectedObjectOrGroup.name || "Unnamed";
-        let displayName = rawName;
-        let displayId = "N/A";
-        const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
-        if (splitIndex > 0) {
-            displayName = rawName.substring(0, splitIndex);
-            displayId = rawName.substring(splitIndex + 1);
-        } else displayName = rawName;
-        
-        let selectionInfo = `名前: ${displayName}\nID: ${displayId}\n`;
-
-        // Get extra info from the pre-fetched map
-        if (displayId && elementIdDataMap.has(displayId)) {
-            const data = elementIdDataMap.get(displayId);
-            const categoryName = data['カテゴリー名'] || "N/A";
-            const familyName = data['ファミリ名'] || "N/A";
-            const typeId = data['タイプ_ID'] || "N/A";
-            selectionInfo += `\nカテゴリー名: ${categoryName}\nファミリ名: ${familyName}\nタイプ_ID: ${typeId}`;
-        } else {
-             selectionInfo += '\nカテゴリー名: "" \nファミリ名: ""';
+// --- Event Listeners and Animation Loop ---
+window.addEventListener('click', (event) => {
+    if (!loadedObjectModelRoot || event.target.closest('#modelTreePanel')) return;
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
+    let newlyClickedTarget = null;
+    if (intersects.length > 0) {
+        let current = intersects[0].object;
+        while (current && current.parent !== loadedObjectModelRoot && current !== loadedObjectModelRoot && current.parent !== scene) {
+            current = current.parent;
         }
-        
-        objectInfoPanel.textContent = headerInfo + selectionInfo;
-    } else {
-        objectInfoPanel.textContent = headerInfo + 'None Selected';
+        if (current) newlyClickedTarget = current;
     }
+    handleSelection(newlyClickedTarget);
+});
+
+if (closeModelTreeBtn) closeModelTreeBtn.addEventListener('click', () => { if (modelTreePanel) modelTreePanel.style.display = 'none'; });
+
+if (modelTreeSearch) {
+    modelTreeSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const allListItems = modelTreeList.querySelectorAll('li');
+        allListItems.forEach(li => {
+            const itemContentDiv = li.querySelector('.tree-item');
+            if (!itemContentDiv) return;
+            const nameSpan = itemContentDiv.querySelector('.group-name');
+            if (!nameSpan) return;
+            const itemName = nameSpan.textContent.toLowerCase();
+            const isMatch = itemName.includes(searchTerm);
+            
+            if (isMatch) {
+                li.style.display = '';
+                let parentLi = li.parentElement.closest('li');
+                while (parentLi) {
+                    parentLi.style.display = '';
+                    const parentSubList = parentLi.querySelector('ul');
+                    if (parentSubList) parentSubList.style.display = 'block';
+                    const parentToggler = parentLi.querySelector('.toggler:not(.empty-toggler)');
+                    if (parentToggler) parentToggler.textContent = '▼';
+                    parentLi = parentLi.parentElement.closest('li');
+                }
+            } else {
+                li.style.display = 'none';
+            }
+        });
+        if (searchTerm === "") {
+            allListItems.forEach(li => li.style.display = '');
+        }
+    });
 }
 
-// The old generatebukkenInfoByCenId is NO LONGER NEEDED as data is pre-fetched.
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-// --- All Event Listeners and Animation Loop ---
-window.addEventListener('click', (event) => { /* ... Keep this function ... */ });
-if (closeModelTreeBtn) { /* ... Keep this function ... */ }
-if (modelTreeSearch) { /* ... Keep this function ... */ }
-window.addEventListener('resize', () => { /* ... */ });
-function animate() { /* ... */ }
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
 
 // --- Start Application ---
 main();
