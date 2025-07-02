@@ -85,24 +85,9 @@ async function parseObjHeader(filePath) {
 }
 
 function getCategoryInfo(wscenId, elementId) {
-    return new Promise((resolve, reject) => {
-        // --- THIS IS A MOCKUP for testing. Replace with your actual AJAX call. ---
-        const mockDatabase = {
-            "5328476": { "カテゴリー名": "スペース", "ファミリ名": "スペースファミリー" },
-            "5328477": { "カテゴリー名": "スペース", "ファミリ名": "スペースファミリー" },
-            "9387209": { "カテゴリー名": "構造基礎", "ファミリ名": "S_F4" },
-            "9394301": { "カテゴリー名": "壁", "ファミリ名": "標準壁 150" },
-            "default": { "カテゴリー名": "一般モデル", "ファミリ名": "不明なファミリー" }
-        };
-        setTimeout(() => {
-            const data = mockDatabase[elementId] ? [mockDatabase[elementId]] : [mockDatabase["default"]];
-            const result = (data && data.length > 0) ? data[0] : null;
-            resolve(result);
-        }, 30); // Simulate network delay
-        // --- MOCKUP END ---
-
-        /*
+    return new Promise((resolve) => {
         // --- YOUR ACTUAL AJAX CALL ---
+        // Make sure url_prefix and CSRF_TOKEN are defined globally.
         $.ajax({
             type: "post",
             url: url_prefix + "/DLDWH/getData",
@@ -116,7 +101,6 @@ function getCategoryInfo(wscenId, elementId) {
                 resolve(null); // Resolve null on error to not break Promise.all
             }
         });
-        */
     });
 }
 
@@ -153,7 +137,7 @@ function frameObject(objectToFrame) {
 async function buildAndPopulateCategorizedTree() {
     if (!loadedObjectModelRoot || !modelTreeList) return;
     if (loaderTextElement) loaderTextElement.textContent = "Fetching object categories...";
-
+    
     const promises = [];
     const objectsAndIds = [];
 
@@ -163,7 +147,6 @@ async function buildAndPopulateCategorizedTree() {
             let displayId = null;
             const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
             if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
-
             if (displayId) {
                 objectsAndIds.push({ object: child, id: displayId });
                 promises.push(getCategoryInfo(parsedWSCenID, displayId));
@@ -177,6 +160,7 @@ async function buildAndPopulateCategorizedTree() {
         const results = await Promise.all(promises);
         const categorizedObjects = {};
         let objectIndexWithPromise = 0;
+
         for (const item of objectsAndIds) {
             let category = item.category;
             if (item.id) {
@@ -192,8 +176,8 @@ async function buildAndPopulateCategorizedTree() {
         Object.keys(categorizedObjects).sort().forEach(categoryName => {
             createCategoryNode(categoryName, categorizedObjects[categoryName]);
         });
-
         if (modelTreePanel) modelTreePanel.style.display = 'block';
+
     } catch (error) {
         console.error("Failed to build model tree:", error);
         alert("モデル情報の取得に失敗しました。");
@@ -262,11 +246,215 @@ function createObjectNode(object, parentULElement, depth) {
     });
 }
 
+const applyHighlight = (target, color) => {
+    if (!target) return;
+    const meshesToHighlight = [];
+    if (target.isMesh) meshesToHighlight.push(target);
+    else if (target.isGroup) target.traverse(child => { if (child.isMesh) meshesToHighlight.push(child); });
+
+    meshesToHighlight.forEach(mesh => {
+        if (mesh.material) {
+            if (!originalMeshMaterials.has(mesh.uuid)) {
+                originalMeshMaterials.set(mesh.uuid, mesh.material);
+            }
+            if (Array.isArray(mesh.material)) {
+                mesh.material = mesh.material.map(originalMat => {
+                    const highlightMat = originalMat.clone();
+                    if (highlightMat.color) highlightMat.color.set(color);
+                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                    return highlightMat;
+                });
+            } else {
+                const highlightMat = mesh.material.clone();
+                if (highlightMat.color) highlightMat.color.set(color);
+                else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                mesh.material = highlightMat;
+            }
+        }
+    });
+};
+
+const removeAllHighlights = () => {
+    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
+        const mesh = scene.getObjectByProperty('uuid', meshUuid);
+        if (mesh && mesh.isMesh) mesh.material = originalMaterialOrArray;
+    });
+    originalMeshMaterials.clear();
+};
+
+function zoomToAndIsolate(targetObject) {
+    if (!targetObject) return;
+    deIsolateAllObjects();
+    isIsolateModeActive = true;
+
+    const box = new THREE.Box3().setFromObject(targetObject);
+    if (box.isEmpty()) {
+        isIsolateModeActive = false;
+        return;
+    }
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    const aspect = camera.aspect;
+    const effectiveSize = Math.max(size.y, size.x / aspect);
+    let distance = effectiveSize / (2 * Math.tan(fovInRadians / 2));
+    distance = Math.max(distance, maxDim * 1.2);
+    distance *= 1.5;
+
+    const offsetDirection = camera.position.clone().sub(controls.target).normalize();
+    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
+
+    camera.position.copy(center).addScaledVector(offsetDirection, distance);
+    controls.target.copy(center);
+    controls.update();
+
+    loadedObjectModelRoot.traverse((object) => {
+        if (object.isMesh) {
+            let isPartOfSelectedTarget = false;
+            let temp = object;
+            while (temp && temp !== loadedObjectModelRoot.parent) {
+                if (temp === targetObject) {
+                    isPartOfSelectedTarget = true;
+                    break;
+                }
+                temp = temp.parent;
+            }
+            if (object === targetObject) isPartOfSelectedTarget = true;
+
+            if (!isPartOfSelectedTarget) {
+                if (!originalObjectPropertiesForIsolate.has(object.uuid)) {
+                    originalObjectPropertiesForIsolate.set(object.uuid, {
+                        material: object.material,
+                        visible: object.visible
+                    });
+                }
+                if (object.visible) {
+                    if (Array.isArray(object.material)) {
+                        object.material = object.material.map(mat => {
+                            const newMat = mat.clone();
+                            newMat.transparent = true;
+                            newMat.opacity = 0.1;
+                            return newMat;
+                        });
+                    } else {
+                        const newMat = object.material.clone();
+                        newMat.transparent = true;
+                        newMat.opacity = 0.1;
+                        object.material = newMat;
+                    }
+                }
+            } else {
+                if (originalObjectPropertiesForIsolate.has(object.uuid)) {
+                    const props = originalObjectPropertiesForIsolate.get(object.uuid);
+                    object.material = props.material;
+                    object.visible = props.visible;
+                    originalObjectPropertiesForIsolate.delete(object.uuid);
+                } else {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(mat => { mat.transparent = false; mat.opacity = 1.0; });
+                    } else if (object.material) {
+                        object.material.transparent = false;
+                        object.material.opacity = 1.0;
+                    }
+                    object.visible = true;
+                }
+            }
+        }
+    });
+}
+
+function deIsolateAllObjects() {
+    if (!isIsolateModeActive) return;
+    originalObjectPropertiesForIsolate.forEach((props, uuid) => {
+        const object = scene.getObjectByProperty('uuid', uuid);
+        if (object && object.isMesh) {
+            object.material = props.material;
+            object.visible = props.visible;
+        }
+    });
+    originalObjectPropertiesForIsolate.clear();
+    isIsolateModeActive = false;
+}
+
+function handleSelection(target) {
+    removeAllHighlights();
+    deIsolateAllObjects();
+    let newSelection = null;
+    if (target && (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== target.uuid)) {
+        newSelection = target;
+    }
+    selectedObjectOrGroup = newSelection;
+    if (selectedObjectOrGroup) {
+        applyHighlight(selectedObjectOrGroup, highlightColorSingle);
+        zoomToAndIsolate(selectedObjectOrGroup);
+    }
+    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
+    if (selectedObjectOrGroup) {
+        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
+        if (treeItemDiv) treeItemDiv.classList.add('selected');
+    }
+    updateInfoPanel();
+}
+
+function updateInfoPanel() {
+    if (!objectInfoPanel) return;
+    let headerInfo = "";
+    if (parsedWSCenID || parsedPJNo) {
+        headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
+    } else if (parsedWSCenID === "" && parsedPJNo === "") {
+        headerInfo = `WSCenID: \nPJNo: \n----\n`;
+    }
+
+    if (selectedObjectOrGroup) {
+        let rawName = selectedObjectOrGroup.name || "Unnamed";
+        let displayName = rawName;
+        let displayId = "N/A";
+        const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
+        if (splitIndex > 0) {
+            displayName = rawName.substring(0, splitIndex);
+            displayId = rawName.substring(splitIndex + 1);
+        } else displayName = rawName;
+        
+        const selectionInfo = `名前: ${displayName}\n  ID: ${displayId}\n`;
+        objectInfoPanel.textContent = headerInfo + selectionInfo;
+        generatebukkenInfoByCenId(parsedWSCenID, displayId, objectInfoPanel);
+    } else {
+        objectInfoPanel.textContent = headerInfo + 'None Selected';
+    }
+}
+
+function generatebukkenInfoByCenId(parsedWSCenID, displayId, infoPanel) {
+    $.ajax({
+        type: "post",
+        url: url_prefix + "/DLDWH/getData",
+        data: { _token: CSRF_TOKEN, WSCenID: parsedWSCenID, ElementId: displayId },
+        success: function (data) {
+            if (data && data.length > 0) {
+                const categoryName = data[0]['カテゴリー名'] || "N/A";
+                const familyName = data[0]['ファミリ名'] || "N/A";
+                const typeId = data[0]['タイプ_ID'] || "N/A";
+                const bukkenInfo = `\nカテゴリー名: ${categoryName}\nファミリ名: ${familyName}\nタイプ_ID: ${typeId}`;
+                infoPanel.textContent += bukkenInfo;
+            } else {
+                infoPanel.textContent += '\nカテゴリー名: "" \nファミリ名: ""';
+            }
+        },
+        error: function (err) {
+            console.log(err);
+            infoPanel.textContent += '\nデータ取得中にエラーが発生しました。';
+        }
+    });
+}
+
 // --- Main Application Flow ---
 async function main() {
     try {
         if (loaderContainer) loaderContainer.style.display = 'flex';
+        const objPath = '/ccc/public/objFiles/240324_GF本社移転_2022_20250618.obj';
+        
         await parseObjHeader(objPath);
+        
         const object = await new Promise((resolve, reject) => {
             objLoader.load(objPath, resolve, (xhr) => {
                 if (loaderTextElement) {
@@ -289,9 +477,8 @@ async function main() {
         });
         object.position.set(0, 0, 0);
         const scaledBox = new THREE.Box3().setFromObject(object);
-        const scaledSize = scaledBox.getSize(new THREE.Vector3());
-        const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
-        const desiredMaxDimension = 150; // Adjusted for better initial size
+        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
+        const desiredMaxDimension = 150;
         if (maxDim > 0) {
             const scale = desiredMaxDimension / maxDim;
             object.scale.set(scale, scale, scale);
@@ -305,6 +492,7 @@ async function main() {
         frameObject(object);
         
         if (loaderContainer) loaderContainer.style.display = 'none';
+
     } catch (error) {
         console.error('Failed to initialize the viewer:', error);
         if (loaderContainer) loaderContainer.style.display = 'flex';
@@ -313,25 +501,6 @@ async function main() {
 }
 
 // --- Event Listeners and Animation Loop ---
-function handleSelection(target) {
-    removeAllHighlights();
-    deIsolateAllObjects();
-    let newSelection = null;
-    if (target && (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== target.uuid)) {
-        newSelection = target;
-    }
-    selectedObjectOrGroup = newSelection;
-    if (selectedObjectOrGroup) {
-        applyHighlight(selectedObjectOrGroup, highlightColorSingle);
-        zoomToAndIsolate(selectedObjectOrGroup);
-    }
-    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
-    if (selectedObjectOrGroup) {
-        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
-        if (treeItemDiv) treeItemDiv.classList.add('selected');
-    }
-    updateInfoPanel();
-}
 window.addEventListener('click', (event) => {
     if (!loadedObjectModelRoot || event.target.closest('#modelTreePanel')) return;
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -341,21 +510,60 @@ window.addEventListener('click', (event) => {
     let newlyClickedTarget = null;
     if (intersects.length > 0) {
         let current = intersects[0].object;
-        while (current && current.parent !== loadedObjectModelRoot && current.parent !== scene) {
+        while (current && current.parent !== loadedObjectModelRoot && current !== loadedObjectModelRoot && current.parent !== scene) {
             current = current.parent;
         }
-        if (current && current.parent === loadedObjectModelRoot) newlyClickedTarget = current;
+        if (current) newlyClickedTarget = current;
     }
     handleSelection(newlyClickedTarget);
 });
+
 if (closeModelTreeBtn) closeModelTreeBtn.addEventListener('click', () => { if (modelTreePanel) modelTreePanel.style.display = 'none'; });
-if (modelTreeSearch) { /* keep search logic */ }
-window.addEventListener('resize', () => { /* ... */ });
+
+if (modelTreeSearch) {
+    modelTreeSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        modelTreeList.querySelectorAll('li').forEach(li => {
+            const itemContentDiv = li.querySelector('.tree-item');
+            if (!itemContentDiv) return;
+            const nameSpan = itemContentDiv.querySelector('.group-name');
+            if (!nameSpan) return;
+            const itemName = nameSpan.textContent.toLowerCase();
+            const isMatch = itemName.includes(searchTerm);
+            
+            if (isMatch) {
+                li.style.display = '';
+                let parentLi = li.parentElement.closest('li');
+                while (parentLi) {
+                    parentLi.style.display = '';
+                    const parentSubList = parentLi.querySelector('ul');
+                    if (parentSubList) parentSubList.style.display = 'block';
+                    const parentToggler = parentLi.querySelector('.toggler:not(.empty-toggler)');
+                    if (parentToggler) parentToggler.textContent = '▼';
+                    parentLi = parentLi.parentElement.closest('li');
+                }
+            } else {
+                li.style.display = 'none';
+            }
+        });
+        if (searchTerm === "") {
+            modelTreeList.querySelectorAll('li').forEach(li => li.style.display = '');
+        }
+    });
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
 }
-// Start Application
+
+// --- Start Application ---
 main();
 animate();
