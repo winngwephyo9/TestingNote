@@ -15,37 +15,27 @@ const objectInfoPanel = document.getElementById('objectInfo');
 let parsedWSCenID = "";
 let parsedPJNo = "";
 let loadedObjectModelRoot = null;
-
-// Selection & Highlighting & Isolate
+let initialCameraPosition = new THREE.Vector3(10, 10, 10);
+let initialCameraLookAt = new THREE.Vector3(0, 0, 0);
 let selectedObjectOrGroup = null;
 const originalMeshMaterials = new Map();
 const originalObjectPropertiesForIsolate = new Map();
 let isIsolateModeActive = false;
-
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const highlightColorSingle = new THREE.Color(0xffff00);
 
-// --- Scene Setup ---
+// --- Scene, Camera, Renderer, Lighting, Controls Setup ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xcccccc);
-
-// --- Camera Setup ---
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
-let initialCameraPosition = new THREE.Vector3(10, 10, 10); // Store for reset
-let initialCameraLookAt = new THREE.Vector3(0, 0, 0);   // Store for reset
 camera.position.copy(initialCameraPosition);
 camera.lookAt(initialCameraLookAt);
-
-
-// --- Renderer Setup ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
-
-// --- Lighting Setup ---
 const ambientLight = new THREE.AmbientLight(0x606060, 2);
 scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
@@ -53,121 +43,172 @@ directionalLight.position.set(50, 100, 75);
 directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.width = 2048;
 directionalLight.shadow.mapSize.height = 2048;
-// ... (shadow camera properties)
 scene.add(directionalLight);
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
 hemiLight.position.set(0, 50, 0);
 scene.add(hemiLight);
-
-// --- Controls Setup ---
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.minDistance = 1;
-controls.maxDistance = 10000;
 
-// --- Function to parse the first line of OBJ ---
-async function parseObjHeader(filePath) {
-    try {
-        const response = await fetch(filePath);
-        if (!response.ok) {
-            console.error(`Failed to fetch OBJ for header parsing: ${response.statusText}`);
-            return;
-        }
-        const text = await response.text();
-        const lines = text.split(/\r?\n/);
-        if (lines.length > 0) {
-            const firstLine = lines[0].trim();
-            // console.log("First line of OBJ:", firstLine);
-            if (firstLine.startsWith("# ")) {
-                const content = firstLine.substring(2).trim();
-                const pattern1Match = content.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_([a-zA-Z0-9]+)$/);
-                if (pattern1Match) {
-                    parsedWSCenID = pattern1Match[1];
-                    parsedPJNo = pattern1Match[2];
-                    // console.log(`Pattern 1 Matched: WSCenID=${parsedWSCenID}, PJNo=${parsedPJNo}`);
-                    return;
-                }
-                if (content.includes("ワークシェアリングされてない") && (content.includes("_PJNo無し") || content.includes("＿PJNo無し"))) {
-                    parsedWSCenID = "";
-                    parsedPJNo = "";
-                    // console.log(`Pattern 2 Matched: WSCenID=${parsedWSCenID}, PJNo=${parsedPJNo}`);
-                    return;
-                }
+// --- Helper Functions (Header Parsing, Highlighting, Isolation) ---
+async function parseObjHeader(filePath) { /* ... keep this function from previous version ... */ }
+const applyHighlight = (target, color) => { /* ... keep this function ... */ };
+const removeAllHighlights = () => { /* ... keep this function ... */ };
+function zoomToAndIsolate(targetObject) { /* ... keep this function ... */ }
+function deIsolateAllObjects() { /* ... keep this function ... */ }
+
+// --- AJAX Function Adapted to Return a Promise ---
+function getCategoryInfo(wscenId, elementId) {
+    return new Promise((resolve, reject) => {
+        // --- YOUR ACTUAL AJAX CALL ---
+        // Make sure url_prefix and CSRF_TOKEN are defined globally or passed in.
+        $.ajax({
+            type: "post",
+            url: url_prefix + "/DLDWH/getData",
+            data: { _token: CSRF_TOKEN, WSCenID: wscenId, ElementId: elementId },
+            success: function (data) {
+                const result = (data && data.length > 0) ? data[0] : null;
+                resolve(result); // Resolve promise with the result
+            },
+            error: function (err) {
+                console.error(`Error fetching data for ElementId ${elementId}:`, err);
+                // Resolve with null instead of rejecting, so Promise.all doesn't fail completely
+                resolve(null); 
+            }
+        });
+    });
+}
+
+// --- Function to build the categorized tree ---
+async function buildAndPopulateCategorizedTree() {
+    if (!loadedObjectModelRoot || !modelTreeList) return;
+
+    if (loaderTextElement) loaderTextElement.textContent = "Fetching object categories...";
+    const promises = [];
+    const objectsAndIds = [];
+
+    // 1. Collect all named objects and create promises for fetching their category
+    loadedObjectModelRoot.traverse(child => {
+        if ((child.isGroup || child.isMesh) && child.name && child.parent === loadedObjectModelRoot) {
+            let rawName = child.name;
+            let displayId = null;
+            const lastUnderscoreHalf = rawName.lastIndexOf('_');
+            const lastUnderscoreFull = rawName.lastIndexOf('＿');
+            let splitIndex = Math.max(lastUnderscoreHalf, lastUnderscoreFull);
+
+            if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
+
+            if (displayId) {
+                objectsAndIds.push({ object: child, id: displayId });
+                promises.push(getCategoryInfo(parsedWSCenID, displayId));
+            } else {
+                objectsAndIds.push({ object: child, id: null, category: "名称未分類" });
             }
         }
-        // console.log("First line did not match expected patterns for WSCenID/PJNo.");
+    });
+
+    try {
+        // 2. Wait for all database lookups to complete
+        const results = await Promise.all(promises);
+        
+        // 3. Group the objects by the fetched category name
+        const categorizedObjects = {};
+        let objectIndex = 0;
+        for (let i = 0; i < objectsAndIds.length; i++) {
+            const item = objectsAndIds[i];
+            let category = item.category; // Use default "名称未分類" if no ID
+            
+            if (item.id) {
+                const data = results[objectIndex];
+                // IMPORTANT: Adjust 'カテゴリー名' to match the exact key from your API response
+                category = data ? (data['カテゴリー名'] || "カテゴリー無し") : "カテゴリー無し";
+                objectIndex++;
+            }
+            
+            if (!categorizedObjects[category]) categorizedObjects[category] = [];
+            categorizedObjects[category].push(item.object);
+        }
+
+        console.log("Data grouped by category:", categorizedObjects);
+
+        // 4. Populate the HTML tree
+        modelTreeList.innerHTML = '';
+        for (const categoryName in categorizedObjects) {
+            createCategoryNode(categoryName, categorizedObjects[categoryName]);
+        }
+        if (modelTreePanel) modelTreePanel.style.display = 'block';
+
     } catch (error) {
-        console.error("Error fetching or parsing OBJ header:", error);
+        console.error("Failed to build model tree:", error);
+        alert("モデル情報の取得に失敗しました。");
     }
 }
 
-// --- Function to Populate Model Tree ---
-function buildTreeRecursive(object, parentULElement, depth = 0) {
-    if (!object.name && object.isMesh && object.children.length === 0 && object !== loadedObjectModelRoot) return;
-    if (!object.name && object.isGroup && object.children.length === 0) return;
+// Helper to create a category node in the tree
+function createCategoryNode(categoryName, objectsInCategory) {
+    const categoryLi = document.createElement('li');
+    const categoryItemContent = document.createElement('div');
+    categoryItemContent.className = 'tree-item';
+    categoryItemContent.style.fontWeight = 'bold';
 
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler';
+    toggler.textContent = '▼';
+    categoryItemContent.appendChild(toggler);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
+    categoryItemContent.appendChild(nameSpan);
+
+    const subList = document.createElement('ul');
+
+    toggler.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCollapsed = subList.style.display === 'none';
+        subList.style.display = isCollapsed ? 'block' : 'none';
+        toggler.textContent = isCollapsed ? '▼' : '▶';
+    });
+
+    categoryLi.appendChild(categoryItemContent);
+    categoryLi.appendChild(subList);
+    modelTreeList.appendChild(categoryLi);
+
+    objectsInCategory.forEach(object => {
+        createObjectNode(object, subList, 1);
+    });
+}
+
+// Helper to create a final object/leaf node in the tree
+function createObjectNode(object, parentULElement, depth) {
     const listItem = document.createElement('li');
     listItem.dataset.uuid = object.uuid;
     const itemContent = document.createElement('div');
     itemContent.className = 'tree-item';
     itemContent.style.paddingLeft = `${depth * 15 + 10}px`;
 
-    const hasVisibleChildrenForToggler = object.children.some(child => (child.isGroup && child.name) || (child.isMesh && child.name) || (child.isGroup && !child.name && child.children.length > 0));
-
     const toggler = document.createElement('span');
-    toggler.className = 'toggler';
-    if (object.isGroup && hasVisibleChildrenForToggler) {
-        toggler.textContent = '▶';
-    } else {
-        toggler.classList.add('empty-toggler');
-        toggler.innerHTML = ' ';
-    }
+    toggler.className = 'toggler empty-toggler';
+    toggler.innerHTML = ' ';
     itemContent.appendChild(toggler);
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'group-name';
-    nameSpan.textContent = object.name || (object.isMesh ? "Unnamed Mesh" : "Unnamed Group");
-    nameSpan.title = object.name || (object.isMesh ? "Unnamed Mesh" : "Unnamed Group");
+    nameSpan.textContent = object.name;
+    nameSpan.title = object.name;
     itemContent.appendChild(nameSpan);
 
     const visibilityToggle = document.createElement('span');
-    visibilityToggle.className = 'visibility-toggle';
-    visibilityToggle.classList.add(object.visible ? 'visible-icon' : 'hidden-icon');
-    visibilityToggle.title = object.visible ? 'Hide' : 'Show';
+    visibilityToggle.className = 'visibility-toggle visible-icon';
+    visibilityToggle.title = 'Hide';
     itemContent.appendChild(visibilityToggle);
 
     listItem.appendChild(itemContent);
     parentULElement.appendChild(listItem);
 
-    let subList = null;
-    if (object.isGroup && hasVisibleChildrenForToggler) {
-        subList = document.createElement('ul');
-        subList.style.display = 'none';
-        listItem.appendChild(subList);
-
-        toggler.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isCollapsed = subList.style.display === 'none';
-            subList.style.display = isCollapsed ? 'block' : 'none';
-            toggler.textContent = isCollapsed ? '▼' : '▶';
-        });
-    }
-
     itemContent.addEventListener('click', () => {
-        removeAllHighlights();
-        deIsolateAllObjects();
-        if (selectedObjectOrGroup === object) {
-            selectedObjectOrGroup = null;
-        } else {
-            selectedObjectOrGroup = object;
-            applyHighlight(selectedObjectOrGroup, highlightColorSingle);
-            zoomToAndIsolate(selectedObjectOrGroup);
-        }
-        document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
-        if (selectedObjectOrGroup) itemContent.classList.add('selected');
-        updateInfoPanel();
+        handleSelection(object);
     });
 
     visibilityToggle.addEventListener('click', (e) => {
@@ -177,279 +218,57 @@ function buildTreeRecursive(object, parentULElement, depth = 0) {
         visibilityToggle.classList.toggle('hidden-icon', !object.visible);
         visibilityToggle.title = object.visible ? 'Hide' : 'Show';
         if (!object.visible && selectedObjectOrGroup && selectedObjectOrGroup.uuid === object.uuid) {
-            removeAllHighlights();
-            deIsolateAllObjects();
-            selectedObjectOrGroup = null;
-            updateInfoPanel();
-            itemContent.classList.remove('selected');
+            handleSelection(null); // Deselect if hidden
         }
     });
-
-    if (object.isGroup && hasVisibleChildrenForToggler && subList) {
-        object.children.forEach(child => buildTreeRecursive(child, subList, depth + 1));
-    }
 }
 
-function populateModelTree() {
-    if (!loadedObjectModelRoot || !modelTreeList) return;
-    modelTreeList.innerHTML = '';
-    if (loadedObjectModelRoot.name) {
-        buildTreeRecursive(loadedObjectModelRoot, modelTreeList, 0);
-    } else {
-        loadedObjectModelRoot.children.forEach(child => buildTreeRecursive(child, modelTreeList, 0));
+// Encapsulates the logic for handling a selection
+function handleSelection(target) {
+    removeAllHighlights();
+    deIsolateAllObjects();
+
+    let newSelection = null;
+    if (target) {
+        if (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== target.uuid) {
+            newSelection = target;
+        }
     }
-    if (modelTreePanel) modelTreePanel.style.display = 'block';
+
+    selectedObjectOrGroup = newSelection;
+    
+    if (selectedObjectOrGroup) {
+        applyHighlight(selectedObjectOrGroup, highlightColorSingle);
+        zoomToAndIsolate(selectedObjectOrGroup);
+    }
+
+    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
+    if (selectedObjectOrGroup) {
+        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
+        if (treeItemDiv) treeItemDiv.classList.add('selected');
+    }
+    updateInfoPanel();
 }
+
 
 // --- OBJ Loading ---
-const objLoader = new OBJLoader();
-// const objPath = '/ccc/public/objFiles/standard_testing.obj'; // Make sure MTL is in the same folder
-// const objPath = '/ccc/public/objFiles/obj出力検証用_20250619.obj'; // Make sure MTL is in the same folder
-const objPath = '/ccc/public/objFiles/240324_GF本社移転_2022_20250618.obj'; // Make sure MTL is in the same folder
-// const objPath = '/ccc/public/objFiles/240628_パナソニックエナジー西門真地区_2022__20250618.obj'; // Make sure MTL is in the same folder
-
 if (loaderContainer) loaderContainer.style.display = 'flex';
 parseObjHeader(objPath).then(() => {
-    objLoader.load(
-        objPath,
-        (object) => {
+    objLoader.load(objPath, (object) => {
             loadedObjectModelRoot = object;
-            const initialBox = new THREE.Box3().setFromObject(object);
-            const initialCenter = initialBox.getCenter(new THREE.Vector3());
-            object.traverse((child) => {
-                if (child.isMesh) {
-                    child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-            object.position.set(0, 0, 0);
-            const scaledBox = new THREE.Box3().setFromObject(object);
-            const scaledSize = scaledBox.getSize(new THREE.Vector3());
-            const maxDim = Math.max(scaledSize.x, scaledSize.y, scaledSize.z);
-            const desiredMaxDimension = 100;
-            if (maxDim > 0) {
-                const scale = desiredMaxDimension / maxDim;
-                object.scale.set(scale, scale, scale);
-            }
-            object.rotation.x = -Math.PI / 2;
-            // object.rotation.y = -Math.PI / 2;
+            // ... (OBJ processing, centering, scaling, rotation) ...
             scene.add(object);
-            // console.log("OBJ loaded by OBJLoader:", loadedObjectModelRoot);
-
-            populateModelTree();
-
-            const finalWorldBox = new THREE.Box3().setFromObject(object);
-            const finalWorldCenter = finalWorldBox.getCenter(new THREE.Vector3());
-            const finalWorldSize = finalWorldBox.getSize(new THREE.Vector3());
-            console.log("Scaled Object Size (finalWorldSize):", finalWorldSize.x, finalWorldSize.y, finalWorldSize.z);
-            initialCameraLookAt.copy(finalWorldCenter);
-            controls.target.copy(finalWorldCenter);
-            const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-            const aspect = camera.aspect;
-            let effectiveSizeDimension;
-            if (aspect > 1) { // Landscape viewport
-                effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect, finalWorldSize.z / aspect /* Heuristic for depth */);
-            } else { // Portrait viewport
-                effectiveSizeDimension = Math.max(finalWorldSize.x, finalWorldSize.y / aspect, finalWorldSize.z / aspect /* Heuristic for depth */);
-            }
-            // Simpler: just take the largest of the viewport-projected width/height. Depth is harder to directly fit with FOV.
-            effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect);
-
-
-            let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
-
-            const zoomOutFactor = 1.1; // Keep this smaller for a tighter initial view
-            cameraDistance *= zoomOutFactor;
-
-            // Adjust the safety net. We want it to be a minimum, but not too far if the object is deep.
-            // Let's make the safety net based on the largest actual dimension of the object.
-            const largestObjectDim = Math.max(finalWorldSize.x, finalWorldSize.y, finalWorldSize.z);
-            cameraDistance = Math.max(cameraDistance, largestObjectDim * 1.0); // Ensure camera is at least 1x largest dimension away
-
-            console.log("Corrected Scaled Object Size (finalWorldSize):", finalWorldSize.x, finalWorldSize.y, finalWorldSize.z);
-            console.log("Corrected Effective Size Dimension for FOV:", effectiveSizeDimension);
-            console.log("Corrected Camera Distance (before Math.max safety):", (effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2))) * zoomOutFactor);
-            console.log("Corrected Camera Distance (after Math.max safety):", cameraDistance);
-
-
-            const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
-            initialCameraPosition.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
-
-            camera.position.copy(initialCameraPosition);
-            camera.lookAt(initialCameraLookAt);
-            controls.update();
-            // const effectiveSizeDimension = Math.max(finalWorldSize.y, finalWorldSize.x / aspect);
-            // let cameraDistance = effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2));
-            // // ... after cameraDistance calculation ...
-            // console.log("Calculated Camera Distance (before zoomOutFactor):", effectiveSizeDimension / (2 * Math.tan(fovInRadians / 2)));
-            // console.log("Camera Distance (after zoomOutFactor & Math.max):", cameraDistance);
-            // const zoomOutFactor = 1.1;
-            // cameraDistance *= zoomOutFactor;
-            // cameraDistance = Math.max(cameraDistance, maxDim * 0.75);
-            // const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
-            // initialCameraPosition.copy(finalWorldCenter).addScaledVector(cameraDirection, cameraDistance);
-            // camera.position.copy(initialCameraPosition);
-            // camera.lookAt(initialCameraLookAt);
-            // controls.update();
-
-
-
-            updateInfoPanel();
+            buildAndPopulateCategorizedTree();
+            // ... (camera adjustment logic) ...
             if (loaderContainer) loaderContainer.style.display = 'none';
-        },
-        (xhr) => {
-            if (loaderTextElement) {
-                const percentLoaded = Math.round(xhr.loaded / xhr.total * 100);
-                loaderTextElement.textContent = isFinite(percentLoaded) && percentLoaded > 0 ?
-                    `Loading 3D Model: ${percentLoaded}%` : `Processing Model...`;
-            }
-        },
-        (error) => {
-            console.error('An error happened:', error);
-            if (loaderContainer) loaderContainer.style.display = 'flex';
-            if (loaderTextElement) loaderTextElement.textContent = 'Error loading model.';
-        }
+        }, (xhr) => { /* progress */ }, (error) => { /* error */ }
     );
 });
 
-// --- Selection, Highlighting, Isolation Logic ---
-const applyHighlight = (target, color) => {
-    if (!target) return;
-    const meshesToHighlight = [];
-    if (target.isMesh) meshesToHighlight.push(target);
-    else if (target.isGroup) target.traverse(child => { if (child.isMesh) meshesToHighlight.push(child); });
 
-    meshesToHighlight.forEach(mesh => {
-        if (mesh.material) {
-            if (!originalMeshMaterials.has(mesh.uuid)) {
-                originalMeshMaterials.set(mesh.uuid, mesh.material);
-            }
-            if (Array.isArray(mesh.material)) {
-                mesh.material = mesh.material.map(originalMat => {
-                    const highlightMat = originalMat.clone();
-                    if (highlightMat.color) highlightMat.color.set(color);
-                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
-                    return highlightMat;
-                });
-            } else {
-                const highlightMat = mesh.material.clone();
-                if (highlightMat.color) highlightMat.color.set(color);
-                else if (highlightMat.emissive) highlightMat.emissive.set(color);
-                mesh.material = highlightMat;
-            }
-        }
-    });
-};
-
-const removeAllHighlights = () => {
-    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
-        const mesh = scene.getObjectByProperty('uuid', meshUuid);
-        if (mesh && mesh.isMesh) mesh.material = originalMaterialOrArray;
-    });
-    originalMeshMaterials.clear();
-};
-
-function zoomToAndIsolate(targetObject) {
-    if (!targetObject) return;
-    deIsolateAllObjects();
-    isIsolateModeActive = true;
-
-    const box = new THREE.Box3().setFromObject(targetObject);
-    if (box.isEmpty()) {
-        console.warn("Cannot zoom to object with empty bounding box:", targetObject.name);
-        isIsolateModeActive = false;
-        return;
-    }
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-
-    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-    const aspect = camera.aspect;
-    const effectiveSize = Math.max(size.y, size.x / aspect);
-    let distance = effectiveSize / (2 * Math.tan(fovInRadians / 2));
-    distance = Math.max(distance, maxDim * 1.2);
-    distance *= 1.5;
-
-    const offsetDirection = camera.position.clone().sub(controls.target).normalize();
-    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
-
-    camera.position.copy(center).addScaledVector(offsetDirection, distance);
-    controls.target.copy(center);
-    controls.update();
-
-    loadedObjectModelRoot.traverse((object) => {
-        if (object.isMesh) {
-            let isPartOfSelectedTarget = false;
-            let temp = object;
-            while (temp && temp !== loadedObjectModelRoot.parent) {
-                if (temp === targetObject) {
-                    isPartOfSelectedTarget = true;
-                    break;
-                }
-                temp = temp.parent;
-            }
-            if (object === targetObject) isPartOfSelectedTarget = true;
-
-            if (!isPartOfSelectedTarget) {
-                if (!originalObjectPropertiesForIsolate.has(object.uuid)) {
-                    originalObjectPropertiesForIsolate.set(object.uuid, {
-                        material: object.material,
-                        visible: object.visible
-                    });
-                }
-                if (object.visible) {
-                    if (Array.isArray(object.material)) {
-                        object.material = object.material.map(mat => {
-                            const newMat = mat.clone();
-                            newMat.transparent = true;
-                            newMat.opacity = 0.1;
-                            return newMat;
-                        });
-                    } else {
-                        const newMat = object.material.clone();
-                        newMat.transparent = true;
-                        newMat.opacity = 0.1;
-                        object.material = newMat;
-                    }
-                }
-            } else {
-                if (originalObjectPropertiesForIsolate.has(object.uuid)) {
-                    const props = originalObjectPropertiesForIsolate.get(object.uuid);
-                    object.material = props.material;
-                    object.visible = props.visible;
-                    originalObjectPropertiesForIsolate.delete(object.uuid);
-                } else {
-                    if (Array.isArray(object.material)) {
-                        object.material.forEach(mat => { mat.transparent = false; mat.opacity = 1.0; });
-                    } else if (object.material) { // Check if material exists
-                        object.material.transparent = false; object.material.opacity = 1.0;
-                    }
-                    object.visible = true;
-                }
-            }
-        }
-    });
-}
-
-function deIsolateAllObjects() {
-    if (!isIsolateModeActive) return;
-    originalObjectPropertiesForIsolate.forEach((props, uuid) => {
-        const object = scene.getObjectByProperty('uuid', uuid);
-        if (object && object.isMesh) {
-            object.material = props.material;
-            object.visible = props.visible;
-        }
-    });
-    originalObjectPropertiesForIsolate.clear();
-    isIsolateModeActive = false;
-    // console.log("De-isolated objects");
-}
-
+// --- Click Listener for 3D View ---
 window.addEventListener('click', (event) => {
-    if (!loadedObjectModelRoot) return;
-    if (event.target.closest('#modelTreePanel')) return;
+    if (!loadedObjectModelRoot || event.target.closest('#modelTreePanel')) return;
 
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -461,182 +280,17 @@ window.addEventListener('click', (event) => {
         let intersectedObject = intersects[0].object;
         let current = intersectedObject;
         while (current && current !== scene) {
-            if (current.parent === loadedObjectModelRoot && (current.name || current.isMesh)) {
-                newlyClickedTarget = current;
-                break;
-            }
-            if (current === loadedObjectModelRoot && current.name) {
+            if (current.parent === loadedObjectModelRoot && current.name) {
                 newlyClickedTarget = current;
                 break;
             }
             current = current.parent;
         }
-        if (!newlyClickedTarget && intersectedObject.name && intersectedObject.parent === loadedObjectModelRoot) {
-            newlyClickedTarget = intersectedObject;
-        }
     }
-
-    removeAllHighlights();
-    deIsolateAllObjects();
-
-    if (newlyClickedTarget) {
-        if (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== newlyClickedTarget.uuid) {
-            selectedObjectOrGroup = newlyClickedTarget;
-            applyHighlight(selectedObjectOrGroup, highlightColorSingle);
-            zoomToAndIsolate(selectedObjectOrGroup);
-        } else {
-            selectedObjectOrGroup = null;
-        }
-    } else {
-        selectedObjectOrGroup = null;
-    }
-
-    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
-    if (selectedObjectOrGroup) {
-        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
-        if (treeItemDiv) treeItemDiv.classList.add('selected');
-    }
-    updateInfoPanel();
+    handleSelection(newlyClickedTarget);
 });
 
-// --- Event Listeners for Panel Controls ---
-if (closeModelTreeBtn) {
-    closeModelTreeBtn.addEventListener('click', () => {
-        if (modelTreePanel) modelTreePanel.style.display = 'none';
-    });
-}
-
-if (modelTreeSearch) {
-    modelTreeSearch.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase().trim();
-        const allListItems = modelTreeList.querySelectorAll('li'); // Get all <li> elements
-
-        allListItems.forEach(li => {
-            const itemContentDiv = li.querySelector('.tree-item');
-            if (!itemContentDiv) return;
-
-            const nameSpan = itemContentDiv.querySelector('.group-name');
-            if (!nameSpan) return;
-
-            const itemName = nameSpan.textContent.toLowerCase();
-            const isMatch = itemName.includes(searchTerm);
-
-            if (isMatch) {
-                li.style.display = ''; // Show the matching item's li
-                // Make its parents visible and expanded
-                let parentLi = li.parentElement.closest('li');
-                while (parentLi) {
-                    parentLi.style.display = '';
-                    const parentSubList = parentLi.querySelector('ul');
-                    if (parentSubList) parentSubList.style.display = 'block';
-                    const parentToggler = parentLi.querySelector('.toggler:not(.empty-toggler)');
-                    if (parentToggler) parentToggler.textContent = '▼';
-                    parentLi = parentLi.parentElement.closest('li');
-                }
-            } else {
-                li.style.display = 'none'; // Hide non-matching item's li
-            }
-        });
-
-        // If search is empty, reset all to potentially visible (respecting their own UL's display state)
-        if (searchTerm === "") {
-            allListItems.forEach(li => {
-                // If a UL inside this LI was set to 'none' by a toggler, keep it that way.
-                // Otherwise, make the LI visible.
-                const subUl = li.querySelector('ul');
-                if (!subUl || subUl.style.display !== 'none') {
-                    li.style.display = '';
-                } else {
-                    li.style.display = ''; // Still show the LI, but its children UL remains hidden
-                }
-            });
-        }
-    });
-}
-
-// --- Info Panel Update ---
-// Modify updateInfoPanel to include parsedWSCenID and parsedPJNo if available
-function updateInfoPanel() {
-    const infoPanel = document.getElementById('objectInfo');
-    if (!infoPanel) return;
-
-    let headerInfo = "";
-    if (parsedWSCenID || parsedPJNo) { // Only show if we have something
-        headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
-    } else if (parsedWSCenID === "" && parsedPJNo === "") { // Specifically for "PJNo無し" case
-        headerInfo = `WSCenID: \nPJNo: \n----\n`;
-    }
-
-
-    if (selectedObjectOrGroup) {
-        const pos = selectedObjectOrGroup.getWorldPosition(new THREE.Vector3());
-        let rawName = selectedObjectOrGroup.name || "Unnamed Group/Object";
-        let displayName = rawName;
-        let displayId = "N/A";
-
-        const lastUnderscoreHalf = rawName.lastIndexOf('_');
-        const lastUnderscoreFull = rawName.lastIndexOf('＿');
-        let splitIndex = -1;
-        if (lastUnderscoreHalf !== -1 && lastUnderscoreFull !== -1) {
-            splitIndex = Math.max(lastUnderscoreHalf, lastUnderscoreFull);
-        } else if (lastUnderscoreHalf !== -1) {
-            splitIndex = lastUnderscoreHalf;
-        } else if (lastUnderscoreFull !== -1) {
-            splitIndex = lastUnderscoreFull;
-        }
-        if (splitIndex > 0 && splitIndex < rawName.length - 1) {
-            displayName = rawName.substring(0, splitIndex);
-            displayId = rawName.substring(splitIndex + 1);
-        } else {
-            displayName = rawName;
-        }
-        generatebukkenInfoByCenId(parsedWSCenID, displayId, infoPanel);
-        const selectionInfo = `名前: ${displayName}\n  ID: ${displayId}\n `;
-        //x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)}, z: ${pos.z.toFixed(2)}
-        infoPanel.textContent = headerInfo + selectionInfo;
-    } else {
-        infoPanel.textContent = headerInfo + 'None Selected';
-    }
-}
-
-function generatebukkenInfoByCenId(parsedWSCenID, displayId, infoPanel) {
-    $.ajax({
-        type: "post",
-        url: url_prefix + "/DLDWH/getData",
-        data: { _token: CSRF_TOKEN, WSCenID: parsedWSCenID, ElementId: displayId },
-        success: function (data) {
-            console.log("Get 「カテゴリ名」と「ファミリ名」");
-            console.log(data);
-
-            if (data && data.length > 0) {
-                const categoryName = data[0]['カテゴリー名'];
-                const familyName = data[0]['ファミリ名'];
-                const typeId = data[0]['タイプ_ID'];
-                const bukkenInfo = `\nカテゴリー名: ${categoryName}\nファミリ名: ${familyName}\nタイプ_ID: ${typeId}`;
-                infoPanel.textContent += bukkenInfo;
-            } else {
-                infoPanel.textContent += '\nカテゴリー名: "" \nファミリ名: ""';
-            }
-        },
-        error: function (err) {
-            console.log(err);
-            infoPanel.textContent += '\nデータ取得中にエラーが発生しました。';
-        }
-    });
-}
-
-// --- Window Resize ---
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// --- Animation Loop ---
-function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-}
-// --- Start ---
-animate();
+// --- Info Panel and other event listeners/functions ---
+function updateInfoPanel() { /* ... keep this function, it uses selectedObjectOrGroup ... */ }
+function generatebukkenInfoByCenId(...) { /* ... keep this function ... */ }
+// ... (close button, search, resize, animate) ...
