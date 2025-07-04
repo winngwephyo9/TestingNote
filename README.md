@@ -27,6 +27,7 @@ createMaterial_(materialName) {
         map.wrapT = scope.wrap;
         // Correctly set color space for textures that affect color
         if (mapType === 'map' || mapType === 'emissiveMap') {
+            // This property has existed for longer than .setColorSpace() on Color
             map.colorSpace = SRGBColorSpace;
         }
         params[mapType] = map;
@@ -39,18 +40,18 @@ createMaterial_(materialName) {
 
         switch (prop.toLowerCase()) {
             case 'kd':
-                // *** THE FIX IS HERE ***
-                // Create the color, TELL Three.js it's sRGB, then it will be converted correctly.
-                params.color = new Color().fromArray(value).setColorSpace(SRGBColorSpace);
+                // *** THE FIX IS HERE (COMPATIBLE VERSION) ***
+                // Create a new color, set its RGB from the array,
+                // then manually convert it from sRGB to the linear working space.
+                params.color = new Color().fromArray(value).convertSRGBToLinear();
                 break;
             case 'ks':
-                // This is generally not used for MeshStandardMaterial in a simple conversion.
-                // We can use it for specular color if needed for specific effects.
-                // params.specular = new Color().fromArray(value).setColorSpace(SRGBColorSpace);
+                // Specular color (rarely used in simple PBR)
+                // params.specular = new Color().fromArray(value).convertSRGBToLinear();
                 break;
             case 'ke':
                 // Emissive color
-                params.emissive = new Color().fromArray(value).setColorSpace(SRGBColorSpace);
+                params.emissive = new Color().fromArray(value).convertSRGBToLinear();
                 break;
             case 'map_kd':
                 setMapForType('map', value);
@@ -99,7 +100,6 @@ createMaterial_(materialName) {
     if (params.roughness === undefined) params.roughness = 0.8;
     if (params.metalness === undefined) params.metalness = 0.1;
 
-    // The material type is correct, the color space was the issue.
     this.materials[materialName] = new MeshStandardMaterial(params);
     return this.materials[materialName];
 }
