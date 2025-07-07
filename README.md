@@ -1,6 +1,7 @@
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
+import { MTLLoader } from './library/controls/MTLLoader.js';
 
 // --- Get UI Elements ---
 const loaderContainer = document.getElementById('loader-container');
