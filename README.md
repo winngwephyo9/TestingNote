@@ -1,3 +1,6 @@
+error
+Uncaught TypeError: Failed to resolve module specifier "three". Relative references must start with either "/", "./", or "../".
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
