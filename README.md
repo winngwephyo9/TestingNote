@@ -1,3 +1,5 @@
+composer require symfony/dom-crawler
+
 For additional security you should declare the allow-plugins config with a list of packages names that are allowed to run code. See https://getcomposer.org/allow-plugins
 This warning will become an exception once you run composer update!
 symfony/dom-crawler is not required in your composer.json and has not been removed
