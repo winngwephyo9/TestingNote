@@ -1,4 +1,1 @@
-origin  https://U46407@dev.azure.com/U46407/CCC/_git/CCC (fetch)
-origin  https://U46407@dev.azure.com/U46407/CCC/_git/CCC (push)
-
-fatal: unable to access 'https://dev.azure.com/U46407/CCC/_git/CCC/': error setting certificate file: C:\xampp\php\extras\ssl\Zscaler.pem
+![image](https://github.com/user-attachments/assets/939c19a4-72c1-416e-9e30-8571d9ddc827)
