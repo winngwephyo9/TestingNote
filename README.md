@@ -5,31 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Three.js OBJ Viewer</title>
     <style>
-        /* ... (your existing body, canvas, objectInfo, loader, modelTreePanel styles) ... */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: sans-serif; 
+            background-color: #f0f0f0; /* Overall page background */
+        }
 
-        /* --- Header / Navigation Bar Styles --- */
+        /* Main container for the entire application layout */
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header / Navigation Bar */
         #top-nav {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 50px; /* Adjust height as needed */
-            background-color: #2c3e50; /* A dark blue-gray */
+            flex-shrink: 0; /* Prevent shrinking */
+            height: 50px;
+            background-color: #2c3e50;
             color: white;
             display: flex;
             align-items: center;
             padding: 0 20px;
             box-sizing: border-box;
-            z-index: 50; /* Above other UI but below popups */
+            z-index: 50;
         }
-        #top-nav .nav-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-right: 30px;
-        }
-        #top-nav label {
-            margin-right: 10px;
-        }
+        #top-nav .nav-title { font-size: 1.2em; font-weight: bold; margin-right: 30px; }
+        #top-nav label { margin-right: 10px; }
         #top-nav select {
             padding: 5px;
             border-radius: 4px;
@@ -38,31 +41,131 @@
             color: white;
             font-size: 1em;
         }
-        /* Adjust main content to not be covered by nav bar */
-        #objectInfo { top: 60px; }
-        #modelTreePanel { top: 60px; max-height: calc(100vh - 70px); }
+
+        /* Container for the two main columns */
+        #main-content {
+            display: flex;
+            flex-grow: 1; /* Take up remaining vertical space */
+            overflow: hidden; /* Prevent internal scrolling */
+        }
+        
+        /* Model Tree Panel (Left Column) */
+        #modelTreePanel {
+            flex-basis: 320px; /* Set a base width */
+            flex-shrink: 0; /* Don't shrink */
+            display: flex; /* Use flexbox for its own layout */
+            flex-direction: column;
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+            overflow: hidden; /* Hide overflow */
+        }
+        #modelTreePanel .panel-header {
+            padding: 10px 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #444;
+            background-color: #383838;
+            flex-shrink: 0; /* Header should not shrink */
+        }
+        #modelTreePanel .panel-header input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            background-color: #4f4f4f;
+            border: 1px solid #666;
+            color: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+        #modelTreeContainer {
+            flex-grow: 1; /* Tree list takes remaining space */
+            overflow-y: auto; /* Allow the list to scroll */
+        }
+        #modelTreePanel ul { list-style-type: none; padding: 0; margin: 0; }
+        #modelTreePanel .tree-item {
+            padding: 6px 10px 6px 0;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        /* ... (Keep other tree-item, toggler, etc. styles) ... */
+
+        /* Viewer Container (Right Column) */
+        #viewer-container {
+            flex-grow: 1; /* Take up all remaining horizontal space */
+            position: relative; /* Crucial for positioning child elements like the info panel */
+            overflow: hidden;
+        }
+        #viewer-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Info Panel (Positioned inside viewer-container) */
+        #objectInfo {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            z-index: 10;
+        }
+
+        /* Loader (Centered over the viewer-container) */
+        #loader-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(204, 204, 204, 0.7); /* Light overlay */
+            z-index: 1000;
+        }
+        #loader { /* Spinner */
+            /* ... (keep loader styles) ... */
+        }
+        #loader-text { /* ... (keep loader-text styles) ... */ }
 
     </style>
 </head>
 <body>
-    <!-- New Navigation Bar -->
-    <div id="top-nav">
-        <div class="nav-title">CCC 3D Viewer</div>
-        <label for="model-selector">Select Model:</label>
-        <select id="model-selector">
-            <option value="GF">GF本社移転</option>
-            <option value="BIKEN">BIKEN (Placeholder)</option>
-            <!-- Add more models here -->
-        </select>
-    </div>
-
-    <div id="loader-container">
-        <div id="loader"></div>
-        <div id="loader-text">Loading 3D Model...</div>
-    </div>
-    <div id="objectInfo">None</div>
-    <div id="modelTreePanel">
-        <!-- ... your existing panel content ... -->
+    <div id="app-container">
+        <div id="top-nav">
+            <div class="nav-title">CCC 3D Viewer</div>
+            <label for="model-selector">Select Model:</label>
+            <select id="model-selector">
+                <option value="GF">GF本社移転</option>
+                <option value="BIKEN">BIKEN (Placeholder)</option>
+            </select>
+        </div>
+        <div id="main-content">
+            <div id="modelTreePanel">
+                <div class="panel-header">
+                    <span>モデル</span>
+                    <input type="text" id="modelTreeSearch" placeholder="検索...">
+                </div>
+                <div id="modelTreeContainer">
+                    <ul id="modelTreeList"></ul>
+                </div>
+            </div>
+            <div id="viewer-container">
+                <!-- Three.js canvas will be appended here by the script -->
+                <div id="loader-container">
+                    <div id="loader"></div>
+                    <div id="loader-text">Loading 3D Model...</div>
+                </div>
+                <div id="objectInfo">None</div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="script.js"></script>
@@ -71,157 +174,45 @@
 
 
 
-// --- CORRECTED IMPORTS ---
-import * as THREE from './library/three.module.js';
-import { OrbitControls } from './library/controls/OrbitControls.js';
-import { OBJLoader } from './library/loaders/OBJLoader.js';
-import { MTLLoader } from './library/loaders/MTLLoader.js';
 
 // --- Get UI Elements ---
-const modelSelector = document.getElementById('model-selector');
-// ... (keep all other getElementById calls)
+const viewerContainer = document.getElementById('viewer-container'); // NEW: Get the right-side container
+// ... (keep other getElementById calls)
 
-// --- Global variables ---
-// ... (keep all global variables)
+// ... (Global variables, Scene, Camera setup remain the same) ...
 
-// --- Model Configuration ---
-// Create an object to store the file paths for each model
-const models = {
-    'GF': {
-        obj: '240324_GF本社移転_2022_20250618.obj',
-        mtl: '240324_GF本社移転_2022_20250627.mtl',
-        // You can add other model-specific settings here if needed
-    },
-    'BIKEN': {
-        obj: 'biken_model.obj', // Placeholder filename
-        mtl: 'biken_model.mtl', // Placeholder filename
-    },
-    // Add other models here
-};
+// --- Renderer Setup ---
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+// renderer.setSize(window.innerWidth, window.innerHeight); // <-- We will now set size based on the container
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+viewerContainer.appendChild(renderer.domElement); // <-- Append canvas to the new container
 
-// --- Scene, Camera, Renderer, etc. Setup ---
-// ... (Keep all of this setup as is) ...
+// --- Controls Setup ---
+const controls = new OrbitControls(camera, renderer.domElement); // Controls listen on the canvas
+// ... (keep controls properties)
 
-// --- Helper Functions ---
-// ... (Keep all helper functions: parseObjHeader, fetchAllCategoryData, frameObject, buildAndPopulateCategorizedTree, etc.) ...
+// ... (All other functions like parseObjHeader, fetchAllCategoryData, buildAndPopulateCategorizedTree,
+//      handleSelection, zoomToAndIsolate, etc., DO NOT NEED to be changed.) ...
 
-// --- REFACTORED Main Application Flow into a Reusable Function ---
-async function loadModel(modelKey) {
-    // 0. Reset the scene and state
-    if (loadedObjectModelRoot) {
-        scene.remove(loadedObjectModelRoot);
-    }
-    // Clear all previous data
-    loadedObjectModelRoot = null;
-    selectedObjectOrGroup = null;
-    originalMeshMaterials.clear();
-    originalObjectPropertiesForIsolate.clear();
-    isIsolateModeActive = false;
-    elementIdDataMap.clear();
-    modelTreeList.innerHTML = '';
-    if (modelTreePanel) modelTreePanel.style.display = 'none';
-    updateInfoPanel(); // Clear the info panel
+// --- Window Resize (MODIFIED) ---
+// This function now correctly resizes the renderer based on its container's dimensions
+function onWindowResize() {
+    const { clientWidth, clientHeight } = viewerContainer;
 
-    try {
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-        
-        const modelFiles = models[modelKey];
-        if (!modelFiles) {
-            throw new Error(`Model key "${modelKey}" not found in configuration.`);
-        }
+    camera.aspect = clientWidth / clientHeight;
+    camera.updateProjectionMatrix();
 
-        const assetPath = '/ccc/public/objFiles/';
-        const objFileName = modelFiles.obj;
-        const mtlFileName = modelFiles.mtl;
-        const fullObjPath = assetPath + objFileName;
-        
-        // Step 1: Parse header info
-        await parseObjHeader(fullObjPath);
-        
-        // Step 2: Load Materials
-        if (loaderTextElement) loaderTextElement.textContent = `Loading Materials...`;
-        const mtlLoader = new MTLLoader();
-        mtlLoader.setPath(assetPath);
-        const materialsCreator = await new Promise((resolve, reject) => {
-            mtlLoader.load(mtlFileName, resolve, undefined, reject);
-        });
-        materialsCreator.preload();
+    renderer.setSize(clientWidth, clientHeight);
+}
+window.addEventListener('resize', onWindowResize);
 
-        // Step 3: Load Geometry
-        const objLoader = new OBJLoader();
-        objLoader.setMaterials(materialsCreator);
-        const object = await new Promise((resolve, reject) => {
-            objLoader.load(fullObjPath, resolve, (xhr) => {
-                if (loaderTextElement) {
-                    const percent = Math.round(xhr.loaded / xhr.total * 100);
-                    loaderTextElement.textContent = isFinite(percent) && percent < 100 ?
-                        `Loading 3D Geometry: ${percent}%` : `Processing Geometry...`;
-                }
-            }, reject);
-        });
-
-        loadedObjectModelRoot = object;
-
-        // Step 4: Process Model (center, scale, rotate)
-        const initialBox = new THREE.Box3().setFromObject(object);
-        const initialCenter = initialBox.getCenter(new THREE.Vector3());
-        object.traverse((child) => {
-            if (child.isMesh) {
-                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-        object.position.set(0, 0, 0);
-        const scaledBox = new THREE.Box3().setFromObject(object);
-        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
-        const desiredMaxDimension = 150;
-        if (maxDim > 0) {
-            const scale = desiredMaxDimension / maxDim;
-            object.scale.set(scale, scale, scale);
-        }
-        object.rotation.x = -Math.PI / 2;
-        object.rotation.y = -Math.PI / 2;
-
-        // Step 5: Fetch category data
-        const allIds = [];
-        loadedObjectModelRoot.traverse(child => {
-            if (child.name && child.parent === loadedObjectModelRoot) {
-                const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
-                if (splitIndex > 0) allIds.push(child.name.substring(splitIndex + 1));
-            }
-        });
-        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
-        
-        // Step 6: Build the tree UI
-        buildAndPopulateCategorizedTree();
-        
-        // Step 7: Add model to scene, frame it, and hide loader
-        scene.add(object);
-        frameObject(object);
-        
-        if (loaderContainer) loaderContainer.style.display = 'none';
-
-    } catch (error) {
-        console.error('Failed to initialize the viewer:', error);
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-        if (loaderTextElement) loaderTextElement.textContent = `Error loading model: ${modelKey}.`;
-    }
+// --- Main Application Flow ---
+async function main() {
+    // ... (This function remains the same as the previous version) ...
 }
 
-
-// --- Event Listeners and Animation Loop ---
-// ... (Keep your existing click, close, search, and resize listeners) ...
-
-// --- NEW: Event listener for the model selector dropdown ---
-if (modelSelector) {
-    modelSelector.addEventListener('change', (event) => {
-        const selectedModelKey = event.target.value;
-        loadModel(selectedModelKey);
-    });
-}
-
-
+// --- Animation Loop ---
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
@@ -229,6 +220,7 @@ function animate() {
 }
 
 // --- Start Application ---
-// Load the default model when the page first loads
-loadModel('GF'); // 'GF' is the default model
+// Initial resize to set the correct size on page load
+onWindowResize(); 
+main();
 animate();
