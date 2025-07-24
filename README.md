@@ -1,4 +1,40 @@
-<?php
+   function updatePartnerCompanyInfo($folderId, $access_token)
+    {
+        try {
+            $client = new \GuzzleHttp\Client();
+            $client = new \GuzzleHttp\Client(['verify' => false]);
+            $requestURL = "https://api.box.com/2.0/folders/" . $folderId . "/items/";
+            $header = [
+                "Authorization" => "Bearer " . $access_token,
+                "Accept" => "application/json"
+            ];
+            $response = $client->request('GET', $requestURL, ['headers' => $header]);
+            $items = $response->getBody()->getContents();
+            $items = json_decode($items)->entries;
+            foreach ($items as $item) {
+                if ($item->type == "file") {
+                    $fileId = $item->id;
+                    $fileName = $item->name; //パートナー会社管理表
+                    if (strstr($fileName, "パートナー会社管理表") == true) {
+                        $requestURL = "https://api.box.com/2.0/files/" . $fileId . "/content/";
+                        $response = $client->request('GET', $requestURL, ['headers' => $header]);
+                        $file_content = $response->getBody()->getContents();
+                        $filePath = public_path() . "/Download/allstore_excel.xlsx";
+                        file_put_contents($filePath, $file_content);
+                        $aaa = $this->LoadExcelData($filePath);
+                        return $aaa;
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            return back()->with("error", "failed when reading　allstore info from box");
+        }
+    }
+    
+    
+    
+    
+    <?php
 
 namespace App\Http\Controllers;
 
