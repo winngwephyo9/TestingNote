@@ -1,218 +1,335 @@
-  <?php
+import * as THREE from './library/three.module.js';
+import { OrbitControls } from './library/controls/OrbitControls.js';
+import { OBJLoader } from './library/loaders/OBJLoader.js';
+import { MTLLoader } from './library/loaders/MTLLoader.js';
 
-namespace App\Http\Controllers;
+// --- Get UI Elements ---
+const loaderContainer = document.getElementById('loader-container');
+const loaderTextElement = document.getElementById('loader-text');
+const modelTreePanel = document.getElementById('modelTreePanel');
+const modelTreeList = document.getElementById('modelTreeList');
+const modelTreeSearch = document.getElementById('modelTreeSearch');
+const closeModelTreeBtn = document.getElementById('closeModelTreeBtn');
+const objectInfoPanel = document.getElementById('objectInfo');
+const modelSelector = document.getElementById('model-selector');
 
-use Illuminate\Http\Request;
-use Exception;
-use GuzzleHttp\Client;
-
-class FileController extends Controller
-{
-    /**
-     * NEW FUNCTION: Lists the sub-folders (projects) within a main Box folder.
-     * This will populate the dropdown menu.
-     */
-    public function getProjectList(Request $request)
-    {
-        $mainFolderId = $request->input('folderId'); // The ID of your "MainFolder"
-        $accessToken = $request->input('accessToken'); // You need to provide the Box access token
-
-        if (empty($mainFolderId) || empty($accessToken)) {
-            return response()->json(['error' => 'Folder ID and Access Token are required.'], 400);
-        }
-
-        try {
-            $client = new Client(['verify' => false]); // Consider setting 'verify' to true in production with proper SSL certs
-            $requestURL = "https://api.box.com/2.0/folders/" . $mainFolderId . "/items?fields=id,name";
-            $header = [
-                "Authorization" => "Bearer " . $accessToken,
-                "Accept" => "application/json"
-            ];
-
-            $response = $client->request('GET', $requestURL, ['headers' => $header]);
-            $items = json_decode($response->getBody()->getContents())->entries;
-            
-            $projects = [];
-            foreach ($items as $item) {
-                if ($item->type == "folder") {
-                    $projects[] = [
-                        'id' => $item->id,       // The Folder ID (e.g., "12345" for "GF")
-                        'name' => $item->name,   // The Folder Name (e.g., "GF")
-                    ];
-                }
-            }
-
-            return response()->json($projects);
-
-        } catch (Exception $e) {
-            return response()->json(['error' => "Failed to read project list from Box: " . $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * MODIFIED FUNCTION: Lists OBJ/MTL files within a specific project folder on Box.
-     */
-    public function getObjList(Request $request)
-    {
-        $projectFolderId = $request->input('folderId'); // The ID of the selected project folder (e.g., "GF")
-        $accessToken = $request->input('accessToken');
-
-        if (empty($projectFolderId) || empty($accessToken)) {
-            return response()->json(['error' => 'Folder ID and Access Token are required.'], 400);
-        }
-
-        try {
-            $client = new Client(['verify' => false]);
-            $requestURL = "https://api.box.com/2.0/folders/" . $projectFolderId . "/items?fields=id,name";
-            $header = [
-                "Authorization" => "Bearer " . $accessToken,
-                "Accept" => "application/json"
-            ];
-            
-            $response = $client->request('GET', $requestURL, ['headers' => $header]);
-            $items = json_decode($response->getBody()->getContents())->entries;
-            
-            $objFiles = [];
-            $allFiles = [];
-            foreach ($items as $item) {
-                if ($item->type == "file") {
-                    $allFiles[$item->name] = $item->id;
-                }
-            }
-
-            // Find OBJ files and look for their corresponding MTL files
-            foreach ($allFiles as $fileName => $fileId) {
-                if (strtolower(pathinfo($fileName, PATHINFO_EXTENSION)) === 'obj') {
-                    $mtlFileName = pathinfo($fileName, PATHINFO_FILENAME) . '.mtl';
-                    if (array_key_exists($mtlFileName, $allFiles)) {
-                        $objFiles[] = [
-                            'obj' => ['id' => $fileId, 'name' => $fileName],
-                            'mtl' => ['id' => $allFiles[$mtlFileName], 'name' => $mtlFileName]
-                        ];
-                    }
-                }
-            }
-
-            return response()->json($objFiles);
-
-        } catch (Exception $e) {
-            return response()->json(['error' => "Failed to read OBJ list from Box: " . $e->getMessage()], 500);
-        }
-    }
-}
-
-
-
-// ... (Imports, UI Elements, Global variables, Scene, Camera, etc. remain the same) ...
-
-// --- Model Configuration ---
-// This is no longer needed, as we will fetch the list dynamically
-// const models = { ... };
-
-// --- NEW: Global variables for Box integration ---
+// --- Global variables ---
 const BOX_ACCESS_TOKEN = "YOUR_DEVELOPER_TOKEN_HERE"; // IMPORTANT: Replace with a real token
 const BOX_MAIN_FOLDER_ID = "YOUR_MAIN_FOLDER_ID_HERE"; // IMPORTANT: Replace with the ID of "MainFolder"
 
+let parsedWSCenID = "";
+let parsedPJNo = "";
+let loadedObjectModelRoot = null;
+let initialCameraPosition = new THREE.Vector3(10, 10, 10);
+let initialCameraLookAt = new THREE.Vector3(0, 0, 0);
+let selectedObjectOrGroup = null;
+const originalMeshMaterials = new Map();
+const originalObjectPropertiesForIsolate = new Map();
+let isIsolateModeActive = false;
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const highlightColorSingle = new THREE.Color(0xa0c4ff);
+const elementIdDataMap = new Map();
+
+// --- Scene Setup, Camera, Renderer, Lighting, Controls ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe8e8e8);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
+camera.position.copy(initialCameraPosition);
+camera.lookAt(initialCameraLookAt);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('viewer-container').appendChild(renderer.domElement);
+const ambientLight = new THREE.AmbientLight(0x606060, 2);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
+directionalLight.position.set(50, 100, 75);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+scene.add(directionalLight);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
+hemiLight.position.set(0, 50, 0);
+scene.add(hemiLight);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
 // --- Helper Functions ---
-// ... (parseObjHeader, frameObject, buildAndPopulateCategorizedTree, etc. are OK) ...
 
-// --- Data Fetching Functions (Modified for Box) ---
+async function parseObjHeader(objContent) {
+    try {
+        const lines = objContent.split(/\r?\n/);
+        if (lines.length > 0) {
+            const firstLine = lines[0].trim();
+            if (firstLine.startsWith("# ")) {
+                const content = firstLine.substring(2).trim();
+                const pattern1Match = content.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_([a-zA-Z0-9]+)$/);
+                if (pattern1Match) {
+                    parsedWSCenID = pattern1Match[1];
+                    parsedPJNo = pattern1Match[2];
+                    return;
+                }
+                if (content.includes("ワークシェアリングされてない") && (content.includes("_PJNo無し") || content.includes("＿PJNo無し"))) {
+                    parsedWSCenID = "";
+                    parsedPJNo = "";
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error parsing OBJ header:", error);
+    }
+}
 
-// Fetches a file's content directly from Box using its file ID
+async function fetchAllCategoryData(wscenId, allElementIds) {
+    if (allElementIds.length === 0) return;
+    const batchSize = 900;
+    for (let i = 0; i < allElementIds.length; i += batchSize) {
+        const batch = allElementIds.slice(i, i + batchSize);
+        if (loaderTextElement) loaderTextElement.textContent = `Fetching Categories... (${i + batch.length}/${allElementIds.length})`;
+        await new Promise((resolve, reject) => {
+            $.ajax({
+                type: "post",
+                url: url_prefix + "/DLDWH/getDatas",
+                data: { _token: CSRF_TOKEN, WSCenID: wscenId, ElementIds: batch },
+                success: (data) => {
+                    for (const elementId in data) {
+                        elementIdDataMap.set(elementId, data[elementId]);
+                    }
+                    resolve();
+                },
+                error: (err) => {
+                    console.error(`Error fetching batch starting at index ${i}:`, err);
+                    reject(err);
+                }
+            });
+        });
+    }
+}
+
 async function fetchBoxFileContent(fileId) {
     const url = `https://api.box.com/2.0/files/${fileId}/content`;
     const headers = { 'Authorization': `Bearer ${BOX_ACCESS_TOKEN}` };
     const response = await fetch(url, { headers });
-    if (!response.ok) {
-        throw new Error(`Failed to fetch file ${fileId} from Box: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Failed to fetch file ${fileId} from Box: ${response.statusText}`);
     return await response.text();
 }
 
-// Fetches category data (this function doesn't change, it still talks to your server)
-async function fetchAllCategoryData(wscenId, allElementIds) { /* ... keep this function as is ... */ }
+function frameObject(objectToFrame) {
+    const box = new THREE.Box3().setFromObject(objectToFrame);
+    if (box.isEmpty()) {
+        camera.position.set(50, 50, 50);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+        return;
+    }
+    const center = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const radius = sphere.radius;
+    initialCameraLookAt.copy(center);
+    controls.target.copy(center);
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    const distance = radius / Math.sin(fovInRadians / 2);
+    const zoomOutFactor = 1.3;
+    const finalDistance = distance * zoomOutFactor;
+    const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+    initialCameraPosition.copy(center).addScaledVector(cameraDirection, finalDistance);
+    camera.position.copy(initialCameraPosition);
+    camera.lookAt(initialCameraLookAt);
+    controls.update();
+}
 
-// --- REFACTORED Main Application Flow ---
-async function loadModel(projectFolderId) {
-    // 0. Reset scene and state
+async function buildAndPopulateCategorizedTree() {
+    if (!loadedObjectModelRoot || !modelTreeList) return;
+    if (loaderTextElement) loaderTextElement.textContent = "Building model tree...";
+    const categorizedObjects = {};
+    loadedObjectModelRoot.traverse(child => {
+        if (child.name && child.parent === loadedObjectModelRoot) {
+            let rawName = child.name;
+            let displayId = null;
+            const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
+            if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
+            let category = "カテゴリー無し";
+            if (displayId && elementIdDataMap.has(displayId)) {
+                category = elementIdDataMap.get(displayId)['カテゴリー名'] || "カテゴリー無し";
+            } else if (!displayId) {
+                category = "名称未分類";
+            }
+            if (!categorizedObjects[category]) categorizedObjects[category] = [];
+            categorizedObjects[category].push(child);
+        }
+    });
+    modelTreeList.innerHTML = '';
+    Object.keys(categorizedObjects).sort().forEach(categoryName => {
+        createCategoryNode(categoryName, categorizedObjects[categoryName]);
+    });
+    if (modelTreePanel) modelTreePanel.style.display = 'block';
+}
+
+function createCategoryNode(categoryName, objectsInCategory) {
+    const categoryLi = document.createElement('li');
+    const itemContent = document.createElement('div');
+    itemContent.className = 'tree-item';
+    itemContent.style.fontWeight = 'bold';
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler';
+    toggler.textContent = '▼';
+    itemContent.appendChild(toggler);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
+    itemContent.appendChild(nameSpan);
+    const subList = document.createElement('ul');
+    toggler.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCollapsed = subList.style.display === 'none';
+        subList.style.display = isCollapsed ? 'block' : 'none';
+        toggler.textContent = isCollapsed ? '▼' : '▶';
+    });
+    categoryLi.appendChild(itemContent);
+    categoryLi.appendChild(subList);
+    modelTreeList.appendChild(categoryLi);
+    objectsInCategory.forEach(object => createObjectNode(object, subList, 1));
+}
+
+function createObjectNode(object, parentULElement, depth) {
+    const listItem = document.createElement('li');
+    listItem.dataset.uuid = object.uuid;
+    const itemContent = document.createElement('div');
+    itemContent.className = 'tree-item';
+    itemContent.style.paddingLeft = `${depth * 15 + 10}px`;
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler empty-toggler';
+    toggler.innerHTML = ' ';
+    itemContent.appendChild(toggler);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = object.name;
+    nameSpan.title = object.name;
+    itemContent.appendChild(nameSpan);
+    const visibilityToggle = document.createElement('span');
+    visibilityToggle.className = 'visibility-toggle visible-icon';
+    visibilityToggle.title = 'Hide';
+    itemContent.appendChild(visibilityToggle);
+    listItem.appendChild(itemContent);
+    parentULElement.appendChild(listItem);
+    itemContent.addEventListener('click', () => handleSelection(object));
+    visibilityToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        object.visible = !object.visible;
+        visibilityToggle.classList.toggle('visible-icon', object.visible);
+        visibilityToggle.classList.toggle('hidden-icon', !object.visible);
+        visibilityToggle.title = object.visible ? 'Hide' : 'Show';
+        if (!object.visible && selectedObjectOrGroup && selectedObjectOrGroup.uuid === object.uuid) {
+            handleSelection(null);
+        }
+    });
+}
+
+function applyHighlight(target, color) { /* ... keep this function ... */ }
+function removeAllHighlights() { /* ... keep this function ... */ }
+function zoomToAndIsolate(targetObject) { /* ... keep this function ... */ }
+function deIsolateAllObjects() { /* ... keep this function ... */ }
+function handleSelection(target) { /* ... keep this function ... */ }
+function updateInfoPanel() { /* ... keep this function ... */ }
+
+// --- Main Application Flow ---
+async function loadModel(projectFolderId, projectName) {
     if (loadedObjectModelRoot) scene.remove(loadedObjectModelRoot);
     loadedObjectModelRoot = null;
-    // ... (clear all other maps and UI state) ...
+    selectedObjectOrGroup = null;
+    originalMeshMaterials.clear();
+    originalObjectPropertiesForIsolate.clear();
+    isIsolateModeActive = false;
+    elementIdDataMap.clear();
     modelTreeList.innerHTML = '';
     if (modelTreePanel) modelTreePanel.style.display = 'none';
     updateInfoPanel();
 
     try {
         if (loaderContainer) loaderContainer.style.display = 'flex';
+        if (loaderTextElement) loaderTextElement.textContent = `Fetching file list for ${projectName}...`;
         
-        // 1. Fetch the list of OBJ/MTL file pairs from the server (which gets it from Box)
-        if (loaderTextElement) loaderTextElement.textContent = `Fetching file list...`;
         const fileList = await new Promise((resolve, reject) => {
             $.ajax({
                 type: "post",
-                url: url_prefix + "/box/getObjList", // New Box API route
+                url: url_prefix + "/box/getObjList",
                 data: { _token: CSRF_TOKEN, folderId: projectFolderId, accessToken: BOX_ACCESS_TOKEN },
                 success: resolve,
                 error: reject
             });
         });
 
-        if (!fileList || fileList.length === 0) {
-            throw new Error(`No valid OBJ/MTL pairs found in Box folder ID "${projectFolderId}".`);
-        }
-        
-        // 2. Create an array of promises to load all models
+        if (!fileList || fileList.length === 0) throw new Error(`No valid OBJ/MTL pairs found in project "${projectName}".`);
+
         const loadingPromises = fileList.map((filePair, index) => {
             return new Promise(async (resolve, reject) => {
                 try {
-                    // Manually fetch MTL and OBJ content from Box
                     const mtlContent = await fetchBoxFileContent(filePair.mtl.id);
                     const objContent = await fetchBoxFileContent(filePair.obj.id);
+                    if (index === 0) await parseObjHeader(objContent); // Parse header from the first file
 
-                    // Parse the materials and then the object
                     const mtlLoader = new MTLLoader();
-                    const materialsCreator = mtlLoader.parse(mtlContent, ''); // Path can be empty as textures are not used
+                    const materialsCreator = mtlLoader.parse(mtlContent, '');
                     materialsCreator.preload();
 
                     const objLoader = new OBJLoader();
                     objLoader.setMaterials(materialsCreator);
-                    const object = objLoader.parse(objContent); // Use .parse() for content, .load() for URL
+                    const object = objLoader.parse(objContent);
                     
-                    if (loaderTextElement) {
-                         loaderTextElement.textContent = `Loading Geometry... (${index + 1}/${fileList.length})`;
-                    }
-                    
+                    if (loaderTextElement) loaderTextElement.textContent = `Loading Geometry... (${index + 1}/${fileList.length})`;
                     resolve(object);
-                } catch (error) {
-                    console.error(`Failed to load ${filePair.obj.name} from Box:`, error);
-                    reject(error);
-                }
+                } catch (error) { reject(error); }
             });
         });
 
-        // 3. Wait for ALL models to load and be parsed
         const loadedObjects = await Promise.all(loadingPromises);
 
-        // 4. Combine all loaded objects into a single group
-        // ... (This logic remains the same as before) ...
-        
-        // 5. Process the COMBINED model (center, scale, rotate)
-        // ... (This logic remains the same as before) ...
+        const combinedModel = new THREE.Group();
+        loadedObjects.forEach(object => {
+            while (object.children.length > 0) {
+                combinedModel.add(object.children[0]);
+            }
+        });
+        loadedObjectModelRoot = combinedModel;
 
-        // 6. Fetch category data for all parts
-        // ... (This logic remains the same as before) ...
+        const initialBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
+        const initialCenter = initialBox.getCenter(new THREE.Vector3());
+        loadedObjectModelRoot.position.sub(initialCenter);
+        const scaledBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
+        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
+        const desiredMaxDimension = 150;
+        if (maxDim > 0) {
+            const scale = desiredMaxDimension / maxDim;
+            loadedObjectModelRoot.scale.set(scale, scale, scale);
+        }
+        loadedObjectModelRoot.rotation.x = -Math.PI / 2;
+
+        const allIds = [];
+        loadedObjectModelRoot.traverse(child => {
+            if (child.name) {
+                const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
+                if (splitIndex > 0) allIds.push(child.name.substring(splitIndex + 1));
+            }
+        });
+        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
         
-        // 7. Build the tree, add to scene, frame, and hide loader
-        // ... (This logic remains the same as before) ...
-        
+        await buildAndPopulateCategorizedTree();
+        scene.add(loadedObjectModelRoot);
+        frameObject(loadedObjectModelRoot);
+        if (loaderContainer) loaderContainer.style.display = 'none';
+
     } catch (error) {
-        console.error('Failed to load model:', error);
+        console.error(`Failed to load model for ${projectName}:`, error);
         if (loaderContainer) loaderContainer.style.display = 'flex';
-        if (loaderTextElement) loaderTextElement.textContent = `Error loading model. Check console.`;
+        if (loaderTextElement) loaderTextElement.textContent = `Error loading model: ${projectName}. Check console.`;
     }
 }
 
-// --- NEW Function to populate the dropdown ---
 async function populateProjectDropdown() {
     try {
         const projects = await new Promise((resolve, reject) => {
@@ -224,17 +341,15 @@ async function populateProjectDropdown() {
                 error: reject
             });
         });
-
-        modelSelector.innerHTML = ''; // Clear existing options
+        modelSelector.innerHTML = '';
         if (projects && projects.length > 0) {
             projects.forEach(project => {
                 const option = document.createElement('option');
-                option.value = project.id; // The value is the FOLDER ID
-                option.textContent = project.name; // The text is the FOLDER NAME
+                option.value = project.id;
+                option.textContent = project.name;
                 modelSelector.appendChild(option);
             });
-            // Trigger the loading of the first model in the list
-            loadModel(projects[0].id);
+            loadModel(projects[0].id, projects[0].name); // Load the first model by default
         } else {
             if (loaderTextElement) loaderTextElement.textContent = "No projects found in the main folder.";
         }
@@ -245,252 +360,23 @@ async function populateProjectDropdown() {
 }
 
 // --- Event Listeners and Animation Loop ---
-// ... (Keep your existing click, close, search, and resize listeners) ...
-
-// --- MODIFIED Event listener for the model selector dropdown ---
 if (modelSelector) {
     modelSelector.addEventListener('change', (event) => {
-        const selectedProjectFolderId = event.target.value;
-        loadModel(selectedProjectFolderId);
+        const selectedId = event.target.value;
+        const selectedName = event.target.options[event.target.selectedIndex].text;
+        loadModel(selectedId, selectedName);
     });
 }
-
-// --- Start Application ---
-populateProjectDropdown(); // Start by populating the dropdown
-animate();
-
-
-
-
-
-
-
-
-
-
-
-
-function updatePartnerCompanyInfo($folderId, $access_token)
-    {
-        try {
-            $client = new \GuzzleHttp\Client();
-            $client = new \GuzzleHttp\Client(['verify' => false]);
-            $requestURL = "https://api.box.com/2.0/folders/" . $folderId . "/items/";
-            $header = [
-                "Authorization" => "Bearer " . $access_token,
-                "Accept" => "application/json"
-            ];
-            $response = $client->request('GET', $requestURL, ['headers' => $header]);
-            $items = $response->getBody()->getContents();
-            $items = json_decode($items)->entries;
-            foreach ($items as $item) {
-                if ($item->type == "file") {
-                    $fileId = $item->id;
-                    $fileName = $item->name; //パートナー会社管理表
-                    if (strstr($fileName, "パートナー会社管理表") == true) {
-                        $requestURL = "https://api.box.com/2.0/files/" . $fileId . "/content/";
-                        $response = $client->request('GET', $requestURL, ['headers' => $header]);
-                        $file_content = $response->getBody()->getContents();
-                        $filePath = public_path() . "/Download/allstore_excel.xlsx";
-                        file_put_contents($filePath, $file_content);
-                        $aaa = $this->LoadExcelData($filePath);
-                        return $aaa;
-                    }
-                }
-            }
-        } catch (Exception $e) {
-            return back()->with("error", "failed when reading　allstore info from box");
-        }
-    }
-    
-    
-    
-    
-    <?php
-
-namespace App\Http\Controllers;
-
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
-
-class FileController extends Controller
-{
-    public function getObjList(Request $request)
-    {
-        $projectName = $request->input('projectName'); // "GF", "BIKEN" など
-
-        if (empty($projectName)) {
-            return response()->json(['error' => 'Project name is required.'], 400);
-        }
-
-        // ここではサーバーのローカルパスを想定しています。
-        // BOXから取得する場合は、BOX APIを使ってファイルリストを取得するロジックに置き換えます。
-        $basePath = public_path('objFiles/' . $projectName); // 例: public/objFiles/GF/
-
-        if (!File::isDirectory($basePath)) {
-            return response()->json(['error' => 'Project directory not found.'], 404);
-        }
-
-        $files = File::files($basePath);
-        $objFiles = [];
-
-        foreach ($files as $file) {
-            if (strtolower($file->getExtension()) === 'obj') {
-                // ファイル名と、対応するMTLファイル名（拡張子を.mtlに変えたもの）をセットにする
-                $objFileName = $file->getFilename();
-                $mtlFileName = pathinfo($objFileName, PATHINFO_FILENAME) . '.mtl';
-                
-                // 対応するMTLファイルが存在するか確認
-                if (File::exists($basePath . '/' . $mtlFileName)) {
-                    $objFiles[] = [
-                        'obj' => $objFileName,
-                        'mtl' => $mtlFileName
-                    ];
-                } else {
-                    // MTLがない場合は、mtlプロパティをnullにするか、リストに含めない
-                    // ここでは含めない方針
-                    \Log::warning("MTL file not found for: " . $objFileName);
-                }
-            }
-        }
-
-        return response()->json($objFiles);
-    }
-}]
-
-
-
-
-
-
-// ... (Imports, UI Elements, Global variables, Scene, Camera, etc. remain the same) ...
-
-// --- Model Configuration ---
-// This is now just a list of project keys and their display names
-const models = {
-    'GF': {
-        name: 'GF本社移転',
-        path: '/ccc/public/objFiles/GF/' // Base path for this project's files
-    },
-    'BIKEN': {
-        name: 'BIKEN (Placeholder)',
-        path: '/ccc/public/objFiles/BIKEN/'
-    },
-    // Add other projects here
-};
-
-
-// --- REFACTORED Main Application Flow ---
-async function loadModel(modelKey) {
-    // 0. Reset scene and state
-    if (loadedObjectModelRoot) scene.remove(loadedObjectModelRoot);
-    loadedObjectModelRoot = null;
-    selectedObjectOrGroup = null;
-    // ... (clear all other maps and UI state) ...
-    modelTreeList.innerHTML = '';
-    if (modelTreePanel) modelTreePanel.style.display = 'none';
-    updateInfoPanel();
-
-    try {
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-        
-        const modelConfig = models[modelKey];
-        if (!modelConfig) throw new Error(`Model key "${modelKey}" not found.`);
-
-        // 1. Fetch the list of OBJ/MTL files from the server
-        if (loaderTextElement) loaderTextElement.textContent = `Fetching file list...`;
-        const fileList = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/files/getObjList",
-                data: { _token: CSRF_TOKEN, projectName: modelKey },
-                success: resolve,
-                error: reject
-            });
-        });
-
-        if (!fileList || fileList.length === 0) {
-            throw new Error(`No OBJ files found for project "${modelKey}".`);
-        }
-
-        // 2. Create an array of promises to load all models
-        const loadingPromises = fileList.map((filePair, index) => {
-            return new Promise(async (resolve, reject) => {
-                try {
-                    const mtlLoader = new MTLLoader();
-                    mtlLoader.setPath(modelConfig.path);
-                    const materialsCreator = await mtlLoader.loadAsync(filePair.mtl);
-                    materialsCreator.preload();
-
-                    const objLoader = new OBJLoader();
-                    objLoader.setMaterials(materialsCreator);
-                    const object = await objLoader.loadAsync(modelConfig.path + filePair.obj);
-                    
-                    // Update progress on the main loader text
-                    if (loaderTextElement) {
-                         loaderTextElement.textContent = `Loading Geometry... (${index + 1}/${fileList.length})`;
-                    }
-                    
-                    resolve(object);
-                } catch (error) {
-                    console.error(`Failed to load ${filePair.obj}:`, error);
-                    reject(error);
-                }
-            });
-        });
-
-        // 3. Wait for ALL models to load
-        const loadedObjects = await Promise.all(loadingPromises);
-
-        // 4. Combine all loaded objects into a single group
-        const combinedModel = new THREE.Group();
-        loadedObjects.forEach(object => {
-            // OBJLoader can return a group with children. We add the children directly
-            // to avoid an extra layer of grouping.
-            while(object.children.length > 0) {
-                combinedModel.add(object.children[0]);
-            }
-        });
-        loadedObjectModelRoot = combinedModel;
-
-        // 5. Process the COMBINED model (center, scale, rotate)
-        const initialBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
-        const initialCenter = initialBox.getCenter(new THREE.Vector3());
-        loadedObjectModelRoot.position.sub(initialCenter); // Center the group
-        
-        const scaledBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
-        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
-        const desiredMaxDimension = 150;
-        if (maxDim > 0) {
-            const scale = desiredMaxDimension / maxDim;
-            loadedObjectModelRoot.scale.set(scale, scale, scale);
-        }
-        loadedObjectModelRoot.rotation.x = -Math.PI / 2;
-
-        // 6. Fetch category data for all parts of the combined model
-        const allIds = [];
-        loadedObjectModelRoot.traverse(child => {
-            if (child.name) { // Any named object could have an ID
-                const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
-                if (splitIndex > 0) allIds.push(child.name.substring(splitIndex + 1));
-            }
-        });
-        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
-        
-        // 7. Build the tree, add to scene, frame, and hide loader
-        await buildAndPopulateCategorizedTree();
-        scene.add(loadedObjectModelRoot);
-        frameObject(loadedObjectModelRoot);
-        if (loaderContainer) loaderContainer.style.display = 'none';
-
-    } catch (error) {
-        console.error('Failed to initialize the viewer:', error);
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-        if (loaderTextElement) loaderTextElement.textContent = `Error loading model: ${modelKey}. Check console.`;
-    }
+window.addEventListener('click', (event) => { /* ... */ });
+if (closeModelTreeBtn) { /* ... */ }
+if (modelTreeSearch) { /* ... */ }
+window.addEventListener('resize', () => { /* ... */ });
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
 }
 
 // --- Start Application ---
-// Load the default model ("GF") when the page first loads
-loadModel('GF');
+populateProjectDropdown();
 animate();
