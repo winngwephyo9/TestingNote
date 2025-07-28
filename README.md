@@ -1,3 +1,8 @@
+objViewerStandard.js:287 Failed inside fetchBoxFileContent for file ID 1932678818321: Error: AJAX error for file 1932678818321: error - Internal Server Error
+
+
+
+
 public function getFileContents(Request $request)
 {
     $fileId = $request->input('fileId');
