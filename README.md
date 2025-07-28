@@ -1,70 +1,43 @@
-objViewerStandard.js:287 Failed inside fetchBoxFileContent for file ID 1932678818321: Error: AJAX error for file 1932678818321: error - Internal Server Error
+use GuzzleHttp\Exception\ClientException; // <-- Add this at the top of your controller file
 
-
-
+// ...
 
 public function getFileContents(Request $request)
 {
     $fileId = $request->input('fileId');
-    $access_token = session('access_token'); // Simplified for clarity
+    $access_token = session('access_token');
 
     if (empty($fileId) || empty($access_token)) {
-        return response('File ID or Access Token is missing.', 400);
+        return response()->json(['error' => 'File ID or Access Token is missing.'], 400);
     }
     
     try {
         $client = new Client(['verify' => false]);
         $requestURL = "https://api.box.com/2.0/files/" . $fileId . "/content";
-        $header = [
-            "Authorization" => "Bearer " . $access_token,
-        ];
+        $header = ["Authorization" => "Bearer " . $access_token];
 
         $response = $client->request('GET', $requestURL, ['headers' => $header]);
 
-        // --- THE FIX IS HERE ---
-        // Get the raw body content of the file from the response
         $fileContent = $response->getBody()->getContents();
-
-        // Return the raw content with an appropriate content type
         return response($fileContent, 200)->header('Content-Type', 'text/plain');
-        // --- END OF FIX ---
+
+    } catch (ClientException $e) {
+        // --- THIS IS THE KEY IMPROVEMENT ---
+        // This specifically catches HTTP errors from the API call (like 401 Unauthorized)
+        $statusCode = $e->getResponse()->getStatusCode();
+        $boxErrorBody = $e->getResponse()->getBody()->getContents();
+        \Log::error("Box API ClientException for file ID {$fileId}: " . $boxErrorBody);
+        
+        // Return a specific error message to the frontend
+        return response()->json([
+            'error' => 'Box API Error', 
+            'status' => $statusCode,
+            'message' => 'Failed to fetch file from Box. The access token may have expired or permissions are insufficient.',
+            'box_response' => json_decode($boxErrorBody) // Send the actual Box error back
+        ], $statusCode); // Use the status code from Box
 
     } catch (Exception $e) {
-        // Log the actual error for debugging
-        \Log::error("Box API file content fetch failed for file ID {$fileId}: " . $e->getMessage());
-        return response('Failed to fetch file from Box.', 500);
-    }
-}
-
-
-// This function now acts as a simple wrapper for your backend endpoint
-async function fetchBoxFileContent(fileId) {
-    // console.log("Fetching content for File ID:", fileId);
-    try {
-        const fileContent = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getFileContents", // Your new backend route
-                data: { _token: CSRF_TOKEN, fileId: fileId },
-                success: resolve, // On success, resolve the promise with the raw text data
-                error: (jqXHR, textStatus, errorThrown) => {
-                    // Reject with a meaningful error
-                    reject(new Error(`AJAX error for file ${fileId}: ${textStatus} - ${errorThrown}`));
-                }
-            });
-        });
-        
-        // The promise resolves with the file content directly.
-        // We can add a simple check to see if we got something back.
-        if (typeof fileContent !== 'string' || fileContent.length === 0) {
-            throw new Error(`Received empty or invalid content for file ${fileId}`);
-        }
-
-        return fileContent; // Return the raw text content
-
-    } catch (error) {
-        console.error(`Failed inside fetchBoxFileContent for file ID ${fileId}:`, error);
-        // Re-throw the error so Promise.all in the main loader function can catch it
-        throw error; 
+        \Log::error("Generic error in getFileContents for file ID {$fileId}: " . $e->getMessage());
+        return response()->json(['error' => "An unexpected error has occurred on the server."], 500);
     }
 }
