@@ -1,3 +1,7 @@
+    <script>
+    window.objAssetPath = "https://ohb-spoke-ccc-deployment.azurewebsites.net/objFiles/";
+    
+    
     try {
         if (loaderContainer) loaderContainer.style.display = 'flex';
 
