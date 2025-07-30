@@ -11,3 +11,6 @@ why
 <staticContent>
   <mimeMap fileExtension=".obj" mimeType="model/obj" />
 </staticContent>
+
+
+        const assetPath = `${window.ASSET_BASE_PATH}/objFiles/${modelConfig.folder}/`;
