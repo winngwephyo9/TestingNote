@@ -1,1 +1,5 @@
-https://mslabs.cloudguides.com/guides/AZ-104%20Exam%20Guide%20-%20Microsoft%20Azure%20Administrator%20Exercise%201
+https://esi.learnondemand.net/
+
+
+034FB506718648D2
+ 
