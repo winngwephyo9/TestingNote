@@ -1,3 +1,10 @@
+あと、セレクトリセットボタンみたいなのが必要かも…
+何かを選択した時、絶対に手前に壁とか、他の要素があるので、
+セレクトしてない状態に戻せないから、
+どういう場所にいてるのかわかりにくいね…
+<img width="1893" height="882" alt="image" src="https://github.com/user-attachments/assets/6c253e92-799e-4666-a35b-88ce5052bd29" />
+
+
 // --- Event Listeners and Animation Loop ---
 
 // REVISED: Listen for clicks only within the 3D viewer canvas.
