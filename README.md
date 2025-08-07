@@ -1,3 +1,6 @@
+
+<img width="1908" height="818" alt="image" src="https://github.com/user-attachments/assets/29c03e80-e185-4cb5-b381-53dcd51dab92" />
+
 /**
  * Frames a target object in the camera's view.
  * This version includes an immediate controls.update() call to ensure
