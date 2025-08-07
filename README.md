@@ -1,3 +1,45 @@
+/**
+ * Frames a target object in the camera's view.
+ * This version includes an immediate controls.update() call to ensure
+ * the change is not lost during the animation loop, fixing the multi-click reset issue.
+ *
+ * @param {THREE.Object3D} objectToFrame - The object or group to frame.
+ */
+function frameObject(objectToFrame) {
+    const box = new THREE.Box3().setFromObject(objectToFrame);
+    if (box.isEmpty()) {
+        // Fallback for empty objects to prevent errors
+        camera.position.set(50, 50, 50);
+        controls.target.set(0, 0, 0);
+        controls.update(); // Update controls even on fallback
+        return;
+    }
+
+    const center = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+
+    // Use a minimum radius to prevent issues with very small or flat objects
+    const radius = Math.max(sphere.radius, 1);
+
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    const distance = (radius / Math.sin(fovInRadians / 2)) * 1.3; // 1.3 zoomOutFactor
+
+    const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+    const newPosition = center.clone().addScaledVector(cameraDirection, distance);
+
+    // --- THE CRITICAL FIX ---
+
+    // 1. Set the new camera position and the point to look at.
+    camera.position.copy(newPosition);
+    controls.target.copy(center);
+
+    // 2. Force the controls to immediately synchronize with the new state.
+    // This is the key change. It tells OrbitControls to cancel any ongoing
+    // animation and adopt the new position and target as its current state.
+    // The damping will now apply to user input *from this new position*.
+    controls.update();
+}
+
 <img width="1901" height="817" alt="image" src="https://github.com/user-attachments/assets/81099a3f-c56a-4ac5-bcd0-b9c1b54f9c41" />
 
 
