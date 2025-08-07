@@ -388,283 +388,527 @@
     <script type="module" src="{{ asset('/js/objViewer.js') }}"></script>
     @endsection
 
-import * as THREE from './library/three.module.js';
+
+
+
+
+    import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
 import { MTLLoader } from './library/controls/MTLLoader.js';
 
-// --- Get UI Elements ---
-const loaderContainer = document.getElementById('loader-container');
-const loaderTextElement = document.getElementById('loader-text');
-const modelTreePanel = document.getElementById('modelTreePanel');
-const modelTreeList = document.getElementById('modelTreeList');
-const modelTreeSearch = document.getElementById('modelTreeSearch');
-const closeModelTreeBtn = document.getElementById('closeModelTreeBtn');
-const objectInfoPanel = document.getElementById('objectInfo');
-const modelSelector = document.getElementById('model-selector');
-const viewerContainer = document.getElementById('viewer-container'); // NEW: Get the right-side container
-const toggleUiButton = document.getElementById('toggle-ui-button'); // NEW
-// --- NEW: リセットボタンの要素を取得 ---
-const resetViewButton = document.getElementById('resetViewButton');
+// --- Configuration ---
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const ASSET_PATH = '/ccc/public/objFiles/';
+const API_URL = url_prefix + "/DLDWH/getDatas";
+const DRAG_THRESHOLD = 5;
+const HIGHLIGHT_COLOR_SINGLE = new THREE.Color(0xa0c4ff); // Light Blue
 
-
-// --- Global variables ---
-let parsedWSCenID = "";
-let parsedPJNo = "";
-let loadedObjectModelRoot = null;
-let initialCameraPosition = new THREE.Vector3(10, 10, 10);
-let initialCameraLookAt = new THREE.Vector3(0, 0, 0);
-let selectedObjectOrGroup = null;
-const originalMeshMaterials = new Map();
-const originalObjectPropertiesForIsolate = new Map();
-let isIsolateModeActive = false;
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-const highlightColorSingle = new THREE.Color(0xa0c4ff); // NEW: Light Blue (matches CSS)
-const elementIdDataMap = new Map(); // Stores all fetched element data
-
-
-// --- Model Configuration ---
-// Create an object to store the file paths for each model
-const models = {
+const MODELS = {
     'GF本社移転': {
         obj: '240324_GF本社移転_2022_20250627.obj',
         mtl: '240324_GF本社移転_2022_20250627.mtl',
-        // You can add other model-specific settings here if needed
     },
     'BIKEN15号棟': {
-        obj: '240627_BIKEN15号棟_2022_20250630.obj', // Placeholder filename
-        mtl: '240627_BIKEN15号棟_2022_20250630.mtl', // Placeholder filename
+        obj: '240627_BIKEN15号棟_2022_20250630.obj',
+        mtl: '240627_BIKEN15号棟_2022_20250630.mtl',
     },
     'パナソニックエナジー西門真地区': {
-        obj: '240628_パナソニックエナジー西門真地区_2022__20250630.obj', // Placeholder filename
-        mtl: '240628_パナソニックエナジー西門真地区_2022__20250630.mtl', // Placeholder filename
+        obj: '240628_パナソニックエナジー西門真地区_2022__20250630.obj',
+        mtl: '240628_パナソニックエナジー西門真地区_2022__20250630.mtl',
     },
-    // Add other models here
+};
+
+// --- UI Elements ---
+const ui = {
+    loaderContainer: document.getElementById('loader-container'),
+    loaderText: document.getElementById('loader-text'),
+    modelTreePanel: document.getElementById('modelTreePanel'),
+    modelTreeList: document.getElementById('modelTreeList'),
+    objectInfoPanel: document.getElementById('objectInfo'),
+    modelSelector: document.getElementById('model-selector'),
+    viewerContainer: document.getElementById('viewer-container'),
+    toggleUiButton: document.getElementById('toggle-ui-button'),
+    resetViewButton: document.getElementById('resetViewButton'),
+};
+
+// --- Application State ---
+let state = {
+    loadedObjectModelRoot: null,
+    selectedObjectOrGroup: null,
+    isIsolateModeActive: false,
+    parsedWSCenID: "",
+    parsedPJNo: "",
+    initialCameraPosition: new THREE.Vector3(10, 10, 10),
+    initialCameraLookAt: new THREE.Vector3(0, 0, 0),
+    originalMeshMaterials: new Map(),
+    originalObjectPropertiesForIsolate: new Map(),
+    elementIdDataMap: new Map(),
+    mouseDownPosition: new THREE.Vector2(),
+};
+
+// --- Core Three.js Components ---
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+const controls = new OrbitControls(camera, renderer.domElement);
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+/**
+ * Initializes the entire application.
+ */
+function init() {
+    setupScene();
+    setupControls();
+    setupEventListeners();
+    recordAccessHistoryIfNeeded();
+
+    loadModel(ui.modelSelector.value); // Load the default selected model
+    animate();
+}
+
+/**
+ * Sets up the 3D scene, including background, lighting, and renderer.
+ */
+function setupScene() {
+    // Gradient Background
+    const backgroundGeometry = new THREE.PlaneGeometry(2, 2, 1, 1);
+    const backgroundMaterial = new THREE.ShaderMaterial({
+        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }`,
+        fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; varying vec2 vUv; void main() { gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), 1.0); }`,
+        uniforms: {
+            topColor: { value: new THREE.Color(0xd8e3ee) },
+            bottomColor: { value: new THREE.Color(0xf0f0f0) }
+        },
+        depthWrite: false
+    });
+    const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
+    backgroundMesh.renderOrder = -1;
+    scene.add(backgroundMesh);
+
+    // Camera
+    camera.position.copy(state.initialCameraPosition);
+    camera.lookAt(state.initialCameraLookAt);
+
+    // Renderer
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    ui.viewerContainer.appendChild(renderer.domElement);
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x606060, 2));
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
+    directionalLight.position.set(50, 100, 75);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    scene.add(directionalLight);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5));
+}
+
+/**
+ * Configures the OrbitControls.
+ */
+function setupControls() {
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+}
+
+/**
+ * Attaches all necessary event listeners.
+ */
+function setupEventListeners() {
+    window.addEventListener('resize', onWindowResize);
+    ui.modelSelector.addEventListener('change', (e) => loadModel(e.target.value));
+    ui.resetViewButton.addEventListener('click', handleResetView);
+    ui.toggleUiButton.addEventListener('click', handleToggleUI);
+    ui.viewerContainer.addEventListener('mousedown', onMouseDown);
+    ui.viewerContainer.addEventListener('mouseup', onMouseUp);
+}
+
+
+/**
+ * Main function to load a new 3D model into the scene.
+ * @param {string} modelKey - The key for the model in the MODELS configuration.
+ */
+async function loadModel(modelKey) {
+    resetStateAndScene();
+    showLoader(true, 'Loading 3D Model...');
+
+    try {
+        const modelFiles = MODELS[modelKey];
+        if (!modelFiles) throw new Error(`Model key "${modelKey}" not found.`);
+
+        const fullObjPath = ASSET_PATH + modelFiles.obj;
+
+        await parseObjHeader(fullObjPath);
+
+        showLoader(true, 'Loading Materials...');
+        const mtlLoader = new MTLLoader().setPath(ASSET_PATH);
+        const materialsCreator = await mtlLoader.loadAsync(modelFiles.mtl);
+        materialsCreator.preload();
+
+        const objLoader = new OBJLoader().setMaterials(materialsCreator);
+        const object = await objLoader.loadAsync(fullObjPath, (xhr) => {
+            const percent = Math.round(xhr.loaded / xhr.total * 100);
+            const message = isFinite(percent) && percent < 100 ? `Loading 3D Geometry: ${percent}%` : `Processing Geometry...`;
+            showLoader(true, message);
+        });
+
+        state.loadedObjectModelRoot = object;
+        processLoadedModel(object);
+
+        const allElementIds = getAllElementIdsFromModel(object);
+        await fetchAllCategoryData(state.parsedWSCenID, allElementIds);
+
+        buildAndPopulateCategorizedTree();
+
+        scene.add(object);
+        frameObject(object);
+        updateInfoPanel();
+
+    } catch (error) {
+        console.error(`Failed to initialize viewer for model "${modelKey}":`, error);
+        showLoader(true, `Error loading model: ${modelKey}.`);
+    } finally {
+        showLoader(false);
+    }
+}
+
+/**
+ * Resets the application state and clears the 3D scene for a new model.
+ */
+function resetStateAndScene() {
+    if (state.loadedObjectModelRoot) {
+        scene.remove(state.loadedObjectModelRoot);
+    }
+    state.loadedObjectModelRoot = null;
+    state.selectedObjectOrGroup = null;
+    state.isIsolateModeActive = false;
+    state.parsedWSCenID = "";
+    state.parsedPJNo = "";
+    state.originalMeshMaterials.clear();
+    state.originalObjectPropertiesForIsolate.clear();
+    state.elementIdDataMap.clear();
+    ui.modelTreeList.innerHTML = '';
+    ui.modelTreePanel.style.display = 'none';
+}
+
+/**
+ * Processes the loaded 3D model: centers, scales, and rotates it.
+ * @param {THREE.Object3D} object - The loaded model group.
+ */
+function processLoadedModel(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.getCenter(new THREE.Vector3());
+
+    object.traverse((child) => {
+        if (child.isMesh) {
+            child.geometry.translate(-center.x, -center.y, -center.z);
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    object.position.set(0, 0, 0);
+
+    const scaledBox = new THREE.Box3().setFromObject(object);
+    const maxDim = Math.max(...scaledBox.getSize(new THREE.Vector3()).toArray());
+    const desiredMaxDimension = 150;
+    if (maxDim > 0) {
+        const scale = desiredMaxDimension / maxDim;
+        object.scale.set(scale, scale, scale);
+    }
+
+    object.rotation.x = -Math.PI / 2;
+}
+
+
+// --- Event Handlers ---
+
+/**
+ * Handles the click event on the Reset View button.
+ */
+function handleResetView() {
+    // Clear selection, which also handles de-isolation and highlighting.
+    handleSelection(null);
+    // Frame the entire model.
+    if (state.loadedObjectModelRoot) {
+        frameObject(state.loadedObjectModelRoot);
+    }
+}
+
+
+/**
+ * Handles toggling the visibility of UI panels.
+ */
+function handleToggleUI() {
+    const isVisible = ui.modelTreePanel.style.display !== 'none';
+    ui.modelTreePanel.style.display = isVisible ? 'none' : 'block';
+    // ui.objectInfoPanel.style.display = isVisible ? 'none' : 'block';
+    ui.toggleUiButton.textContent = isVisible ? '📊' : '❌';
+    ui.toggleUiButton.title = isVisible ? 'Show UI Panels' : 'Hide UI Panels';
+}
+
+/**
+ * Handles window resize events to keep the viewer correctly sized.
+ */
+function onWindowResize() {
+    const { clientWidth, clientHeight } = ui.viewerContainer;
+    camera.aspect = clientWidth / clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(clientWidth, clientHeight);
+}
+
+/**
+ * Records mouse position on mousedown.
+ */
+function onMouseDown(event) {
+    state.mouseDownPosition.set(event.clientX, event.clientY);
+}
+
+/**
+ * Determines if a click or drag occurred on mouseup and handles selection.
+ */
+function onMouseUp(event) {
+    const mouseUpPosition = new THREE.Vector2(event.clientX, event.clientY);
+    if (state.mouseDownPosition.distanceTo(mouseUpPosition) > DRAG_THRESHOLD) {
+        return; // It was a drag, not a click.
+    }
+
+    if (!state.loadedObjectModelRoot) return;
+
+    const rect = ui.viewerContainer.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(state.loadedObjectModelRoot.children, true);
+
+    let newlyClickedTarget = null;
+    if (intersects.length > 0) {
+        let current = intersects[0].object;
+        // Traverse up to find the main group parent under the root model object
+        while (current && current.parent !== state.loadedObjectModelRoot && current.parent !== scene) {
+            current = current.parent;
+        }
+        if (current) {
+            newlyClickedTarget = current;
+        }
+    }
+    handleSelection(newlyClickedTarget);
+}
+
+
+// --- Selection and Highlighting Logic ---
+
+/**
+ * Manages the selection of an object, including highlighting and isolation.
+ * @param {THREE.Object3D | null} target - The object to select, or null to deselect.
+ */
+function handleSelection(target) {
+    removeAllHighlights();
+    deIsolateAllObjects();
+
+    let newSelection = null;
+    // Select the new target if it's different from the current selection
+    if (target && (!state.selectedObjectOrGroup || state.selectedObjectOrGroup.uuid !== target.uuid)) {
+        newSelection = target;
+    }
+
+    state.selectedObjectOrGroup = newSelection;
+
+    if (state.selectedObjectOrGroup) {
+        applyHighlight(state.selectedObjectOrGroup, HIGHLIGHT_COLOR_SINGLE);
+        zoomToAndIsolate(state.selectedObjectOrGroup);
+    }
+
+    updateTreeSelection();
+    updateInfoPanel();
+}
+
+/**
+ * Applies a highlight material to a target object.
+ */
+const applyHighlight = (target, color) => {
+    if (!target) return;
+
+    target.traverse(child => {
+        if (child.isMesh && child.material) {
+            if (!state.originalMeshMaterials.has(child.uuid)) {
+                state.originalMeshMaterials.set(child.uuid, child.material);
+            }
+
+            const createHighlightMaterial = (originalMat) => {
+                const highlightMat = originalMat.clone();
+                if (highlightMat.color) highlightMat.color.set(color);
+                else if (highlightMat.emissive) highlightMat.emissive.set(color);
+                return highlightMat;
+            };
+
+            child.material = Array.isArray(child.material)
+                ? child.material.map(createHighlightMaterial)
+                : createHighlightMaterial(child.material);
+        }
+    });
 };
 
 
-// --- Scene Setup, Camera, Renderer, Lighting, Controls ---
-const scene = new THREE.Scene();
-
-// --- Autodesk-Style Gradient Background ---
-// This creates a plane that always fills the camera's view.
-const backgroundGeometry = new THREE.PlaneGeometry(2, 2, 1, 1);
-const backgroundMaterial = new THREE.ShaderMaterial({
-    // This GLSL code runs on the GPU
-    vertexShader: `
-        varying vec2 vUv;
-        void main() {
-            vUv = uv;
-            gl_Position = vec4(position.xy, 1.0, 1.0);
+/**
+ * Restores original materials to all highlighted objects.
+ */
+const removeAllHighlights = () => {
+    state.originalMeshMaterials.forEach((originalMaterial, meshUuid) => {
+        const mesh = scene.getObjectByProperty('uuid', meshUuid);
+        if (mesh && mesh.isMesh) {
+            mesh.material = originalMaterial;
         }
-    `,
-    fragmentShader: `
-        uniform vec3 topColor;
-        uniform vec3 bottomColor;
-        varying vec2 vUv;
-        void main() {
-            gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), 1.0);
-        }
-    `,
-    uniforms: {
-        // Define the colors for the gradient
-        topColor: { value: new THREE.Color(0xd8e3ee) }, // Lighter sky blue
-        bottomColor: { value: new THREE.Color(0xf0f0f0) } // Light gray ground
-    },
-    depthWrite: false // Don't interfere with the 3D objects
-});
-
-const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-// Tell Three.js not to treat this mesh like a regular 3D object
-backgroundMesh.renderOrder = -1; // Render it first (in the background)
-scene.add(backgroundMesh);
-
-//カメラの設定
-const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20000);
-camera.position.copy(initialCameraPosition);
-camera.lookAt(initialCameraLookAt);
-
-//レンダラーの設定
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-// renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-viewerContainer.appendChild(renderer.domElement); // <-- Append canvas to the new container
-// document.body.appendChild(renderer.domElement);
-
-// --- 変数定義 ---
-// マウスを押した位置を記憶するための変数
-let mouseDownPosition = new THREE.Vector2();
+    });
+    state.originalMeshMaterials.clear();
+};
 
 
-//ライトの設定
-const ambientLight = new THREE.AmbientLight(0x606060, 2);
-scene.add(ambientLight);
+/**
+ * Isolates a target object by making other objects transparent.
+ */
+function zoomToAndIsolate(targetObject) {
+    if (!targetObject) return;
 
-const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
-directionalLight.position.set(50, 100, 75);
-directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
-scene.add(directionalLight);
+    deIsolateAllObjects();
+    state.isIsolateModeActive = true;
 
-const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
-hemiLight.position.set(0, 50, 0);
-scene.add(hemiLight);
+    // Zoom logic
+    const box = new THREE.Box3().setFromObject(targetObject);
+    if (box.isEmpty()) { state.isIsolateModeActive = false; return; }
+    const center = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    let distance = (sphere.radius / Math.sin(fovInRadians / 2)) * 1.5;
+    const offsetDirection = camera.position.clone().sub(controls.target).normalize();
+    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
+    camera.position.copy(center).addScaledVector(offsetDirection, distance);
+    controls.target.copy(center);
 
-//コントロール操作
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-// --- Helper Functions ---
+    // Isolation logic
+    state.loadedObjectModelRoot.traverse((object) => {
+        if (!object.isMesh) return;
 
-/* ajax通信トークン定義 */
-var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
-
-$(document).ready(function () {
-    var login_user_id = $("#hidLoginID").val();
-    var img_src = "/DL_DWH.png";
-    var url = "DLDWH/objviewer";
-    var content_name = "OBJビューア";
-    recordAccessHistory(login_user_id, img_src, url, content_name);
-    // --- Start Application ---
-    onWindowResize();
-    loadModel('GF本社移転'); // 'GF' is the default model
-    animate();
-
-});
-
-
-// --- REFACTORED Main Application Flow into a Reusable Function ---
-async function loadModel(modelKey) {
-    // 0. Reset the scene and state
-    if (loadedObjectModelRoot) {
-        scene.remove(loadedObjectModelRoot);
-    }
-    // Clear all previous data
-    loadedObjectModelRoot = null;
-    selectedObjectOrGroup = null;
-    originalMeshMaterials.clear();
-    originalObjectPropertiesForIsolate.clear();
-    isIsolateModeActive = false;
-    elementIdDataMap.clear();
-    modelTreeList.innerHTML = '';
-    if (modelTreePanel) modelTreePanel.style.display = 'none';
-
-    try {
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-
-        const modelFiles = models[modelKey];
-        if (!modelFiles) {
-            throw new Error(`Model key "${modelKey}" not found in configuration.`);
-        }
-
-        const assetPath = '/ccc/public/objFiles/';
-        const objFileName = modelFiles.obj;
-        const mtlFileName = modelFiles.mtl;
-        const fullObjPath = assetPath + objFileName;
-
-        // Step 1: Parse header info
-        await parseObjHeader(fullObjPath);
-
-        // Step 2: Load Materials
-        if (loaderTextElement) loaderTextElement.textContent = `Loading Materials...`;
-        const mtlLoader = new MTLLoader();
-        mtlLoader.setPath(assetPath);
-        const materialsCreator = await new Promise((resolve, reject) => {
-            mtlLoader.load(mtlFileName, resolve, undefined, reject);
-        });
-        materialsCreator.preload();
-
-        // Step 3: Load Geometry
-        const objLoader = new OBJLoader();
-        objLoader.setMaterials(materialsCreator);
-        const object = await new Promise((resolve, reject) => {
-            objLoader.load(fullObjPath, resolve, (xhr) => {
-                if (loaderTextElement) {
-                    const percent = Math.round(xhr.loaded / xhr.total * 100);
-                    loaderTextElement.textContent = isFinite(percent) && percent < 100 ?
-                        `Loading 3D Geometry: ${percent}%` : `Processing Geometry...`;
-                }
-            }, reject);
+        let isPartOfSelected = false;
+        object.traverseAncestors((ancestor) => {
+            if (ancestor === targetObject) isPartOfSelected = true;
         });
 
-        loadedObjectModelRoot = object;
-
-        // Step 4: Process Model (center, scale, rotate)
-        const initialBox = new THREE.Box3().setFromObject(object);
-        const initialCenter = initialBox.getCenter(new THREE.Vector3());
-        object.traverse((child) => {
-            if (child.isMesh) {
-                child.geometry.translate(-initialCenter.x, -initialCenter.y, -initialCenter.z);
-                child.castShadow = true;
-                child.receiveShadow = true;
+        if (!isPartOfSelected) {
+            if (!state.originalObjectPropertiesForIsolate.has(object.uuid)) {
+                state.originalObjectPropertiesForIsolate.set(object.uuid, { material: object.material, visible: object.visible });
             }
-        });
-        object.position.set(0, 0, 0);
-        const scaledBox = new THREE.Box3().setFromObject(object);
-        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
-        const desiredMaxDimension = 150;
-        if (maxDim > 0) {
-            const scale = desiredMaxDimension / maxDim;
-            object.scale.set(scale, scale, scale);
-        }
-        object.rotation.x = -Math.PI / 2;
-        // object.rotation.y = -Math.PI / 2;
-
-        // Step 5: Fetch category data
-        const allIds = [];
-        loadedObjectModelRoot.traverse(child => {
-            if (child.name && child.parent === loadedObjectModelRoot) {
-                const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
-                if (splitIndex > 0) allIds.push(child.name.substring(splitIndex + 1));
+            if (object.visible) {
+                const makeTransparent = (mat) => {
+                    const newMat = mat.clone();
+                    newMat.transparent = true;
+                    newMat.opacity = 0.1;
+                    return newMat;
+                };
+                object.material = Array.isArray(object.material) ? object.material.map(makeTransparent) : makeTransparent(object.material);
             }
-        });
-        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
+        }
+    });
+}
 
-        // Step 6: Build the tree UI
-        buildAndPopulateCategorizedTree();
 
-        // Step 7: Add model to scene, frame it, and hide loader
-        scene.add(object);
-        frameObject(object);
+/**
+ * Restores visibility and materials to all isolated objects.
+ */
+function deIsolateAllObjects() {
+    if (!state.isIsolateModeActive) return;
 
-        if (loaderContainer) loaderContainer.style.display = 'none';
+    state.originalObjectPropertiesForIsolate.forEach((props, uuid) => {
+        const object = scene.getObjectByProperty('uuid', uuid);
+        if (object && object.isMesh) {
+            object.material = props.material;
+            object.visible = props.visible;
+        }
+    });
 
-        updateInfoPanel(); // Clear the info panel
+    state.originalObjectPropertiesForIsolate.clear();
+    state.isIsolateModeActive = false;
+}
 
-    } catch (error) {
-        console.error('Failed to initialize the viewer:', error);
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-        if (loaderTextElement) loaderTextElement.textContent = `Error loading model: ${modelKey}.`;
+// --- UI Update Functions ---
+
+/**
+ * Shows or hides the main loader overlay.
+ */
+function showLoader(show, text = 'Loading...') {
+    if (ui.loaderContainer) {
+        ui.loaderContainer.style.display = show ? 'flex' : 'none';
+        ui.loaderText.textContent = text;
     }
 }
+
+/**
+ * Updates the information panel with details of the selected object.
+ */
+function updateInfoPanel() {
+    let headerInfo = `WSCenID: ${state.parsedWSCenID || "N/A"}\nPJNo: ${state.parsedPJNo || "N/A"}\n----\n`;
+    if (!state.parsedWSCenID && !state.parsedPJNo) {
+        headerInfo = `WSCenID: \nPJNo: \n----\n`;
+    }
+
+    if (state.selectedObjectOrGroup) {
+        let rawName = state.selectedObjectOrGroup.name || "Unnamed";
+        let displayName, displayId = "N/A";
+        const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
+        if (splitIndex > 0) {
+            displayName = rawName.substring(0, splitIndex);
+            displayId = rawName.substring(splitIndex + 1);
+        } else {
+            displayName = rawName;
+        }
+
+        let selectionInfo = `名前: ${displayName}\nID: ${displayId}\n`;
+        const data = state.elementIdDataMap.get(displayId);
+        if (data) {
+            selectionInfo += `\nカテゴリー名: ${data['カテゴリー名'] || "N/A"}\nファミリ名: ${data['ファミリ名'] || "N/A"}\nタイプ_ID: ${data['タイプ_ID'] || "N/A"}`;
+        } else {
+            selectionInfo += '\nカテゴリー名: "" \nファミリ名: ""';
+        }
+        ui.objectInfoPanel.textContent = headerInfo + selectionInfo;
+    } else {
+        ui.objectInfoPanel.textContent = headerInfo + 'None Selected';
+    }
+}
+
+
+/**
+ * Updates the selection style in the model tree UI.
+ */
+function updateTreeSelection() {
+    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
+    if (state.selectedObjectOrGroup) {
+        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${state.selectedObjectOrGroup.uuid}"] .tree-item`);
+        if (treeItemDiv) {
+            treeItemDiv.classList.add('selected');
+        }
+    }
+}
+
+// --- Data and Tree Building ---
 
 async function parseObjHeader(filePath) {
     try {
         const response = await fetch(filePath);
-        if (!response.ok) {
-            console.error(`Failed to fetch OBJ for header parsing: ${response.statusText}`);
-            return;
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const text = await response.text();
-        const lines = text.split(/\r?\n/);
-        if (lines.length > 0) {
-            const firstLine = lines[0].trim();
-            if (firstLine.startsWith("# ")) {
-                const content = firstLine.substring(2).trim();
-                const pattern1Match = content.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_([a-zA-Z0-9]+)$/);
-                if (pattern1Match) {
-                    parsedWSCenID = pattern1Match[1];
-                    parsedPJNo = pattern1Match[2];
-                    return;
-                }
-                if (content.includes("ワークシェアリングされてない") && (content.includes("_PJNo無し") || content.includes("＿PJNo無し"))) {
-                    parsedWSCenID = "";
-                    parsedPJNo = "";
-                    return;
-                }
+        const firstLine = text.substring(0, text.indexOf('\n')).trim();
+
+        if (firstLine.startsWith("# ")) {
+            const content = firstLine.substring(2).trim();
+            const match = content.match(/^([0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})_([a-zA-Z0-9]+)$/);
+            if (match) {
+                state.parsedWSCenID = match[1];
+                state.parsedPJNo = match[2];
             }
         }
     } catch (error) {
@@ -672,413 +916,174 @@ async function parseObjHeader(filePath) {
     }
 }
 
+function getAllElementIdsFromModel(model) {
+    const ids = new Set();
+    model.traverse(child => {
+        if (child.name && child.parent === model) {
+            const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
+            if (splitIndex > 0) {
+                ids.add(child.name.substring(splitIndex + 1));
+            }
+        }
+    });
+    return Array.from(ids);
+}
+
 async function fetchAllCategoryData(wscenId, allElementIds) {
-    if (allElementIds.length === 0) {
-        console.log("No element IDs to fetch data for.");
-        return Promise.resolve(); // Immediately resolve if there's nothing to do
-    }
+    if (allElementIds.length === 0) return;
+
     const batchSize = 900;
     for (let i = 0; i < allElementIds.length; i += batchSize) {
         const batch = allElementIds.slice(i, i + batchSize);
-        if (loaderTextElement) loaderTextElement.textContent = `Fetching Categories... (${i + batch.length}/${allElementIds.length})`;
-        await new Promise((resolve, reject) => {
-            $.ajax({
+        showLoader(true, `Fetching Categories... (${i + batch.length}/${allElementIds.length})`);
+        try {
+            const data = await $.ajax({
                 type: "post",
-                url: url_prefix + "/DLDWH/getDatas",
+                url: API_URL,
                 data: { _token: CSRF_TOKEN, WSCenID: wscenId, ElementIds: batch },
-                success: function (data) {
-                    for (const elementId in data) {
-                        elementIdDataMap.set(elementId, data[elementId]);
-                    }
-                    resolve();
-                },
-                error: function (err) {
-                    console.error(`Error fetching batch starting at index ${i}:`, err);
-                    reject(err);
-                }
             });
-        });
+            for (const elementId in data) {
+                state.elementIdDataMap.set(elementId, data[elementId]);
+            }
+        } catch (err) {
+            console.error(`Error fetching category data batch starting at index ${i}:`, err);
+            throw err; // Propagate error to stop the loading process
+        }
     }
 }
 
 function buildAndPopulateCategorizedTree() {
-    if (!loadedObjectModelRoot || !modelTreeList) return;
-    if (loaderTextElement) loaderTextElement.textContent = "Building model tree...";
+    showLoader(true, "Building model tree...");
     const categorizedObjects = {};
-    loadedObjectModelRoot.traverse(child => {
-        if ((child.isGroup || child.isMesh) && child.name && child.parent === loadedObjectModelRoot) {
-            let rawName = child.name;
-            let displayId = null;
-            const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
-            if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
-            let category = "カテゴリー無し";
-            if (displayId && elementIdDataMap.has(displayId)) {
-                category = elementIdDataMap.get(displayId)['カテゴリー名'] || "カテゴリー無し";
-            } else if (!displayId) {
-                category = "名称未分類";
-            }
+
+    state.loadedObjectModelRoot.traverse(child => {
+        if ((child.isGroup || child.isMesh) && child.name && child.parent === state.loadedObjectModelRoot) {
+            const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
+            const displayId = splitIndex > 0 ? child.name.substring(splitIndex + 1) : null;
+            const data = displayId ? state.elementIdDataMap.get(displayId) : null;
+            const category = data ? data['カテゴリー名'] : (displayId ? "カテゴリー無し" : "名称未分類");
+
             if (!categorizedObjects[category]) categorizedObjects[category] = [];
             categorizedObjects[category].push(child);
         }
     });
-    modelTreeList.innerHTML = '';
+
+    ui.modelTreeList.innerHTML = '';
     Object.keys(categorizedObjects).sort().forEach(categoryName => {
         createCategoryNode(categoryName, categorizedObjects[categoryName]);
     });
-    if (modelTreePanel) modelTreePanel.style.display = 'block';
+    ui.modelTreePanel.style.display = 'block';
 }
 
-function frameObject(objectToFrame) {
-    const box = new THREE.Box3().setFromObject(objectToFrame);
-    if (box.isEmpty()) {
-        camera.position.set(50, 50, 50);
-        camera.lookAt(0, 0, 0);
-        controls.target.set(0, 0, 0);
-        controls.update();
-        return;
-    }
-    const center = box.getCenter(new THREE.Vector3());
-    const sphere = box.getBoundingSphere(new THREE.Sphere());
-    const radius = sphere.radius;
-    initialCameraLookAt.copy(center);
-    controls.target.copy(center);
-    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-    const distance = radius / Math.sin(fovInRadians / 2);
-    const zoomOutFactor = 1.3;
-    const finalDistance = distance * zoomOutFactor;
-    const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
-    initialCameraPosition.copy(center).addScaledVector(cameraDirection, finalDistance);
-    camera.position.copy(initialCameraPosition);
-    camera.lookAt(initialCameraLookAt);
-    controls.update();
-}
 
-function createCategoryNode(categoryName, objectsInCategory) {
+function createCategoryNode(categoryName, objects) {
     const categoryLi = document.createElement('li');
     const itemContent = document.createElement('div');
     itemContent.className = 'tree-item';
     itemContent.style.fontWeight = 'bold';
+
     const toggler = document.createElement('span');
     toggler.className = 'toggler';
     toggler.textContent = '▼';
-    itemContent.appendChild(toggler);
+
     const nameSpan = document.createElement('span');
     nameSpan.className = 'group-name';
-    nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
-    itemContent.appendChild(nameSpan);
+    nameSpan.textContent = `${categoryName} (${objects.length})`;
+
     const subList = document.createElement('ul');
+
     toggler.addEventListener('click', (e) => {
         e.stopPropagation();
         const isCollapsed = subList.style.display === 'none';
         subList.style.display = isCollapsed ? 'block' : 'none';
         toggler.textContent = isCollapsed ? '▼' : '▶';
     });
-    categoryLi.appendChild(itemContent);
-    categoryLi.appendChild(subList);
-    modelTreeList.appendChild(categoryLi);
-    objectsInCategory.forEach(object => createObjectNode(object, subList, 1));
+
+    itemContent.append(toggler, nameSpan);
+    categoryLi.append(itemContent, subList);
+    ui.modelTreeList.appendChild(categoryLi);
+
+    objects.forEach(object => createObjectNode(object, subList, 1));
 }
 
 function createObjectNode(object, parentULElement, depth) {
     const listItem = document.createElement('li');
     listItem.dataset.uuid = object.uuid;
+
     const itemContent = document.createElement('div');
     itemContent.className = 'tree-item';
     itemContent.style.paddingLeft = `${depth * 15 + 10}px`;
-    const toggler = document.createElement('span');
-    toggler.className = 'toggler empty-toggler';
-    toggler.innerHTML = ' ';
-    itemContent.appendChild(toggler);
+    itemContent.addEventListener('click', () => handleSelection(object));
+
     const nameSpan = document.createElement('span');
     nameSpan.className = 'group-name';
     nameSpan.textContent = object.name;
     nameSpan.title = object.name;
-    itemContent.appendChild(nameSpan);
+    
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler empty-toggler';
+    toggler.innerHTML = '&nbsp;'; // Non-breaking space for layout
+
     const visibilityToggle = document.createElement('span');
     visibilityToggle.className = 'visibility-toggle visible-icon';
     visibilityToggle.title = 'Hide';
-    itemContent.appendChild(visibilityToggle);
-    listItem.appendChild(itemContent);
-    parentULElement.appendChild(listItem);
-    itemContent.addEventListener('click', () => handleSelection(object));
     visibilityToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         object.visible = !object.visible;
         visibilityToggle.classList.toggle('visible-icon', object.visible);
         visibilityToggle.classList.toggle('hidden-icon', !object.visible);
         visibilityToggle.title = object.visible ? 'Hide' : 'Show';
-        if (!object.visible && selectedObjectOrGroup && selectedObjectOrGroup.uuid === object.uuid) {
-            handleSelection(null);
+        if (!object.visible && state.selectedObjectOrGroup?.uuid === object.uuid) {
+            handleSelection(null); // Deselect if hidden
         }
     });
+
+    itemContent.append(toggler, nameSpan, visibilityToggle);
+    listItem.appendChild(itemContent);
+    parentULElement.appendChild(listItem);
 }
 
 
-function handleSelection(target) {
-    removeAllHighlights();
-    deIsolateAllObjects();
-    let newSelection = null;
-    if (target && (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== target.uuid)) {
-        newSelection = target;
-    }
-    selectedObjectOrGroup = newSelection;
-    if (selectedObjectOrGroup) {
-        applyHighlight(selectedObjectOrGroup, highlightColorSingle);
-        zoomToAndIsolate(selectedObjectOrGroup);
-    }
-    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
-    if (selectedObjectOrGroup) {
-        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
-        if (treeItemDiv) treeItemDiv.classList.add('selected');
-    }
-    updateInfoPanel();
-}
+// --- Utility Functions ---
 
-const applyHighlight = (target, color) => {
-    if (!target) return;
-    const meshesToHighlight = [];
-    if (target.isMesh) meshesToHighlight.push(target);
-    else if (target.isGroup) target.traverse(child => { if (child.isMesh) meshesToHighlight.push(child); });
-    meshesToHighlight.forEach(mesh => {
-        if (mesh.material) {
-            if (!originalMeshMaterials.has(mesh.uuid)) originalMeshMaterials.set(mesh.uuid, mesh.material);
-            if (Array.isArray(mesh.material)) {
-                mesh.material = mesh.material.map(originalMat => {
-                    const highlightMat = originalMat.clone();
-                    if (highlightMat.color) highlightMat.color.set(color);
-                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
-                    return highlightMat;
-                });
-            } else {
-                const highlightMat = mesh.material.clone();
-                if (highlightMat.color) highlightMat.color.set(color);
-                else if (highlightMat.emissive) highlightMat.emissive.set(color);
-                mesh.material = highlightMat;
-            }
-        }
-    });
-};
+function frameObject(objectToFrame) {
+    const box = new THREE.Box3().setFromObject(objectToFrame);
+    if (box.isEmpty()) return; // Don't frame an empty object
 
-const removeAllHighlights = () => {
-    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
-        const mesh = scene.getObjectByProperty('uuid', meshUuid);
-        if (mesh && mesh.isMesh) mesh.material = originalMaterialOrArray;
-    });
-    originalMeshMaterials.clear();
-};
-
-function zoomToAndIsolate(targetObject) {
-    if (!targetObject) return;
-    deIsolateAllObjects();
-    isIsolateModeActive = true;
-    const box = new THREE.Box3().setFromObject(targetObject);
-    if (box.isEmpty()) { isIsolateModeActive = false; return; }
     const center = box.getCenter(new THREE.Vector3());
     const sphere = box.getBoundingSphere(new THREE.Sphere());
-    const radius = sphere.radius;
     const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-    let distance = radius / Math.sin(fovInRadians / 2);
-    distance = distance * 1.5;
-    const offsetDirection = camera.position.clone().sub(controls.target).normalize();
-    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
-    camera.position.copy(center).addScaledVector(offsetDirection, distance);
+    const distance = (sphere.radius / Math.sin(fovInRadians / 2)) * 1.3; // 1.3 zoomOutFactor
+
+    const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+    const newPosition = center.clone().addScaledVector(cameraDirection, distance);
+
+    camera.position.copy(newPosition);
+    camera.lookAt(center);
     controls.target.copy(center);
-    controls.update();
-    loadedObjectModelRoot.traverse((object) => {
-        if (object.isMesh) {
-            let isPartOfSelectedTarget = false;
-            let temp = object;
-            while (temp) {
-                if (temp === targetObject) { isPartOfSelectedTarget = true; break; }
-                temp = temp.parent;
-            }
-            if (!isPartOfSelectedTarget) {
-                if (!originalObjectPropertiesForIsolate.has(object.uuid)) {
-                    originalObjectPropertiesForIsolate.set(object.uuid, { material: object.material, visible: object.visible });
-                }
-                if (object.visible) {
-                    const materials = Array.isArray(object.material) ? object.material : [object.material];
-                    const newMaterials = materials.map(mat => {
-                        const newMat = mat.clone();
-                        newMat.transparent = true;
-                        newMat.opacity = 0.1;
-                        return newMat;
-                    });
-                    object.material = Array.isArray(object.material) ? newMaterials : newMaterials[0];
-                }
-            } else {
-                if (originalObjectPropertiesForIsolate.has(object.uuid)) {
-                    const props = originalObjectPropertiesForIsolate.get(object.uuid);
-                    object.material = props.material;
-                    object.visible = props.visible;
-                    originalObjectPropertiesForIsolate.delete(object.uuid);
-                } else {
-                    const materials = Array.isArray(object.material) ? object.material : [object.material];
-                    materials.forEach(mat => { mat.transparent = false; mat.opacity = 1.0; });
-                    object.visible = true;
-                }
-            }
-        }
-    });
 }
 
-function deIsolateAllObjects() {
-    if (!isIsolateModeActive) return;
-    originalObjectPropertiesForIsolate.forEach((props, uuid) => {
-        const object = scene.getObjectByProperty('uuid', uuid);
-        if (object && object.isMesh) {
-            object.material = props.material;
-            object.visible = props.visible;
-        }
-    });
-    originalObjectPropertiesForIsolate.clear();
-    isIsolateModeActive = false;
-}
 
-function updateInfoPanel() {
-    // if (!objectInfoPanel) return;
-    let headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
-    if (parsedWSCenID === "" && parsedPJNo === "") headerInfo = `WSCenID: \nPJNo: \n----\n`;
-    if (selectedObjectOrGroup) {
-        let rawName = selectedObjectOrGroup.name || "Unnamed";
-        let displayName = rawName;
-        let displayId = "N/A";
-        const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
-        if (splitIndex > 0) {
-            displayName = rawName.substring(0, splitIndex);
-            displayId = rawName.substring(splitIndex + 1);
-        } else displayName = rawName;
-        let selectionInfo = `名前: ${displayName}\nID: ${displayId}\n`;
-        if (displayId && elementIdDataMap.has(displayId)) {
-            const data = elementIdDataMap.get(displayId);
-            selectionInfo += `\nカテゴリー名: ${data['カテゴリー名'] || "N/A"}\nファミリ名: ${data['ファミリ名'] || "N/A"}\nタイプ_ID: ${data['タイプ_ID'] || "N/A"}`;
-        } else {
-            selectionInfo += '\nカテゴリー名: "" \nファミリ名: ""';
-        }
-        objectInfoPanel.textContent = headerInfo + selectionInfo;
-    } else {
-        objectInfoPanel.textContent = headerInfo + 'None Selected';
+/**
+ * Records user access history if the required elements are present.
+ */
+function recordAccessHistoryIfNeeded() {
+    const loginUserId = document.getElementById('hidLoginID')?.value;
+    if (loginUserId) {
+        recordAccessHistory(loginUserId, "/DL_DWH.png", "DLDWH/objviewer", "OBJビューア");
     }
 }
 
-// マウスのボタンが押された時の処理
-viewerContainer.addEventListener('mousedown', (event) => {
-    mouseDownPosition.set(event.clientX, event.clientY);
-}, false);
-
-// マウスのボタンが離された時の処理（クリックかドラッグかを判定）
-viewerContainer.addEventListener('mouseup', (event) => {
-    const mouseUpPosition = new THREE.Vector2(event.clientX, event.clientY);
-    const distance = mouseDownPosition.distanceTo(mouseUpPosition);
-
-    const DRAG_THRESHOLD = 5;
-    if (distance > DRAG_THRESHOLD) {
-        return; // ドラッグ操作だったので、選択処理はしない
-    }
-
-    // 以下はクリックだった場合の選択処理
-    if (!loadedObjectModelRoot) return;
-    const rect = viewerContainer.getBoundingClientRect();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
-    let newlyClickedTarget = null;
-    if (intersects.length > 0) {
-        let current = intersects[0].object;
-        while (current && current.parent !== loadedObjectModelRoot && current !== loadedObjectModelRoot && current.parent !== scene) {
-            current = current.parent;
-        }
-        if (current) newlyClickedTarget = current;
-    }
-    handleSelection(newlyClickedTarget);
-}, false);
-
-
-if (closeModelTreeBtn) closeModelTreeBtn.addEventListener('click', () => { if (modelTreePanel) modelTreePanel.style.display = 'none'; });
-
-if (modelTreeSearch) {
-    modelTreeSearch.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase().trim();
-        const allListItems = modelTreeList.querySelectorAll('li');
-        allListItems.forEach(li => {
-            const itemContentDiv = li.querySelector('.tree-item');
-            if (!itemContentDiv) return;
-            const nameSpan = itemContentDiv.querySelector('.group-name');
-            if (!nameSpan) return;
-            const itemName = nameSpan.textContent.toLowerCase();
-            const isMatch = itemName.includes(searchTerm);
-
-            if (isMatch) {
-                li.style.display = '';
-                let parentLi = li.parentElement.closest('li');
-                while (parentLi) {
-                    parentLi.style.display = '';
-                    const parentSubList = parentLi.querySelector('ul');
-                    if (parentSubList) parentSubList.style.display = 'block';
-                    const parentToggler = parentLi.querySelector('.toggler:not(.empty-toggler)');
-                    if (parentToggler) parentToggler.textContent = '▼';
-                    parentLi = parentLi.parentElement.closest('li');
-                }
-            } else {
-                li.style.display = 'none';
-            }
-        });
-        if (searchTerm === "") {
-            allListItems.forEach(li => li.style.display = '');
-        }
-    });
-}
-
-// --- NEW: Event listener for the UI Toggle Button (Request ③) ---
-if (toggleUiButton) {
-    toggleUiButton.addEventListener('click', () => {
-        // Check the current visibility of one of the panels to decide the action
-        const isVisible = modelTreePanel.style.display !== 'none';
-
-        if (isVisible) {
-            // Hide panels
-            if (modelTreePanel) modelTreePanel.style.display = 'none';
-            // if (objectInfoPanel) objectInfoPanel.style.display = 'none';
-            toggleUiButton.textContent = '📊'; // Change icon to "show"
-            toggleUiButton.title = "Show UI Panels";
-        } else {
-            // Show panels
-            if (modelTreePanel) modelTreePanel.style.display = 'block';
-            // if (objectInfoPanel) objectInfoPanel.style.display = 'block';
-            toggleUiButton.textContent = '❌'; // Change icon to "hide"
-            toggleUiButton.title = "Hide UI Panels";
-        }
-    });
-}
-
-// This function now correctly resizes the renderer based on its container's dimensions
-function onWindowResize() {
-    const { clientWidth, clientHeight } = viewerContainer;
-
-    camera.aspect = clientWidth / clientHeight;
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(clientWidth, clientHeight);
-}
-window.addEventListener('resize', onWindowResize);
-
-// --- NEW: Event listener for the model selector dropdown ---
-if (modelSelector) {
-    modelSelector.addEventListener('change', (event) => {
-        const selectedModelKey = event.target.value;
-        loadModel(selectedModelKey);
-    });
-}
-
-
+/**
+ * The main animation loop.
+ */
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
-    renderer.autoClearColor = false;
+    renderer.autoClearColor = false; // Important for gradient background
     renderer.render(scene, camera);
 }
 
 
-
-    
+// --- Application Start ---
+document.addEventListener('DOMContentLoaded', init);
