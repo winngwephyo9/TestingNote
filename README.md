@@ -372,6 +372,10 @@ function createCategoryNode(categoryName, objectsInCategory) {
     nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
     itemContent.appendChild(nameSpan);
     const subList = document.createElement('ul');
+    
+    // --- MODIFICATION #3: Set the initial display style to 'block' to be expanded by default ---
+    subList.style.display = 'block';
+
     toggler.addEventListener('click', (e) => {
         e.stopPropagation();
         const isCollapsed = subList.style.display === 'none';
@@ -740,9 +744,8 @@ function animate() {
 
 /**
  * @function handleResetView
- * @description Resets the viewer to its initial state. It de-isolates and de-highlights all
- * objects, clears the current selection, updates the UI, and frames the entire model
- * in the camera view. Works on a single click.
+ * @description Resets the viewer's selection state without changing the camera view.
+ * It de-isolates and de-highlights all objects and clears the current selection.
  */
 function handleResetView() {
     // 1. Instantly restore all hidden/faded objects.
@@ -758,11 +761,8 @@ function handleResetView() {
     document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
     updateInfoPanel();
 
-    // 5. Frame the entire model. This will now work on the first click
-    //    because the frameObject function has been fixed.
-    if (loadedObjectModelRoot) {
-        frameObject(loadedObjectModelRoot);
-    }
+    // --- MODIFICATION #2: The call to frameObject(loadedObjectModelRoot) has been removed ---
+    // This prevents the camera from zooming out when the button is clicked.
 }
 
 /**
