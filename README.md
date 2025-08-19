@@ -169,8 +169,7 @@ async function loadModel(modelKey) {
         materialsCreator.preload();
 
         // Step 3: Load Geometry
-        // const objLoader = new OBJLoader().setMaterials(materialsCreator);
-        const objLoader = new OBJLoader();
+        const objLoader = new OBJLoader().setMaterials(materialsCreator);
         const object = await objLoader.loadAsync(fullObjPath, (xhr) => {
             if (loaderTextElement) {
                 const percent = Math.round(xhr.loaded / xhr.total * 100);
@@ -475,22 +474,19 @@ function handleSelection(target) {
  */
 const applyHighlight = (target, color) => {
     if (!target) return;
+    const highlightMaterial = new THREE.MeshBasicMaterial({
+        color: color,
+        side: THREE.DoubleSide // Render both sides to avoid issues with single-sided models
+    });
+
     target.traverse(child => {
         if (child.isMesh) {
+            // If we haven't stored the original material for this mesh yet, do so.
             if (!originalMeshMaterials.has(child.uuid)) {
                 originalMeshMaterials.set(child.uuid, child.material);
             }
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map(originalMat => {
-                    const highlightMat = originalMat.clone();
-                    if (highlightMat.color) highlightMat.color.set(color);
-                    return highlightMat;
-                });
-            } else {
-                const highlightMat = child.material.clone();
-                if (highlightMat.color) highlightMat.color.set(color);
-                child.material = highlightMat;
-            }
+            // Replace the current material with our solid highlight material.
+            child.material = highlightMaterial;
         }
     });
 };
@@ -502,7 +498,9 @@ const applyHighlight = (target, color) => {
 const removeAllHighlights = () => {
     originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
         const mesh = scene.getObjectByProperty('uuid', meshUuid);
-        if (mesh && mesh.isMesh) mesh.material = originalMaterialOrArray;
+        if (mesh && mesh.isMesh) {
+            mesh.material = originalMaterialOrArray;
+        }
     });
     originalMeshMaterials.clear();
 };
