@@ -1,1 +1,4 @@
-<img width="1652" height="922" alt="image" src="https://github.com/user-attachments/assets/ae7fdd68-faba-42e0-af58-1cebffb8f049" />
+スクロールしていくと、特定の距離から寄れなくなっちゃうので、
+　寄れるようにしてほしい。
+※オービット？がオブジェクトに反応して、特定の距離感を保持するんだと思う。
+
