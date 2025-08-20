@@ -85,8 +85,8 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
 directionalLight.position.set(50, 100, 75);
 directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2024;
-directionalLight.shadow.mapSize.height = 2024;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
@@ -373,7 +373,7 @@ function createCategoryNode(categoryName, objectsInCategory) {
     itemContent.appendChild(nameSpan);
     const subList = document.createElement('ul');
     
-    // --- MODIFICATION: Set the initial display style to 'block' to be expanded by default ---
+    // Set the initial display style to 'block' to be expanded by default
     subList.style.display = 'block';
 
     toggler.addEventListener('click', (e) => {
@@ -668,29 +668,55 @@ viewerContainer.addEventListener('mouseup', (event) => {
 
 /**
  * @event wheel
- * @description --- MODIFICATION #4: Implement Forge Viewer-style "zoom to cursor" ---
- * This listener intercepts the mouse wheel event to dynamically adjust the orbit
- * target. It nudges the target towards the 3D point under the cursor, allowing
- * the user to zoom into any part of the model without getting stuck.
- * The 'true' argument makes this listener run in the "capture" phase, so it
- * adjusts the target *before* OrbitControls performs its default zoom action.
+ * @description --- MODIFICATION #4 (REWORKED): Custom Forge Viewer-style zoom. ---
+ * This listener overrides the default scroll behavior to provide a more powerful
+ * "zoom-to-cursor" functionality. It allows zooming into any point on the model
+ * without being limited by the orbit target.
  */
 viewerContainer.addEventListener('wheel', (event) => {
+    // Stop the default OrbitControls zoom from happening
+    event.preventDefault();
+
     if (!loadedObjectModelRoot) return;
 
+    // Set up the raycaster from the current mouse position
     const rect = viewerContainer.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
 
-    if (intersects.length > 0) {
-        // Gently move the orbit controls' target towards the intersection point.
-        // A smaller lerp alpha (e.g., 0.1) creates a smoother, less jarring transition.
-        controls.target.lerp(intersects[0].point, 0.1);
+    const intersects = raycaster.intersectObject(loadedObjectModelRoot, true);
+
+    // If the cursor is not over any object, do nothing.
+    if (intersects.length === 0) {
+        return;
     }
-}, true);
+    
+    // The point on the model we want to zoom towards
+    const pivotPoint = intersects[0].point;
+
+    // The zoom factor. 0.9 zooms in, 1.1 zooms out.
+    const zoomFactor = event.deltaY < 0 ? 0.9 : 1.1;
+
+    // The vector from the pivot point to the camera's current position
+    const offset = camera.position.clone().sub(pivotPoint);
+
+    // Scale this vector by the zoom factor
+    offset.multiplyScalar(zoomFactor);
+
+    // The new camera position is the pivot point plus the new scaled offset
+    const newCameraPosition = pivotPoint.clone().add(offset);
+    
+    // Set the camera's new position
+    camera.position.copy(newCameraPosition);
+
+    // IMPORTANT: Update the controls' target to the pivot point.
+    // This allows you to now orbit around the point you just zoomed into.
+    controls.target.copy(pivotPoint);
+    
+    // Tell the controls to update with the new camera and target positions.
+    controls.update();
+}, { passive: false }); // { passive: false } is required to allow preventDefault
 
 
 if (closeModelTreeBtn) {
@@ -776,7 +802,7 @@ function animate() {
  * Works by calling the central selection handler with a null target.
  */
 function handleResetView() {
-    // --- MODIFICATION #2: Simply call the main selection handler with 'null'. ---
+    // Simply call the main selection handler with 'null'.
     // This correctly deselects objects, removes highlights, and de-isolates
     // without affecting the camera position, ensuring consistent behavior.
     handleSelection(null);
