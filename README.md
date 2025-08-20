@@ -96,6 +96,8 @@ scene.add(hemiLight);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+// --- MODIFICATION: Disable the default zoom behavior ---
+controls.enableZoom = false;
 
 var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
@@ -124,6 +126,20 @@ $(document).ready(function () {
     if (resetViewButton) {
         resetViewButton.addEventListener('click', handleResetView);
     }
+
+    // --- MODIFICATION: Set up Forge-style cursors ---
+    controls.addEventListener('start', () => {
+        viewerContainer.style.cursor = 'grabbing';
+    });
+    controls.addEventListener('end', () => {
+        viewerContainer.style.cursor = 'grab';
+    });
+    viewerContainer.addEventListener('mouseenter', () => {
+        viewerContainer.style.cursor = 'grab';
+    });
+    viewerContainer.addEventListener('mouseleave', () => {
+        viewerContainer.style.cursor = 'auto';
+    });
 });
 
 
@@ -668,18 +684,18 @@ viewerContainer.addEventListener('mouseup', (event) => {
 
 /**
  * @event wheel
- * @description --- MODIFICATION #4 (REWORKED): Custom Forge Viewer-style zoom. ---
- * This listener overrides the default scroll behavior to provide a more powerful
+ * @description --- MODIFICATION #4 (FINAL): Custom Forge Viewer-style zoom. ---
+ * This listener overrides the default scroll behavior to provide a powerful
  * "zoom-to-cursor" functionality. It allows zooming into any point on the model
  * without being limited by the orbit target.
  */
 viewerContainer.addEventListener('wheel', (event) => {
-    // Stop the default OrbitControls zoom from happening
+    // Stop the default browser scroll and OrbitControls' default zoom
     event.preventDefault();
 
     if (!loadedObjectModelRoot) return;
 
-    // Set up the raycaster from the current mouse position
+    // --- 1. Raycast to find the point to zoom towards ---
     const rect = viewerContainer.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -687,35 +703,33 @@ viewerContainer.addEventListener('wheel', (event) => {
 
     const intersects = raycaster.intersectObject(loadedObjectModelRoot, true);
 
-    // If the cursor is not over any object, do nothing.
-    if (intersects.length === 0) {
-        return;
-    }
-    
-    // The point on the model we want to zoom towards
-    const pivotPoint = intersects[0].point;
+    // Use the intersection point as the pivot. If no intersection, use the current
+    // controls target as a fallback so zoom still works when pointing at the background.
+    const pivotPoint = intersects.length > 0 ? intersects[0].point : controls.target.clone();
 
-    // The zoom factor. 0.9 zooms in, 1.1 zooms out.
-    const zoomFactor = event.deltaY < 0 ? 0.9 : 1.1;
+    // --- 2. Calculate the new camera position ---
+    // The zoom sensitivity.
+    const zoomSpeed = 0.95;
+    // Determine zoom direction and apply sensitivity
+    const zoomFactor = event.deltaY < 0 ? zoomSpeed : 1 / zoomSpeed;
 
-    // The vector from the pivot point to the camera's current position
+    // The vector from the pivot point to the camera
     const offset = camera.position.clone().sub(pivotPoint);
-
-    // Scale this vector by the zoom factor
+    // Scale it by our zoom factor
     offset.multiplyScalar(zoomFactor);
 
-    // The new camera position is the pivot point plus the new scaled offset
+    // The new camera position is the pivot point plus the scaled offset
     const newCameraPosition = pivotPoint.clone().add(offset);
     
-    // Set the camera's new position
+    // --- 3. Apply the changes ---
     camera.position.copy(newCameraPosition);
 
-    // IMPORTANT: Update the controls' target to the pivot point.
-    // This allows you to now orbit around the point you just zoomed into.
+    // Update the controls' target to the pivot point. This is the KEY to Forge-style orbiting.
     controls.target.copy(pivotPoint);
-    
-    // Tell the controls to update with the new camera and target positions.
+
+    // Crucially, tell the controls that we've changed the camera.
     controls.update();
+
 }, { passive: false }); // { passive: false } is required to allow preventDefault
 
 
