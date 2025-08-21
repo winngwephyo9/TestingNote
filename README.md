@@ -384,7 +384,6 @@ function createCategoryNode(categoryName, objectsInCategory) {
     nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
     itemContent.appendChild(nameSpan);
 
-    // --- MODIFICATION: Add a visibility toggle for the entire category ---
     const categoryVisibilityToggle = document.createElement('span');
     categoryVisibilityToggle.className = 'visibility-toggle visible-icon';
     categoryVisibilityToggle.title = 'Hide Category';
@@ -402,19 +401,15 @@ function createCategoryNode(categoryName, objectsInCategory) {
     
     categoryVisibilityToggle.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Determine the new visibility state based on the current icon
         const isCurrentlyVisible = categoryVisibilityToggle.classList.contains('visible-icon');
         const newVisibilityState = !isCurrentlyVisible;
 
-        // Toggle the category's icon
         categoryVisibilityToggle.classList.toggle('visible-icon', newVisibilityState);
         categoryVisibilityToggle.classList.toggle('hidden-icon', !newVisibilityState);
         categoryVisibilityToggle.title = newVisibilityState ? 'Hide Category' : 'Show Category';
 
-        // Apply the new visibility state to all objects in this category
         objectsInCategory.forEach(object => {
             object.visible = newVisibilityState;
-            // Also update the individual object's icon in the tree
             const objectLi = subList.querySelector(`li[data-uuid="${object.uuid}"]`);
             if (objectLi) {
                 const objectToggle = objectLi.querySelector('.visibility-toggle');
@@ -424,7 +419,6 @@ function createCategoryNode(categoryName, objectsInCategory) {
             }
         });
         
-        // Deselect if the selected object is part of the category being hidden
         if (!newVisibilityState && selectedObjectOrGroup && objectsInCategory.includes(selectedObjectOrGroup)) {
             handleSelection(null);
         }
@@ -683,10 +677,9 @@ viewerContainer.addEventListener('mousedown', (event) => {
 
 /**
  * @event mouseup
- * @description --- MODIFIED: Handles single and double clicks for selection. ---
+ * @description Handles single and double clicks for selection.
  * A single click selects the foremost object.
- * A double click selects the object directly behind the first one, allowing
- * the user to easily select objects inside the model.
+ * A double click selects the object directly behind the first one.
  */
 viewerContainer.addEventListener('mouseup', (event) => {
     const mouseUpPosition = new THREE.Vector2(event.clientX, event.clientY);
@@ -699,7 +692,6 @@ viewerContainer.addEventListener('mouseup', (event) => {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
 
-    // Get all intersections, sorted by distance
     const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
 
     const clickTime = Date.now();
@@ -709,26 +701,22 @@ viewerContainer.addEventListener('mouseup', (event) => {
     let target = null;
 
     if (isDoubleClick) {
-        // On double-click, try to select the SECOND object in the list
         if (intersects.length > 1) {
-            target = intersects[1].object; // The object behind the first one
+            target = intersects[1].object; 
         }
     } else {
-        // On single-click, select the FIRST object
         if (intersects.length > 0) {
             target = intersects[0].object;
         }
     }
 
     if (target) {
-        // Traverse up the hierarchy to find the main group object to select
         let parentGroup = target;
         while (parentGroup && parentGroup.parent !== loadedObjectModelRoot && parentGroup.parent !== scene) {
             parentGroup = parentGroup.parent;
         }
         handleSelection(parentGroup);
     } else {
-        // If no object was clicked (or double-clicked), deselect everything
         handleSelection(null);
     }
 }, false);
@@ -736,7 +724,9 @@ viewerContainer.addEventListener('mouseup', (event) => {
 
 /**
  * @event wheel
- * @description Custom Forge Viewer-style zoom.
+ * @description --- MODIFIED: Smoother, more precise Forge Viewer-style zoom. ---
+ * The zoom speed has been reduced to prevent overshooting and provide a more
+ * controlled, precise user experience.
  */
 viewerContainer.addEventListener('wheel', (event) => {
     event.preventDefault();
@@ -750,7 +740,9 @@ viewerContainer.addEventListener('wheel', (event) => {
     const intersects = raycaster.intersectObject(loadedObjectModelRoot, true);
     const pivotPoint = intersects.length > 0 ? intersects[0].point : controls.target.clone();
 
-    const zoomSpeed = 0.95;
+    // --- MODIFICATION: Adjusted zoom speed for smoother, more precise control ---
+    // A value closer to 1.0 (e.g., 0.98) results in a slower, less aggressive zoom.
+    const zoomSpeed = 0.98;
     const zoomFactor = event.deltaY < 0 ? zoomSpeed : 1 / zoomSpeed;
 
     const offset = camera.position.clone().sub(pivotPoint);
@@ -818,26 +810,24 @@ function animate() {
 
 /**
  * @function handleResetView
- * @description Resets the viewer's selection state and visibility.
+ * @description Resets the viewer's selection state and makes all objects visible again.
  */
 function handleResetView() {
-    // Deselect any object
     handleSelection(null);
 
-    // Make all objects visible again
     if (loadedObjectModelRoot) {
         loadedObjectModelRoot.traverse(child => {
             if (child.isGroup || child.isMesh) {
                 child.visible = true;
             }
         });
-        // Update the model tree UI to reflect that all objects are visible
+        
         document.querySelectorAll('#modelTreePanel .visibility-toggle').forEach(toggle => {
             toggle.classList.add('visible-icon');
             toggle.classList.remove('hidden-icon');
-            toggle.title = toggle.parentElement.classList.contains('tree-item') && toggle.parentElement.style.fontWeight === 'bold'
-                ? 'Hide Category'
-                : 'Hide';
+            // Differentiate title for category toggles vs object toggles
+            const isCategory = toggle.previousElementSibling && toggle.previousElementSibling.classList.contains('group-name');
+            toggle.title = isCategory ? 'Hide Category' : 'Hide';
         });
     }
 }
