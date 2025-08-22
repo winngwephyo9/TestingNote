@@ -1,6 +1,3 @@
-大変申し訳ないんですが、選択時に要素全体が映るようにビューが移動するのをしないようにすることは可能ですか？
-あと、選択解除のボタンを押すとめっちゃ読み込んで、その後、どんどんビューが離れていくのですが、なぜですか？
-
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
@@ -523,6 +520,8 @@ function zoomToAndIsolate(targetObject) {
     deIsolateAllObjects(); // Ensure no previous isolation is active
     isIsolateModeActive = true;
 
+    // --- MODIFICATION START: 選択時の自動ズーム機能を無効化 ---
+    /*
     // Zoom logic
     const box = new THREE.Box3().setFromObject(targetObject);
     if (box.isEmpty()) { isIsolateModeActive = false; return; }
@@ -536,6 +535,8 @@ function zoomToAndIsolate(targetObject) {
     camera.position.copy(center).addScaledVector(offsetDirection, distance);
     controls.target.copy(center);
     controls.update(); // Update controls when zooming to a specific object too
+    */
+    // --- MODIFICATION END ---
 
     // Isolation logic
     loadedObjectModelRoot.traverse((object) => {
@@ -764,8 +765,10 @@ function handleResetView() {
     document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
     updateInfoPanel();
 
-    // --- MODIFICATION #2: The call to frameObject(loadedObjectModelRoot) has been removed ---
-    // This prevents the camera from zooming out when the button is clicked.
+    // --- MODIFICATION START: 選択解除時の自動ズームアウトを無効化 ---
+    // The call to frameObject(loadedObjectModelRoot) has been removed to prevent
+    // the camera from zooming out when the button is clicked.
+    // --- MODIFICATION END ---
 }
 
 /**
@@ -844,5 +847,5 @@ function calculateMeshVolume(mesh) {
 
     // The formula calculates 6x the volume, so we divide by 6.
     // We use Math.abs because volume cannot be negative; the sign depends on triangle winding order.
-    return Math.abs(totalVolume);
+    return Math.abs(totalVolume/6.0);
 }
