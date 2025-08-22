@@ -1,6 +1,3 @@
-大変申し訳ないんですが、選択時に要素全体が映るようにビューが移動するのをしないようにすることは可能ですか？
-あと、選択解除のボタンを押すとめっちゃ読み込んで、その後、どんどんビューが離れていくのですが、なぜですか？
-
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
@@ -34,6 +31,8 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const highlightColorSingle = new THREE.Color(0xa0c4ff); // Light Blue (matches CSS)
 const elementIdDataMap = new Map(); // Stores all fetched element data
+let lastClickTime = 0; // For double-click detection
+const DOUBLE_CLICK_TIME = 400; // Time in ms for a double click
 
 
 // --- Model Configuration ---
@@ -99,6 +98,7 @@ scene.add(hemiLight);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+controls.enableZoom = false; // Disable default zoom for custom implementation
 
 var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
@@ -127,6 +127,12 @@ $(document).ready(function () {
     if (resetViewButton) {
         resetViewButton.addEventListener('click', handleResetView);
     }
+
+    // Set up Forge-style cursors
+    controls.addEventListener('start', () => { viewerContainer.style.cursor = 'grabbing'; });
+    controls.addEventListener('end', () => { viewerContainer.style.cursor = 'grab'; });
+    viewerContainer.addEventListener('mouseenter', () => { viewerContainer.style.cursor = 'grab'; });
+    viewerContainer.addEventListener('mouseleave', () => { viewerContainer.style.cursor = 'auto'; });
 });
 
 
@@ -357,7 +363,8 @@ function frameObject(objectToFrame) {
 
 /**
  * @function createCategoryNode
- * @description Creates a single top-level list item (a category) in the model tree UI.
+ * @description Creates a single top-level list item (a category) in the model tree UI,
+ * now with a category-wide visibility toggle.
  * @param {string} categoryName - The name of the category to display.
  * @param {THREE.Object3D[]} objectsInCategory - An array of objects belonging to this category.
  */
@@ -366,18 +373,24 @@ function createCategoryNode(categoryName, objectsInCategory) {
     const itemContent = document.createElement('div');
     itemContent.className = 'tree-item';
     itemContent.style.fontWeight = 'bold';
+
     const toggler = document.createElement('span');
     toggler.className = 'toggler';
-    toggler.textContent = '▶';
+    toggler.textContent = '▼';
     itemContent.appendChild(toggler);
+
     const nameSpan = document.createElement('span');
     nameSpan.className = 'group-name';
     nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
     itemContent.appendChild(nameSpan);
-    const subList = document.createElement('ul');
 
-    // Set the initial display style to 'none' to be close by default ---
-    subList.style.display = 'none';
+    const categoryVisibilityToggle = document.createElement('span');
+    categoryVisibilityToggle.className = 'visibility-toggle visible-icon';
+    categoryVisibilityToggle.title = 'Hide Category';
+    itemContent.appendChild(categoryVisibilityToggle);
+
+    const subList = document.createElement('ul');
+    subList.style.display = 'block'; // Expand by default
 
     toggler.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -385,10 +398,36 @@ function createCategoryNode(categoryName, objectsInCategory) {
         subList.style.display = isCollapsed ? 'block' : 'none';
         toggler.textContent = isCollapsed ? '▼' : '▶';
     });
+    
+    categoryVisibilityToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCurrentlyVisible = categoryVisibilityToggle.classList.contains('visible-icon');
+        const newVisibilityState = !isCurrentlyVisible;
+
+        categoryVisibilityToggle.classList.toggle('visible-icon', newVisibilityState);
+        categoryVisibilityToggle.classList.toggle('hidden-icon', !newVisibilityState);
+        categoryVisibilityToggle.title = newVisibilityState ? 'Hide Category' : 'Show Category';
+
+        objectsInCategory.forEach(object => {
+            object.visible = newVisibilityState;
+            const objectLi = subList.querySelector(`li[data-uuid="${object.uuid}"]`);
+            if (objectLi) {
+                const objectToggle = objectLi.querySelector('.visibility-toggle');
+                objectToggle.classList.toggle('visible-icon', newVisibilityState);
+                objectToggle.classList.toggle('hidden-icon', !newVisibilityState);
+                objectToggle.title = newVisibilityState ? 'Hide' : 'Show';
+            }
+        });
+        
+        if (!newVisibilityState && selectedObjectOrGroup && objectsInCategory.includes(selectedObjectOrGroup)) {
+            handleSelection(null);
+        }
+    });
+
     categoryLi.appendChild(itemContent);
     categoryLi.appendChild(subList);
     modelTreeList.appendChild(categoryLi);
-    // Create a child node for each object within this category
+    
     objectsInCategory.forEach(object => createObjectNode(object, subList, 1));
 }
 
@@ -441,7 +480,7 @@ function createObjectNode(object, parentULElement, depth) {
 /**
  * @function handleSelection
  * @description Manages the entire selection process. It handles deselection,
- * highlighting the new selection, and isolating it.
+ * highlighting the new selection, and isolating it without changing the camera view.
  * @param {THREE.Object3D | null} target - The object to be selected, or null to deselect all.
  */
 function handleSelection(target) {
@@ -460,7 +499,8 @@ function handleSelection(target) {
     if (selectedObjectOrGroup) {
         // If an object is selected, highlight and isolate it
         applyHighlight(selectedObjectOrGroup, highlightColorSingle);
-        zoomToAndIsolate(selectedObjectOrGroup);
+        // --- MODIFICATION: Call the function that only isolates, without zooming ---
+        isolateObject(selectedObjectOrGroup);
     }
 
     // Update the UI to reflect the new selection state
@@ -513,29 +553,17 @@ const removeAllHighlights = () => {
 };
 
 /**
- * @function zoomToAndIsolate
- * @description Zooms the camera to a selected object and makes all other objects in the scene
- * semi-transparent to focus attention on the selection.
- * @param {THREE.Object3D} targetObject - The object to isolate and zoom to.
+ * @function isolateObject
+ * @description Makes all other objects in the scene semi-transparent to focus
+ * attention on the selection, but does NOT move the camera.
+ * @param {THREE.Object3D} targetObject - The object to isolate.
  */
-function zoomToAndIsolate(targetObject) {
+function isolateObject(targetObject) {
     if (!targetObject) return;
     deIsolateAllObjects(); // Ensure no previous isolation is active
     isIsolateModeActive = true;
 
-    // Zoom logic
-    const box = new THREE.Box3().setFromObject(targetObject);
-    if (box.isEmpty()) { isIsolateModeActive = false; return; }
-    const center = box.getCenter(new THREE.Vector3());
-    const sphere = box.getBoundingSphere(new THREE.Sphere());
-    const radius = sphere.radius;
-    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-    let distance = (radius / Math.sin(fovInRadians / 2)) * 1.5;
-    const offsetDirection = camera.position.clone().sub(controls.target).normalize();
-    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
-    camera.position.copy(center).addScaledVector(offsetDirection, distance);
-    controls.target.copy(center);
-    controls.update(); // Update controls when zooming to a specific object too
+    // --- MODIFICATION: The entire camera zoom/pan logic has been removed from this function. ---
 
     // Isolation logic
     loadedObjectModelRoot.traverse((object) => {
@@ -613,12 +641,8 @@ function updateInfoPanel() {
 
         // Calculate and display volume ---
         const volume = getVolumeOfSelectedObject();
-        // Only display volume if it's a meaningful (positive) number.
-        // This avoids showing "Volume: 0.0000" for flat objects.
         if (volume > 0.0001) {
-            // The units (e.g., mm³, m³) depend on the source CAD model's units.
-            // We display a generic "units³" to reflect this.
-            selectionInfo += `\n体積(obj): ${volume.toFixed(4)} m³`;
+            selectionInfo += `\n\n体積 (Volume): ${volume.toFixed(4)} m³`;
         }
 
         objectInfoPanel.textContent = headerInfo + selectionInfo;
@@ -638,50 +662,87 @@ viewerContainer.addEventListener('mousedown', (event) => {
 
 /**
  * @event mouseup
- * @description Listens for the mouse button being released. It checks if the mouse moved
- * significantly (a drag) or not (a click). If it's a click, it performs a raycast
- * to determine which object was clicked and triggers the selection handler.
+ * @description Handles single and double clicks for selection.
+ * A single click selects the foremost object.
+ * A double click selects the object directly behind the first one.
  */
 viewerContainer.addEventListener('mouseup', (event) => {
     const mouseUpPosition = new THREE.Vector2(event.clientX, event.clientY);
     const DRAG_THRESHOLD = 5;
-    // If the mouse moved too far, consider it a drag and do nothing.
     if (mouseDownPosition.distanceTo(mouseUpPosition) > DRAG_THRESHOLD) return;
 
     if (!loadedObjectModelRoot) return;
     const rect = viewerContainer.getBoundingClientRect();
-    // Calculate normalized device coordinates
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    // Perform the raycast
     raycaster.setFromCamera(mouse, camera);
+
     const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
-    let newlyClickedTarget = null;
-    if (intersects.length > 0) {
-        let current = intersects[0].object;
-        // Traverse up the hierarchy to find the main group object
-        while (current && current.parent !== loadedObjectModelRoot && current.parent !== scene) {
-            current = current.parent;
+
+    const clickTime = Date.now();
+    const isDoubleClick = (clickTime - lastClickTime) < DOUBLE_CLICK_TIME;
+    lastClickTime = clickTime;
+    
+    let target = null;
+
+    if (isDoubleClick) {
+        if (intersects.length > 1) {
+            target = intersects[1].object; 
         }
-        if (current) newlyClickedTarget = current;
+    } else {
+        if (intersects.length > 0) {
+            target = intersects[0].object;
+        }
     }
-    handleSelection(newlyClickedTarget);
+
+    if (target) {
+        let parentGroup = target;
+        while (parentGroup && parentGroup.parent !== loadedObjectModelRoot && parentGroup.parent !== scene) {
+            parentGroup = parentGroup.parent;
+        }
+        handleSelection(parentGroup);
+    } else {
+        handleSelection(null);
+    }
 }, false);
 
 
+/**
+ * @event wheel
+ * @description Smoother, more precise Forge Viewer-style zoom.
+ */
+viewerContainer.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    if (!loadedObjectModelRoot) return;
+
+    const rect = viewerContainer.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObject(loadedObjectModelRoot, true);
+    const pivotPoint = intersects.length > 0 ? intersects[0].point : controls.target.clone();
+
+    const zoomSpeed = 0.98; // Slower, more precise zoom speed
+    const zoomFactor = event.deltaY < 0 ? zoomSpeed : 1 / zoomSpeed;
+
+    const offset = camera.position.clone().sub(pivotPoint);
+    offset.multiplyScalar(zoomFactor);
+
+    const newCameraPosition = pivotPoint.clone().add(offset);
+    
+    camera.position.copy(newCameraPosition);
+    controls.target.copy(pivotPoint);
+    controls.update();
+
+}, { passive: false });
+
+
 if (closeModelTreeBtn) {
-    /**
-     * @event click
-     * @description (If element exists) Hides the model tree panel when its close button is clicked.
-     */
     closeModelTreeBtn.addEventListener('click', () => { if (modelTreePanel) modelTreePanel.style.display = 'none'; });
 }
 
 if (modelTreeSearch) {
-    /**
-     * @event input
-     * @description (If element exists) Filters the model tree based on the user's text input.
-     */
     modelTreeSearch.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase().trim();
         // ... search logic remains the same ...
@@ -689,10 +750,6 @@ if (modelTreeSearch) {
 }
 
 if (toggleUiButton) {
-    /**
-     * @event click
-     * @description Toggles the visibility of the UI panels (like the model tree).
-     */
     toggleUiButton.addEventListener('click', () => {
         const isVisible = modelTreePanel.style.display !== 'none';
         if (modelTreePanel) modelTreePanel.style.display = isVisible ? 'none' : 'block';
@@ -703,31 +760,19 @@ if (toggleUiButton) {
 
 /**
  * @function onWindowResize
- * @description Handles the browser window being resized. It updates the camera's aspect ratio
- * and the renderer's size. Crucially, it also sets the pixel ratio to prevent
- * blurriness on high-DPI (Retina) screens.
+ * @description Handles the browser window being resized.
  */
 function onWindowResize() {
     const { clientWidth, clientHeight } = viewerContainer;
-
     camera.aspect = clientWidth / clientHeight;
     camera.updateProjectionMatrix();
-
-    // This is the critical fix for blurriness. It tells the renderer to
-    // use the full resolution of the screen.
     renderer.setPixelRatio(window.devicePixelRatio);
-
     renderer.setSize(clientWidth, clientHeight);
 }
 window.addEventListener('resize', onWindowResize);
 
 
 if (modelSelector) {
-    /**
-     * @event change
-     * @description Listens for a change in the model selector dropdown and calls
-     * `loadModel` with the new selection.
-     */
     modelSelector.addEventListener('change', (event) => {
         loadModel(event.target.value);
     });
@@ -735,53 +780,55 @@ if (modelSelector) {
 
 /**
  * @function animate
- * @description The main rendering loop, called continuously via requestAnimationFrame.
- * It updates the orbit controls (for damping) and renders the scene.
+ * @description The main rendering loop.
  */
 function animate() {
     requestAnimationFrame(animate);
-    controls.update(); // Required for smooth damping
-    renderer.autoClearColor = false; // Required for gradient background
+    controls.update();
+    renderer.autoClearColor = false;
     renderer.render(scene, camera);
 }
 
 /**
  * @function handleResetView
- * @description Resets the viewer's selection state without changing the camera view.
- * It de-isolates and de-highlights all objects and clears the current selection.
+ * @description --- MODIFIED: Resets the viewer's selection state cleanly and reliably. ---
+ * It calls the central selection handler with 'null' to ensure a consistent state without
+ * causing unexpected camera movements. It also makes all objects visible again.
  */
 function handleResetView() {
-    // 1. Instantly restore all hidden/faded objects.
-    deIsolateAllObjects();
+    // Call the main selection handler with 'null'. This is the safest way to deselect.
+    handleSelection(null);
 
-    // 2. Remove the highlight from any selected object.
-    removeAllHighlights();
-
-    // 3. Clear the internal selection state.
-    selectedObjectOrGroup = null;
-
-    // 4. Update the UI panels to show nothing is selected.
-    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
-    updateInfoPanel();
-
-    // --- MODIFICATION #2: The call to frameObject(loadedObjectModelRoot) has been removed ---
-    // This prevents the camera from zooming out when the button is clicked.
+    // Additionally, ensure all objects are visible again, in case some categories were hidden.
+    if (loadedObjectModelRoot) {
+        loadedObjectModelRoot.traverse(child => {
+            if (child.isGroup || child.isMesh) {
+                child.visible = true;
+            }
+        });
+        
+        // Update all visibility icons in the tree to match the visible state.
+        document.querySelectorAll('#modelTreePanel .visibility-toggle').forEach(toggle => {
+            toggle.classList.add('visible-icon');
+            toggle.classList.remove('hidden-icon');
+            const isCategory = toggle.previousElementSibling && toggle.previousElementSibling.classList.contains('group-name');
+            toggle.title = isCategory ? 'Hide Category' : 'Hide';
+        });
+    }
 }
+
 
 /**
  * @function getVolumeOfSelectedObject
  * @description Calculates the total volume of the currently selected group or object.
- * It traverses the selection and sums the volumes of all child meshes.
- * @returns {number} The total calculated volume. Returns 0 if no object is selected.
+ * @returns {number} The total calculated volume.
  */
 function getVolumeOfSelectedObject() {
     if (!selectedObjectOrGroup) {
         return 0;
     }
     let totalVolume = 0;
-    // Traverse all children of the selected object (which could be a group)
     selectedObjectOrGroup.traverse(child => {
-        // We can only calculate volume for a mesh with geometry
         if (child.isMesh && child.geometry) {
             totalVolume += calculateMeshVolume(child);
         }
@@ -792,14 +839,11 @@ function getVolumeOfSelectedObject() {
 /**
  * @function calculateMeshVolume
  * @description Calculates the volume of a single mesh.
- * IMPORTANT: This assumes the mesh is a closed, watertight manifold.
- * The result for open meshes (like a plane) is not meaningful.
  * @param {THREE.Mesh} mesh - The mesh to calculate the volume of.
- * @returns {number} The calculated volume of the mesh in world units.
+ * @returns {number} The calculated volume of the mesh.
  */
 function calculateMeshVolume(mesh) {
     const geometry = mesh.geometry;
-    console.log("geometry>>>>>>>>>>>>>>>", geometry);
     if (!geometry.isBufferGeometry) {
         console.warn('Volume calculation only supports BufferGeometry.');
         return 0;
@@ -811,38 +855,25 @@ function calculateMeshVolume(mesh) {
     const b = new THREE.Vector3();
     const c = new THREE.Vector3();
 
-    // This function processes one triangle
     const processTriangle = (vA_idx, vB_idx, vC_idx) => {
-        // Get vertices from the geometry's position attribute
         a.fromBufferAttribute(position, vA_idx);
         b.fromBufferAttribute(position, vB_idx);
         c.fromBufferAttribute(position, vC_idx);
-
-        // Apply the mesh's world matrix to get the true position of vertices in the scene
         a.applyMatrix4(mesh.matrixWorld);
         b.applyMatrix4(mesh.matrixWorld);
         c.applyMatrix4(mesh.matrixWorld);
-
-        // Calculate the signed volume of the tetrahedron formed by the triangle and the origin
-        // The formula is (1/6) * dot(a, cross(b, c))
         totalVolume += a.dot(b.clone().cross(c));
-        console.log("total volume", totalVolume, ">>>another total volume>>> ", a.dot(b.cross(c)));
     };
 
     if (geometry.index) {
-        // For indexed geometries
         const index = geometry.index;
         for (let i = 0; i < index.count; i += 3) {
             processTriangle(index.getX(i), index.getX(i + 1), index.getX(i + 2));
         }
     } else {
-        // For non-indexed geometries
         for (let i = 0; i < position.count; i += 3) {
             processTriangle(i, i + 1, i + 2);
         }
     }
-
-    // The formula calculates 6x the volume, so we divide by 6.
-    // We use Math.abs because volume cannot be negative; the sign depends on triangle winding order.
-    return Math.abs(totalVolume);
+    return Math.abs(totalVolume / 6.0);
 }
