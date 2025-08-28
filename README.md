@@ -1,48 +1,3 @@
-/**
- * WORKER SCRIPT (obj-loader-worker.js)
- * 最適化版：単一の結合済みOBJ文字列を受け取り、一度だけパース処理を行います。
- */
-
-import * as THREE from './library/three.module.js';
-import { OBJLoader } from './library/controls/OBJLoader.js';
-import { MTLLoader } from './library/controls/MTLLoader.js';
-
-const objLoader = new OBJLoader();
-const mtlLoader = new MTLLoader();
-
-self.onmessage = function (event) {
-    const { combinedObjContent, mtlContent } = event.data;
-
-    console.log("Worker: 結合されたデータを受信し、単一パース処理を開始します...");
-
-    try {
-        // 1. MTLコンテンツをパースしてマテリアルを作成します
-        const materialsCreator = mtlLoader.parse(mtlContent);
-        materialsCreator.preload();
-        objLoader.setMaterials(materialsCreator);
-
-        // 2. ***重要な最適化***
-        // 巨大な単一のOBJ文字列を一度だけパースします。これにより処理が劇的に速くなります。
-        const finalModel = objLoader.parse(combinedObjContent);
-
-        if (!finalModel || finalModel.children.length === 0) {
-            throw new Error("結合されたOBJ文字列のパース結果が空のモデルになりました。");
-        }
-
-        console.log("Worker: 単一パースが完了し、モデルを返送します。");
-
-        // 3. 最終モデルをJSONに変換してメインスレッドに返します
-        self.postMessage(finalModel.toJSON());
-
-    } catch (error) {
-        console.error("Worker Error:", error);
-        self.postMessage({ error: error.message });
-    }
-};
-
-
-
-
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 
@@ -96,12 +51,19 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
 directionalLight.position.set(50, 100, 75);
 scene.add(directionalLight);
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
+hemiLight.position.set(0, 50, 0);
+scene.add(hemiLight);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
 // --- アプリケーションの初期化 ---
 $(document).ready(function () {
-    // ... recordAccessHistoryなど ...
+    var login_user_id = $("#hidLoginID").val();
+    var img_src = "/DL_DWH.png";
+    var url = "DLDWH/objviewer";
+    var content_name = "OBJビューア";
+    recordAccessHistory(login_user_id, img_src, url, content_name);
     onWindowResize();
     populateProjectDropdown();
     animate();
@@ -154,17 +116,20 @@ function processGeometryWithWorker(combinedObjContent, mtlContent) {
     });
 }
 
-
 async function loadModel(projectFolderId, projectName) {
     // 0. シーンと状態のリセット
     if (loadedObjectModelRoot) scene.remove(loadedObjectModelRoot);
     loadedObjectModelRoot = null;
+    selectedObjectOrGroup = null;
+    originalMeshMaterials.clear();
+    originalObjectPropertiesForIsolate.clear();
+    isIsolateModeActive = false;
+    elementIdDataMap.clear();
     modelTreeList.innerHTML = '';
     parsedWSCenID = "";
     parsedPJNo = "";
     updateInfoPanel();
-    // ... 他のリセット処理 ...
-
+    
     try {
         if (loaderContainer) loaderContainer.style.display = 'flex';
         if (loaderTextElement) loaderTextElement.textContent = `ファイルリストを取得中: ${projectName}...`;
@@ -199,8 +164,7 @@ async function loadModel(projectFolderId, projectName) {
             }
         }
         
-        // 3. ***重要な最適化***
-        // 全てのOBJファイルの中身を一つの巨大な文字列に結合します。
+        // 3. 全てのOBJファイルの中身を一つの巨大な文字列に結合します。
         if (loaderTextElement) loaderTextElement.textContent = 'ジオメトリファイルを結合中...';
         const combinedObjContent = allObjContents.map(obj => obj.content).join('\n');
 
@@ -222,11 +186,14 @@ async function loadModel(projectFolderId, projectName) {
         loadedObjectModelRoot.position.sub(center);
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 150 / maxDim;
-        loadedObjectModelRoot.scale.set(scale, scale, scale);
+        if (maxDim > 0) {
+            const scale = 150 / maxDim;
+            loadedObjectModelRoot.scale.set(scale, scale, scale);
+        }
         loadedObjectModelRoot.rotation.x = -Math.PI / 2;
 
         const allIds = loadedObjectModelRoot.children.map(child => {
+            if (!child.name) return null;
             const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
             return splitIndex > 0 ? child.name.substring(splitIndex + 1) : null;
         }).filter(Boolean);
@@ -281,8 +248,6 @@ async function downloadAllObjs(objFileInfoList, downloadUrlMap) {
     return allObjContents;
 }
 
-// --- 他のヘルパー関数（変更なし） ---
-
 async function parseObjHeader(objContent) {
     try {
         const lines = objContent.split(/\r?\n/);
@@ -328,7 +293,12 @@ async function buildAndPopulateCategorizedTree() {
             let displayId = null;
             const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
             if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
-            let category = elementIdDataMap.has(displayId) ? (elementIdDataMap.get(displayId)['カテゴリー名'] || "カテゴリー無し") : "名称未分類";
+            let category = "カテゴリー無し";
+            if (displayId && elementIdDataMap.has(displayId)) {
+                category = elementIdDataMap.get(displayId)['カテゴリー名'] || "カテゴリー無し";
+            } else if (!displayId) {
+                category = "名称未分類";
+            }
             if (!categorizedObjects[category]) categorizedObjects[category] = [];
             categorizedObjects[category].push(child);
         }
@@ -344,29 +314,262 @@ async function buildAndPopulateCategorizedTree() {
 }
 
 function createCategoryNode(categoryName, objectsInCategory) {
-    // ... (この関数の内容は変更ありません)
+    const categoryLi = document.createElement('li');
+    const itemContent = document.createElement('div');
+    itemContent.className = 'tree-item';
+    itemContent.style.fontWeight = 'bold';
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler';
+    toggler.textContent = '▼';
+    itemContent.appendChild(toggler);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = `${categoryName} (${objectsInCategory.length})`;
+    itemContent.appendChild(nameSpan);
+    const subList = document.createElement('ul');
+    toggler.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCollapsed = subList.style.display === 'none';
+        subList.style.display = isCollapsed ? 'block' : 'none';
+        toggler.textContent = isCollapsed ? '▼' : '▶';
+    });
+    categoryLi.appendChild(itemContent);
+    categoryLi.appendChild(subList);
+    objectsInCategory.forEach(object => createObjectNode(object, subList, 1));
+    return categoryLi;
 }
 
 function createObjectNode(object, parentULElement, depth) {
-    // ... (この関数の内容は変更ありません)
+    const listItem = document.createElement('li');
+    listItem.dataset.uuid = object.uuid;
+    const itemContent = document.createElement('div');
+    itemContent.className = 'tree-item';
+    itemContent.style.paddingLeft = `${depth * 15 + 10}px`;
+    const toggler = document.createElement('span');
+    toggler.className = 'toggler empty-toggler';
+    toggler.innerHTML = '&nbsp;';
+    itemContent.appendChild(toggler);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'group-name';
+    nameSpan.textContent = object.name;
+    nameSpan.title = object.name;
+    itemContent.appendChild(nameSpan);
+    const visibilityToggle = document.createElement('span');
+    visibilityToggle.className = 'visibility-toggle visible-icon';
+    visibilityToggle.title = 'Hide';
+    itemContent.appendChild(visibilityToggle);
+    listItem.appendChild(itemContent);
+    parentULElement.appendChild(listItem);
+    itemContent.addEventListener('click', () => handleSelection(object));
+    visibilityToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        object.visible = !object.visible;
+        visibilityToggle.classList.toggle('visible-icon', object.visible);
+        visibilityToggle.classList.toggle('hidden-icon', !object.visible);
+        visibilityToggle.title = object.visible ? 'Hide' : 'Show';
+        if (!object.visible && selectedObjectOrGroup && selectedObjectOrGroup.uuid === object.uuid) {
+            handleSelection(null);
+        }
+    });
 }
 
 function frameObject(objectToFrame) {
-    // ... (この関数の内容は変更ありません)
+    const box = new THREE.Box3().setFromObject(objectToFrame);
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
+    const distance = (sphere.radius / Math.sin(fovInRadians / 2)) * 1.3;
+    const cameraDirection = new THREE.Vector3(1, 0.6, 1).normalize();
+    
+    camera.position.copy(center).addScaledVector(cameraDirection, distance);
+    camera.lookAt(center);
+    controls.target.copy(center);
+    controls.update();
 }
 
 function handleSelection(target) {
-    // ... (この関数の内容は変更ありません)
+    removeAllHighlights();
+    deIsolateAllObjects();
+    let newSelection = null;
+    if (target && (!selectedObjectOrGroup || selectedObjectOrGroup.uuid !== target.uuid)) {
+        newSelection = target;
+    }
+    selectedObjectOrGroup = newSelection;
+    if (selectedObjectOrGroup) {
+        applyHighlight(selectedObjectOrGroup, highlightColorSingle);
+        zoomToAndIsolate(selectedObjectOrGroup);
+    }
+    document.querySelectorAll('#modelTreePanel .tree-item.selected').forEach(el => el.classList.remove('selected'));
+    if (selectedObjectOrGroup) {
+        const treeItemDiv = document.querySelector(`#modelTreePanel li[data-uuid="${selectedObjectOrGroup.uuid}"] .tree-item`);
+        if (treeItemDiv) treeItemDiv.classList.add('selected');
+    }
+    updateInfoPanel();
 }
 
-// ... (applyHighlight, removeAllHighlights, zoomToAndIsolate, deIsolateAllObjects, updateInfoPanel, イベントリスナーなど、残りの関数は全て変更ありません)
+const applyHighlight = (target, color) => {
+    if (!target) return;
+    target.traverse(child => {
+        if (child.isMesh) {
+            if (!originalMeshMaterials.has(child.uuid)) {
+                originalMeshMaterials.set(child.uuid, child.material);
+            }
+            if (Array.isArray(child.material)) {
+                child.material = child.material.map(mat => {
+                    const newMat = mat.clone();
+                    newMat.color.set(color);
+                    return newMat;
+                });
+            } else {
+                const newMat = child.material.clone();
+                newMat.color.set(color);
+                child.material = newMat;
+            }
+        }
+    });
+};
+
+const removeAllHighlights = () => {
+    originalMeshMaterials.forEach((originalMaterial, uuid) => {
+        const mesh = scene.getObjectByProperty('uuid', uuid);
+        if (mesh) mesh.material = originalMaterial;
+    });
+    originalMeshMaterials.clear();
+};
+
+function zoomToAndIsolate(targetObject) {
+    if (!targetObject) return;
+    deIsolateAllObjects();
+    isIsolateModeActive = true;
+    const box = new THREE.Box3().setFromObject(targetObject);
+    if (box.isEmpty()) { isIsolateModeActive = false; return; }
+    
+    frameObject(targetObject);
+
+    loadedObjectModelRoot.traverse((object) => {
+        if (object.isMesh) {
+            let isPartOfSelected = false;
+            let temp = object;
+            while(temp) {
+                if (temp === targetObject) {
+                    isPartOfSelected = true;
+                    break;
+                }
+                temp = temp.parent;
+            }
+
+            if (!isPartOfSelected) {
+                if (!originalObjectPropertiesForIsolate.has(object.uuid)) {
+                    originalObjectPropertiesForIsolate.set(object.uuid, { material: object.material, visible: object.visible });
+                }
+                if (object.visible) {
+                    const materials = Array.isArray(object.material) ? object.material : [object.material];
+                    const newMaterials = materials.map(mat => {
+                        const newMat = mat.clone();
+                        newMat.transparent = true;
+                        newMat.opacity = 0.1;
+                        return newMat;
+                    });
+                    object.material = Array.isArray(object.material) ? newMaterials : newMaterials[0];
+                }
+            }
+        }
+    });
+}
+
+function deIsolateAllObjects() {
+    if (!isIsolateModeActive) return;
+    originalObjectPropertiesForIsolate.forEach((props, uuid) => {
+        const object = scene.getObjectByProperty('uuid', uuid);
+        if (object && object.isMesh) {
+            object.material = props.material;
+            object.visible = props.visible;
+        }
+    });
+    originalObjectPropertiesForIsolate.clear();
+    isIsolateModeActive = false;
+}
+
+function updateInfoPanel() {
+    let headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
+    if (parsedWSCenID === "" && parsedPJNo === "") headerInfo = `WSCenID: \nPJNo: \n----\n`;
+    if (selectedObjectOrGroup) {
+        let rawName = selectedObjectOrGroup.name || "Unnamed";
+        let displayId = "N/A";
+        const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
+        if (splitIndex > 0) displayId = rawName.substring(splitIndex + 1);
+        let selectionInfo = `ID: ${displayId}\n`;
+        if (displayId && elementIdDataMap.has(displayId)) {
+            const data = elementIdDataMap.get(displayId);
+            selectionInfo += `カテゴリー名: ${data['カテゴリー名'] || "N/A"}\nファミリ名: ${data['ファミリ名'] || "N/A"}`;
+        }
+        objectInfoPanel.textContent = headerInfo + selectionInfo;
+    } else {
+        objectInfoPanel.textContent = headerInfo + 'None Selected';
+    }
+}
+
+window.addEventListener('click', (event) => {
+    if (!loadedObjectModelRoot || event.target.closest('#modelTreePanel')) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
+    if (intersects.length > 0) {
+        let current = intersects[0].object;
+        while (current && current.parent !== loadedObjectModelRoot) {
+            current = current.parent;
+        }
+        handleSelection(current);
+    } else {
+        handleSelection(null);
+    }
+});
+
+if (closeModelTreeBtn) closeModelTreeBtn.addEventListener('click', () => { if (modelTreePanel) modelTreePanel.style.display = 'none'; });
+
+if (modelTreeSearch) {
+    modelTreeSearch.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('#modelTreeList li .group-name').forEach(nameSpan => {
+            const li = nameSpan.closest('li');
+            const isMatch = nameSpan.textContent.toLowerCase().includes(searchTerm);
+            li.style.display = isMatch ? '' : 'none';
+        });
+    });
+}
+
+if (toggleUiButton) {
+    toggleUiButton.addEventListener('click', () => {
+        const isVisible = modelTreePanel.style.display !== 'none';
+        if (modelTreePanel) modelTreePanel.style.display = isVisible ? 'none' : 'block';
+        toggleUiButton.textContent = isVisible ? '📊' : '❌';
+        toggleUiButton.title = isVisible ? "Show UI Panels" : "Hide UI Panels";
+    });
+}
+
+function onWindowResize() {
+    const { clientWidth, clientHeight } = viewerContainer;
+    camera.aspect = clientWidth / clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(clientWidth, clientHeight);
+}
+window.addEventListener('resize', onWindowResize);
+
+if (modelSelector) {
+    modelSelector.addEventListener('change', (event) => {
+        const selectedId = event.target.value;
+        const selectedName = event.target.options[event.target.selectedIndex].text;
+        loadModel(selectedId, selectedName);
+    });
+}
 
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
-    // *** 黒い背景の問題を修正 ***
-    // レンダラーに自動で背景をクリアさせないように設定します。
-    // これにより、最初に描画したグラデーション背景が保持されます。
+    // 黒い背景の問題を修正
     renderer.autoClear = false;
     renderer.render(scene, camera);
 }
