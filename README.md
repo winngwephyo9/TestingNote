@@ -1,4 +1,3 @@
-<img width="1902" height="907" alt="image" src="https://github.com/user-attachments/assets/51215e93-f9ad-4a7b-9fbb-c4dbbe503ab4" />
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
@@ -36,16 +35,9 @@ const BOX_MAIN_FOLDER_ID = "332324771912";
 
 // --- Scene Setup, Camera, Renderer, Lighting, Controls ---
 const scene = new THREE.Scene();
-// scene.background = new THREE.Color(0xcccccc);
-// scene.background = new THREE.Color(0xe8e8e8); // A very light gray
-// Option B: Gradient Background (More advanced)
-// To achieve a gradient, we add a background plane with a custom shader.
-
 // --- Autodesk-Style Gradient Background ---
-// This creates a plane that always fills the camera's view.
 const backgroundGeometry = new THREE.PlaneGeometry(2, 2, 1, 1);
 const backgroundMaterial = new THREE.ShaderMaterial({
-    // This GLSL code runs on the GPU
     vertexShader: `
         varying vec2 vUv;
         void main() {
@@ -62,32 +54,25 @@ const backgroundMaterial = new THREE.ShaderMaterial({
         }
     `,
     uniforms: {
-        // Define the colors for the gradient
         topColor: { value: new THREE.Color(0xd8e3ee) }, // Lighter sky blue
         bottomColor: { value: new THREE.Color(0xf0f0f0) } // Light gray ground
     },
-    depthWrite: false // Don't interfere with the 3D objects
+    depthWrite: false
 });
 
 const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-// Tell Three.js not to treat this mesh like a regular 3D object
 backgroundMesh.renderOrder = -1; // Render it first (in the background)
 scene.add(backgroundMesh);
 
-//カメラの設定
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20000);
 camera.position.copy(initialCameraPosition);
 camera.lookAt(initialCameraLookAt);
 
-//レンダラーの設定
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-// renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-viewerContainer.appendChild(renderer.domElement); // <-- Append canvas to the new container
-// document.body.appendChild(renderer.domElement);
+viewerContainer.appendChild(renderer.domElement);
 
-//ライトの設定
 const ambientLight = new THREE.AmbientLight(0x606060, 2);
 scene.add(ambientLight);
 
@@ -102,11 +87,9 @@ const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
 hemiLight.position.set(0, 50, 0);
 scene.add(hemiLight);
 
-//コントロール操作
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-// --- Helper Functions ---
 
 /* ajax通信トークン定義 */
 var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
@@ -117,12 +100,9 @@ $(document).ready(function () {
     var url = "DLDWH/objviewer";
     var content_name = "OBJビューア";
     recordAccessHistory(login_user_id, img_src, url, content_name);
-    // --- Start Application ---
     onWindowResize();
-    // --- Start Application ---
     populateProjectDropdown();
     animate();
-
 });
 
 async function populateProjectDropdown() {
@@ -170,7 +150,6 @@ async function loadModel(projectFolderId, projectName) {
     if (modelTreePanel) modelTreePanel.style.display = 'none';
     parsedWSCenID = ""; // Reset header info
     parsedPJNo = "";    // Reset header info
-    // updateInfoPanel();
 
     try {
         if (loaderContainer) loaderContainer.style.display = 'flex';
@@ -193,23 +172,31 @@ async function loadModel(projectFolderId, projectName) {
 
         const mtlFileInfo = fileList.mtl;
         const objFileInfoList = fileList.objs;
-
-        // 2. Get all file IDs to fetch
         const allFileIds = [mtlFileInfo.id, ...objFileInfoList.map(f => f.id)];
 
-        // 3. Make a SINGLE call to your backend to get all temporary download URLs
+        // 2. **FIX**: Make BATCHED calls to the backend to get all temporary download URLs
         if (loaderTextElement) loaderTextElement.textContent = `Preparing secure downloads...`;
-        const downloadUrlMap = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getDownloadUrls",
-                data: { _token: window.CSRF_TOKEN, fileIds: allFileIds },
-                success: resolve,
-                error: reject
-            });
-        });
+        const downloadUrlMap = {};
+        const batchSize = 900; // Keep this under the server's max_input_vars limit (usually 1000)
 
-        // 4. Load the SINGLE MTL file ONCE directly from Box
+        for (let i = 0; i < allFileIds.length; i += batchSize) {
+            const batch = allFileIds.slice(i, i + batchSize);
+            if (loaderTextElement) {
+                loaderTextElement.textContent = `Preparing secure downloads... (${i + batch.length}/${allFileIds.length})`;
+            }
+            const batchUrlMap = await new Promise((resolve, reject) => {
+                $.ajax({
+                    type: "post",
+                    url: url_prefix + "/box/getDownloadUrls",
+                    data: { _token: window.CSRF_TOKEN, fileIds: batch },
+                    success: resolve,
+                    error: reject
+                });
+            });
+            Object.assign(downloadUrlMap, batchUrlMap); // Merge the results from the batch
+        }
+
+        // 3. Load the SINGLE MTL file ONCE directly from Box
         if (loaderTextElement) loaderTextElement.textContent = `Loading Materials...`;
         const mtlUrl = downloadUrlMap[mtlFileInfo.id];
         if (!mtlUrl) throw new Error(`Could not get download URL for MTL file ${mtlFileInfo.name}`);
@@ -218,7 +205,7 @@ async function loadModel(projectFolderId, projectName) {
         const materialsCreator = await mtlLoader.loadAsync(mtlUrl);
         materialsCreator.preload();
 
-        // 5. Download all OBJ file contents in controlled parallel batches, DIRECTLY from Box
+        // 4. Download all OBJ file contents in controlled parallel batches, DIRECTLY from Box
         if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (0/${objFileInfoList.length})...`;
         const CONCURRENT_DOWNLOADS = 10;
         const allObjContents = [];
@@ -246,52 +233,9 @@ async function loadModel(projectFolderId, projectName) {
             allObjContents.push(...results);
             if (downloadQueue.length > 0) await downloadBatch();
         };
-
         await downloadBatch();
-        // // 2. Load the SINGLE MTL file ONCE
-        // if (loaderTextElement) loaderTextElement.textContent = `Loading Materials...`;
-        // const mtlContent = await fetchBoxFileContent(mtlFileInfo.id);
-        // const mtlLoader = new MTLLoader();
-        // const materialsCreator = mtlLoader.parse(mtlContent, '');
-        // materialsCreator.preload();
 
-        // // 3. **PERFORMANCE & RATE-LIMIT FIX**: Download all OBJ file contents in controlled parallel batches.
-        // if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (0/${objFileInfoList.length})...`;
-
-        // const CONCURRENT_DOWNLOADS = 8;  // Keep this number low (e.g., 4-10)
-        // const allObjContents = [];
-        // let downloadedCount = 0;
-
-        // // Create a copy of the list to use as a queue
-        // const downloadQueue = [...objFileInfoList];
-
-        // const downloadBatch = async () => {
-        //     const promises = [];
-        //     // Start up to CONCURRENT_DOWNLOADS downloads
-        //     while (downloadQueue.length > 0 && promises.length < CONCURRENT_DOWNLOADS) {
-        //         const objInfo = downloadQueue.shift(); // Get next file from queue
-        //         if (objInfo) {
-        //             const promise = fetchBoxFileContent(objInfo.id).then(content => {
-        //                 downloadedCount++;
-        //                 if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (${downloadedCount}/${objFileInfoList.length})...`;
-        //                 return { content: content, info: objInfo };
-        //             });
-        //             promises.push(promise);
-        //         }
-        //     }
-        //     // Wait for this batch of promises to complete
-        //     const results = await Promise.all(promises);
-        //     allObjContents.push(...results); // Add results to the main array
-
-        //     // If there are more files in the queue, recurse to download the next batch
-        //     if (downloadQueue.length > 0) {
-        //         await downloadBatch();
-        //     }
-        // };
-
-        // await downloadBatch(); // Start the first batch
-
-        // 4. Parse the header from the FIRST downloaded OBJ file
+        // 5. Parse the header from the FIRST downloaded OBJ file
         if (allObjContents.length > 0) {
             const headerData = await parseObjHeader(allObjContents[0].content);
             if (headerData) {
@@ -300,7 +244,7 @@ async function loadModel(projectFolderId, projectName) {
             }
         }
 
-        // 5. Parse all OBJ geometries using the SAME material creator
+        // 6. Parse all OBJ geometries using the SAME material creator
         if (loaderTextElement) loaderTextElement.textContent = `Processing geometry...`;
         const objLoader = new OBJLoader();
         objLoader.setMaterials(materialsCreator);
@@ -309,7 +253,7 @@ async function loadModel(projectFolderId, projectName) {
             return objLoader.parse(objData.content);
         });
 
-        // 6. Combine all loaded objects into a single group
+        // 7. Combine all loaded objects into a single group
         const combinedModel = new THREE.Group();
         loadedObjects.forEach(object => {
             while (object.children.length > 0) {
@@ -318,7 +262,7 @@ async function loadModel(projectFolderId, projectName) {
         });
         loadedObjectModelRoot = combinedModel;
 
-        // 7. Process the COMBINED model (center, scale, rotate)
+        // 8. Process the COMBINED model (center, scale, rotate)
         const initialBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
         const initialCenter = initialBox.getCenter(new THREE.Vector3());
         loadedObjectModelRoot.position.sub(initialCenter);
@@ -331,7 +275,7 @@ async function loadModel(projectFolderId, projectName) {
         }
         loadedObjectModelRoot.rotation.x = -Math.PI / 2;
 
-        // 8. Fetch category data for all parts
+        // 9. Fetch category data for all parts
         const allIds = [];
         loadedObjectModelRoot.traverse(child => {
             if (child.name) {
@@ -341,7 +285,7 @@ async function loadModel(projectFolderId, projectName) {
         });
         await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
 
-        // 9. Build the tree, add to scene, frame, and hide loader
+        // 10. Build the tree, add to scene, frame, and hide loader
         await buildAndPopulateCategorizedTree();
         scene.add(loadedObjectModelRoot);
         frameObject(loadedObjectModelRoot);
@@ -356,42 +300,7 @@ async function loadModel(projectFolderId, projectName) {
     }
 }
 
-// This function now acts as a simple wrapper for your backend endpoint
-async function fetchBoxFileContent(fileId) {
-    // console.log("Fetching content for File ID:", fileId);
-    try {
-        const fileContent = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getFileContents", // Your new backend route
-                data: { _token: CSRF_TOKEN, fileId: fileId },
-                success: resolve, // On success, resolve the promise with the raw text data
-                error: (jqXHR, textStatus, errorThrown) => {
-                    console.error(`AJAX error for file ID ${fileId}: ${textStatus} - ${errorThrown}`);
-                    if (loaderContainer) loaderContainer.style.display = 'none';
-
-                    // Reject with a meaningful error
-                    reject(new Error(`AJAX error for file ID ${fileId}: ${jqXHR.responseJSON ? JSON.stringify(jqXHR.responseJSON) : errorThrown}`));
-                }
-            });
-        });
-
-        // The promise resolves with the file content directly.
-        // We can add a simple check to see if we got something back.
-        if (typeof fileContent !== 'string' || fileContent.length === 0) {
-            throw new Error(`Received empty or invalid content for file ${fileId}`);
-        }
-        return fileContent; // Return the raw text content
-    } catch (error) {
-        console.error(`Failed inside fetchBoxFileContent for file ID ${fileId}:`, error);
-        // Re-throw the error so Promise.all in the main loader function can catch it
-        throw error;
-    }
-}
-
-
 async function parseObjHeader(objContent) {
-    // This function now only parses and returns the values, not setting globals.
     try {
         const lines = objContent.split(/\r?\n/);
         if (lines.length > 0) {
@@ -410,7 +319,7 @@ async function parseObjHeader(objContent) {
     } catch (error) {
         console.error("Error parsing OBJ header:", error);
     }
-    return { wscenId: null, pjNo: null }; // Return nulls if no match
+    return { wscenId: null, pjNo: null };
 }
 
 async function fetchAllCategoryData(wscenId, allElementIds) {
@@ -673,7 +582,6 @@ function deIsolateAllObjects() {
 }
 
 function updateInfoPanel() {
-    // if (!objectInfoPanel) return;
     let headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
     if (parsedWSCenID === "" && parsedPJNo === "") headerInfo = `WSCenID: \nPJNo: \n----\n`;
     if (selectedObjectOrGroup) {
@@ -751,46 +659,29 @@ if (modelTreeSearch) {
     });
 }
 
-// --- NEW: Event listener for the UI Toggle Button (Request ③) ---
 if (toggleUiButton) {
     toggleUiButton.addEventListener('click', () => {
-        // Check the current visibility of one of the panels to decide the action
         const isVisible = modelTreePanel.style.display !== 'none';
-
         if (isVisible) {
-            // Hide panels
             if (modelTreePanel) modelTreePanel.style.display = 'none';
-            // if (objectInfoPanel) objectInfoPanel.style.display = 'none';
-            toggleUiButton.textContent = '📊'; // Change icon to "show"
+            toggleUiButton.textContent = '📊';
             toggleUiButton.title = "Show UI Panels";
         } else {
-            // Show panels
             if (modelTreePanel) modelTreePanel.style.display = 'block';
-            // if (objectInfoPanel) objectInfoPanel.style.display = 'block';
-            toggleUiButton.textContent = '❌'; // Change icon to "hide"
+            toggleUiButton.textContent = '❌';
             toggleUiButton.title = "Hide UI Panels";
         }
     });
 }
 
-// window.addEventListener('resize', () => {
-//     camera.aspect = window.innerWidth / window.innerHeight;
-//     camera.updateProjectionMatrix();
-//     renderer.setSize(window.innerWidth, window.innerHeight);
-// });
-
-// This function now correctly resizes the renderer based on its container's dimensions
 function onWindowResize() {
     const { clientWidth, clientHeight } = viewerContainer;
-
     camera.aspect = clientWidth / clientHeight;
     camera.updateProjectionMatrix();
-
     renderer.setSize(clientWidth, clientHeight);
 }
 window.addEventListener('resize', onWindowResize);
 
-// --- Event Listeners and Animation Loop ---
 if (modelSelector) {
     modelSelector.addEventListener('change', (event) => {
         const selectedId = event.target.value;
@@ -798,7 +689,6 @@ if (modelSelector) {
         loadModel(selectedId, selectedName);
     });
 }
-
 
 function animate() {
     requestAnimationFrame(animate);
