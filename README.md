@@ -106,14 +106,22 @@ async function loadModel(projectFolderId, projectName) {
     // 0. Reset scene and state
     if (loadedObjectModelRoot) scene.remove(loadedObjectModelRoot);
     loadedObjectModelRoot = null;
+    selectedObjectOrGroup = null;
+    originalMeshMaterials.clear();
+    originalObjectPropertiesForIsolate.clear();
+    isIsolateModeActive = false;
+    elementIdDataMap.clear();
     modelTreeList.innerHTML = '';
-    // ... (other resets) ...
+    if (modelTreePanel) modelTreePanel.style.display = 'none';
+    parsedWSCenID = "";
+    parsedPJNo = "";
+    updateInfoPanel();
 
     try {
         if (loaderContainer) loaderContainer.style.display = 'flex';
         if (loaderTextElement) loaderTextElement.textContent = `Fetching file list for ${projectName}...`;
 
-        // 1. Fetch file list and download URLs
+        // 1. Fetch file list and URLs
         const fileList = await $.ajax({
             type: "post", url: url_prefix + "/box/getObjList", data: { _token: CSRF_TOKEN, folderId: projectFolderId },
         });
@@ -141,7 +149,7 @@ async function loadModel(projectFolderId, projectName) {
         const mtlContent = await fetch(mtlUrl).then(res => res.text());
         const allObjContents = await downloadAllObjs(objFileInfoList, downloadUrlMap);
 
-        // Parse header from the first OBJ file
+        // Parse header locally
         if (allObjContents.length > 0) {
             const headerData = await parseObjHeader(allObjContents[0].content);
             if (headerData) {
@@ -151,13 +159,8 @@ async function loadModel(projectFolderId, projectName) {
             }
         }
         
-        // 3. *** THE KEY OPTIMIZATION ***
-        // Combine all individual OBJ strings into one large string.
-        if (loaderTextElement) loaderTextElement.textContent = 'Combining geometry files...';
-        const combinedObjContent = allObjContents.map(obj => obj.content).join('\n');
-
-        // 4. Offload the single, large parsing job to the worker
-        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry in background... This should be much faster now.`;
+        // 3. Offload the parsing to the worker. This step can still take time, but the UI will not freeze.
+        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry in background... This may take a moment.`;
         
         objWorker.onmessage = async (event) => {
             if (event.data.error) {
@@ -169,6 +172,7 @@ async function loadModel(projectFolderId, projectName) {
             console.log("Main: Received processed model from worker.");
             if (loaderTextElement) loaderTextElement.textContent = `Finalizing scene...`;
 
+            // Reconstruct the 3D object from the worker's JSON data
             const loader = new THREE.ObjectLoader();
             loadedObjectModelRoot = loader.parse(event.data);
 
@@ -176,8 +180,7 @@ async function loadModel(projectFolderId, projectName) {
                  throw new Error("Model is empty after processing.");
             }
 
-            // 5. Finalize the scene with the loaded model
-            // (Centering, scaling, fetching metadata, building tree, etc.)
+            // 4. Finalize the scene with the loaded model
             const initialBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
             const initialCenter = initialBox.getCenter(new THREE.Vector3());
             loadedObjectModelRoot.position.sub(initialCenter);
@@ -205,9 +208,9 @@ async function loadModel(projectFolderId, projectName) {
             if (loaderContainer) loaderContainer.style.display = 'none';
         };
 
-        // Send the combined data to the worker
+        // Send the material file and the ARRAY of obj files to the worker
         objWorker.postMessage({
-            combinedObjContent: combinedObjContent,
+            allObjContents: allObjContents,
             mtlContent: mtlContent
         });
 
@@ -217,7 +220,6 @@ async function loadModel(projectFolderId, projectName) {
     }
 }
 
-// Helper function to download all OBJ file contents in parallel batches
 async function downloadAllObjs(objFileInfoList, downloadUrlMap) {
     if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (0/${objFileInfoList.length})...`;
     const CONCURRENT_DOWNLOADS = 10;
@@ -256,11 +258,8 @@ async function downloadAllObjs(objFileInfoList, downloadUrlMap) {
     return allObjContents;
 }
 
+// --- (All other helper functions like parseObjHeader, buildAndPopulateCategorizedTree, event listeners, etc. are below) ---
 
-// --- All other functions (parseObjHeader, fetchAllCategoryData, buildAndPopulateCategorizedTree, event listeners, etc.) remain the same as your last working version ---
-// ...
-// ... (Paste all your other helper functions here) ...
-// ...
 async function parseObjHeader(objContent) {
     try {
         const lines = objContent.split(/\r?\n/);
@@ -305,8 +304,9 @@ async function buildAndPopulateCategorizedTree() {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     const categorizedObjects = {};
-    loadedObjectModelRoot.traverse(child => {
-        if (child.isGroup && child.children.length > 0 && child.parent === loadedObjectModelRoot) {
+    // NOTE: OBJLoader creates a Group for each object. We need to iterate through these top-level groups.
+    loadedObjectModelRoot.children.forEach(child => {
+        if (child.isGroup) { // Each parsed OBJ file becomes a group
             let rawName = child.name;
             let displayId = null;
             const splitIndex = Math.max(rawName.lastIndexOf('_'), rawName.lastIndexOf('＿'));
@@ -591,3 +591,67 @@ function animate() {
     controls.update();
     renderer.render(scene, camera);
 }
+
+
+
+
+
+
+/**
+ * WORKER SCRIPT (obj-loader-worker.js)
+ * This is the stable version. It receives an array of all OBJ file contents
+ * and processes them one by one in the background.
+ */
+
+// Use ES6 `import` as this is a module worker.
+import * as THREE from './library/three.module.js';
+import { OBJLoader } from './library/controls/OBJLoader.js';
+import { MTLLoader } from './library/controls/MTLLoader.js';
+
+const objLoader = new OBJLoader();
+const mtlLoader = new MTLLoader();
+
+self.onmessage = function (event) {
+    const { allObjContents, mtlContent } = event.data;
+
+    console.log("Worker: Received data. Parsing materials and multiple geometries...");
+
+    try {
+        // 1. Parse the MTL content first to create the materials
+        const materialsCreator = mtlLoader.parse(mtlContent);
+        materialsCreator.preload();
+        objLoader.setMaterials(materialsCreator);
+
+        // 2. Loop through the array of OBJ content and parse each one.
+        // This is more stable than combining into a single string.
+        const loadedObjects = allObjContents.map(objData => {
+            if (!objData || !objData.content || objData.content.trim() === '') {
+                return null; // Skip any empty files
+            }
+            // This is the individual parse operation
+            return objLoader.parse(objData.content);
+        }).filter(Boolean); // Filter out any null results
+
+        if (loadedObjects.length === 0) {
+            throw new Error("Parsing resulted in zero valid objects.");
+        }
+
+        // 3. Combine all the resulting Group objects into a single final model
+        const finalModel = new THREE.Group();
+        loadedObjects.forEach(objectGroup => {
+            // The parser returns a Group, so we move its children into our main group
+            while (objectGroup.children.length > 0) {
+                finalModel.add(objectGroup.children[0]);
+            }
+        });
+
+        console.log("Worker: Parsing complete. Sending final model back.");
+
+        // 4. Convert the final model to JSON and send it back.
+        self.postMessage(finalModel.toJSON());
+
+    } catch (error) {
+        console.error("Worker Error:", error);
+        self.postMessage({ error: error.message });
+    }
+};
