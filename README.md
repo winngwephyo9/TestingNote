@@ -1,4 +1,204 @@
-<img width="1900" height="727" alt="image" src="https://github.com/user-attachments/assets/2d574c9d-8418-49a8-b9b6-13b272514b05" />
+
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\DLDHWDataImportModel;
+use GuzzleHttp\Client;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Exception;
+use GuzzleHttp\Exception\ClientException;
+
+class DLDWHDataObjectViewerController extends Controller
+{
+    public function objViewer()
+    {
+        return view('DLDWH.OBJViewer');
+    }
+
+    /**
+     * Get category name by elementId.
+     * This function is correct. The client-side JS now calls this in batches,
+     * which prevents the "max_input_vars" error.
+     *
+     * @param Request $request
+     * @return mixed
+     */
+    public function getCategoryNameByElementId(Request $request)
+    {
+        $WSCenID = $request->input('WSCenID');
+        $elementIds = $request->input('ElementIds'); // Expects a batch of IDs
+        $dldwhModle = new DLDHWDataImportModel();
+        return $dldwhModle->getCategoryNameByElementId($WSCenID, $elementIds);
+    }
+
+    /**
+     * Lists the sub-folders (projects) within the main Box folder.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getProjectList(Request $request)
+    {
+        $mainFolderId = $request->input('folderId');
+        if (!session()->has('access_token') || empty(session('access_token'))) {
+            return response()->json(["no_token"]);
+        }
+        $access_token = session('access_token');
+
+        if (empty($mainFolderId)) {
+            return response()->json(['error' => 'Folder ID is required.'], 400);
+        }
+
+        try {
+            $client = new Client(['verify' => false]);
+            $requestURL = "https://api.box.com/2.0/folders/{$mainFolderId}/items?fields=id,name";
+            $header = ["Authorization" => "Bearer " . $access_token];
+
+            $response = $client->get($requestURL, ['headers' => $header]);
+            $items = json_decode($response->getBody()->getContents())->entries;
+
+            $projects = [];
+            foreach ($items as $item) {
+                if ($item->type == "folder") {
+                    $projects[] = ['id' => $item->id, 'name' => $item->name];
+                }
+            }
+
+            return response()->json($projects);
+        } catch (Exception $e) {
+            Log::error("Box API Error (getProjectList): " . $e->getMessage());
+            return response()->json(['error' => "Failed to read project list from Box."], 500);
+        }
+    }
+
+    /**
+     * Lists all OBJ and MTL file IDs and names within a project folder, handling pagination.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getObjList(Request $request)
+    {
+        $projectFolderId = $request->input('folderId');
+        if (!session()->has('access_token') || empty(session('access_token'))) {
+            return response()->json(['error' => 'Access token is missing.'], 401);
+        }
+        $accessToken = session('access_token');
+
+        if (empty($projectFolderId)) {
+            return response()->json(['error' => 'Folder ID is required.'], 400);
+        }
+
+        try {
+            $client = new Client(['verify' => false]);
+            $header = ["Authorization" => "Bearer " . $accessToken];
+            $allFolderItems = [];
+            $offset = 0;
+            $limit = 1000; // Max limit per page for Box API
+
+            do {
+                $requestURL = "https://api.box.com/2.0/folders/{$projectFolderId}/items?fields=id,name&limit={$limit}&offset={$offset}";
+                $response = $client->get($requestURL, ['headers' => $header]);
+                $body = json_decode($response->getBody()->getContents());
+                
+                if (isset($body->entries)) {
+                    $allFolderItems = array_merge($allFolderItems, $body->entries);
+                    $offset += count($body->entries);
+                } else {
+                    // Break if entries are not present
+                    break;
+                }
+                
+            } while ($offset < $body->total_count);
+
+            $objFiles = [];
+            $mtlFile = null;
+
+            foreach ($allFolderItems as $item) {
+                if ($item->type == "file") {
+                    $extension = strtolower(pathinfo($item->name, PATHINFO_EXTENSION));
+                    if ($extension === 'mtl' && $mtlFile === null) {
+                        $mtlFile = ['id' => $item->id, 'name' => $item->name];
+                    } elseif ($extension === 'obj') {
+                        $objFiles[] = ['id' => $item->id, 'name' => $item->name];
+                    }
+                }
+            }
+
+            if ($mtlFile === null) {
+                return response()->json(['error' => 'No MTL file found in the specified folder.'], 404);
+            }
+
+            return response()->json(['mtl' => $mtlFile, 'objs' => $objFiles]);
+        } catch (Exception $e) {
+            Log::error("Box API Error (getObjList): " . $e->getMessage());
+            return response()->json(['error' => "Failed to read file list from Box."], 500);
+        }
+    }
+
+    /**
+     * **NEW, EFFICIENT FUNCTION**
+     * Gets temporary, pre-authenticated download URLs for multiple files from Box.
+     * This allows the client to download files directly, solving the timeout issue.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getDownloadUrls(Request $request)
+    {
+        $fileIds = $request->input('fileIds'); // Expecting an array
+        if (!session()->has('access_token') || empty(session('access_token'))) {
+            return response()->json(['error' => 'Access token is missing.'], 401);
+        }
+        $accessToken = session('access_token');
+
+        if (empty($fileIds) || !is_array($fileIds)) {
+            return response()->json(['error' => 'File IDs array is required.'], 400);
+        }
+
+        try {
+            $client = new Client(['verify' => false]);
+            $header = ["Authorization" => "Bearer " . $accessToken];
+            $downloadUrls = [];
+
+            // This must be done in a loop as Box API does not support batching this request.
+            // However, it's very fast as it only fetches metadata.
+            foreach ($fileIds as $fileId) {
+                // The '?fields=download_url' is an optimization to only get the URL
+                $requestURL = "https://api.box.com/2.0/files/{$fileId}?fields=download_url";
+                try {
+                    $response = $client->get($requestURL, ['headers' => $header]);
+                    $fileInfo = json_decode($response->getBody()->getContents());
+                    if (isset($fileInfo->download_url)) {
+                        $downloadUrls[$fileId] = $fileInfo->download_url;
+                    }
+                } catch (ClientException $e) {
+                    // Log the error for a specific file but continue for others
+                    Log::warning("Box API: Could not get download URL for file ID {$fileId}: " . $e->getResponse()->getBody()->getContents());
+                }
+            }
+            return response()->json($downloadUrls);
+        } catch (Exception $e) {
+            Log::error("Box API Error (getDownloadUrls): " . $e->getMessage());
+            return response()->json(['error' => "An error occurred while generating download URLs."], 500);
+        }
+    }
+
+    /*
+     * DEPRECATED: This function is the source of the timeout error and is no longer needed.
+     * It has been replaced by the much more efficient `getDownloadUrls` method.
+     
+    public function getFileContents(Request $request)
+    {
+        // ... old, slow code removed ...
+    }
+    */
+}
+
+
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
@@ -13,8 +213,8 @@ const modelTreeSearch = document.getElementById('modelTreeSearch');
 const closeModelTreeBtn = document.getElementById('closeModelTreeBtn');
 const objectInfoPanel = document.getElementById('objectInfo');
 const modelSelector = document.getElementById('model-selector');
-const viewerContainer = document.getElementById('viewer-container'); // NEW: Get the right-side container
-const toggleUiButton = document.getElementById('toggle-ui-button'); // NEW
+const viewerContainer = document.getElementById('viewer-container');
+const toggleUiButton = document.getElementById('toggle-ui-button');
 
 // --- Global variables ---
 let parsedWSCenID = "";
@@ -28,118 +228,77 @@ const originalObjectPropertiesForIsolate = new Map();
 let isIsolateModeActive = false;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-const highlightColorSingle = new THREE.Color(0xa0c4ff); // NEW: Light Blue (matches CSS)
-const elementIdDataMap = new Map(); // Stores all fetched element data
+const highlightColorSingle = new THREE.Color(0xa0c4ff);
+const elementIdDataMap = new Map();
 
-// const BOX_ACCESS_TOKEN = $('#access_token').val();
 const BOX_MAIN_FOLDER_ID = "332324771912";
+var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
 // --- Scene Setup, Camera, Renderer, Lighting, Controls ---
 const scene = new THREE.Scene();
-// scene.background = new THREE.Color(0xcccccc);
-// scene.background = new THREE.Color(0xe8e8e8); // A very light gray
-// Option B: Gradient Background (More advanced)
-// To achieve a gradient, we add a background plane with a custom shader.
-
-// --- Autodesk-Style Gradient Background ---
-// This creates a plane that always fills the camera's view.
 const backgroundGeometry = new THREE.PlaneGeometry(2, 2, 1, 1);
 const backgroundMaterial = new THREE.ShaderMaterial({
-    // This GLSL code runs on the GPU
-    vertexShader: `
-        varying vec2 vUv;
-        void main() {
-            vUv = uv;
-            gl_Position = vec4(position.xy, 1.0, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform vec3 topColor;
-        uniform vec3 bottomColor;
-        varying vec2 vUv;
-        void main() {
-            gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), 1.0);
-        }
-    `,
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }`,
+    fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; varying vec2 vUv; void main() { gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), 1.0); }`,
     uniforms: {
-        // Define the colors for the gradient
-        topColor: { value: new THREE.Color(0xd8e3ee) }, // Lighter sky blue
-        bottomColor: { value: new THREE.Color(0xf0f0f0) } // Light gray ground
+        topColor: { value: new THREE.Color(0xd8e3ee) },
+        bottomColor: { value: new THREE.Color(0xf0f0f0) }
     },
-    depthWrite: false // Don't interfere with the 3D objects
+    depthWrite: false
 });
-
 const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-// Tell Three.js not to treat this mesh like a regular 3D object
-backgroundMesh.renderOrder = -1; // Render it first (in the background)
+backgroundMesh.renderOrder = -1;
 scene.add(backgroundMesh);
 
-//カメラの設定
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20000);
 camera.position.copy(initialCameraPosition);
 camera.lookAt(initialCameraLookAt);
 
-//レンダラーの設定
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-// renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-viewerContainer.appendChild(renderer.domElement); // <-- Append canvas to the new container
-// document.body.appendChild(renderer.domElement);
+viewerContainer.appendChild(renderer.domElement);
 
-//ライトの設定
 const ambientLight = new THREE.AmbientLight(0x606060, 2);
 scene.add(ambientLight);
-
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
 directionalLight.position.set(50, 100, 75);
 directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.width = 2048;
 directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
-
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
 hemiLight.position.set(0, 50, 0);
 scene.add(hemiLight);
 
-//コントロール操作
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-// --- Helper Functions ---
 
-/* ajax通信トークン定義 */
-var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
+// --- Main Application Logic ---
 
 $(document).ready(function () {
-    var login_user_id = $("#hidLoginID").val();
-    var img_src = "/DL_DWH.png";
-    var url = "DLDWH/objviewer";
-    var content_name = "OBJビューア";
-    recordAccessHistory(login_user_id, img_src, url, content_name);
-    // --- Start Application ---
+    const login_user_id = $("#hidLoginID").val();
+    if(typeof recordAccessHistory === 'function') {
+      recordAccessHistory(login_user_id, "/DL_DWH.png", "DLDWH/objviewer", "OBJビューア");
+    }
     onWindowResize();
-    // --- Start Application ---
     populateProjectDropdown();
     animate();
-
 });
 
 async function populateProjectDropdown() {
     try {
-        const projects = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getProjectList",
-                data: { _token: CSRF_TOKEN, folderId: BOX_MAIN_FOLDER_ID },
-                success: resolve,
-                error: reject
-            });
+        const projects = await $.ajax({
+            type: "post",
+            url: url_prefix + "/box/getProjectList",
+            data: { _token: CSRF_TOKEN, folderId: BOX_MAIN_FOLDER_ID }
         });
 
         modelSelector.innerHTML = '';
         if (projects.includes("no_token")) {
             alert("BOXにログインされていないためobjファイルを取得きませんでした。");
+            if (loaderTextElement) loaderTextElement.textContent = "Box login required.";
         } else if (projects && projects.length > 0) {
             projects.forEach(project => {
                 const option = document.createElement('option');
@@ -147,7 +306,9 @@ async function populateProjectDropdown() {
                 option.textContent = project.name;
                 modelSelector.appendChild(option);
             });
-            loadModel(projects[2].id, projects[2].name);
+            // Automatically load a default model (e.g., the third one if available, otherwise the first)
+            const modelToLoad = projects.length > 2 ? projects[2] : projects[0];
+            loadModel(modelToLoad.id, modelToLoad.name);
         } else {
             if (loaderTextElement) loaderTextElement.textContent = "No projects found in the main folder.";
         }
@@ -157,9 +318,21 @@ async function populateProjectDropdown() {
     }
 }
 
-async function loadModel(projectFolderId, projectName) {
-    // 0. Reset scene and state
-    if (loadedObjectModelRoot) scene.remove(loadedObjectModelRoot);
+function resetScene() {
+    if (loadedObjectModelRoot) {
+        // Proper disposal of geometry and materials
+        loadedObjectModelRoot.traverse(object => {
+            if (object.isMesh) {
+                if (object.geometry) object.geometry.dispose();
+                if (Array.isArray(object.material)) {
+                    object.material.forEach(material => material.dispose());
+                } else if (object.material) {
+                    object.material.dispose();
+                }
+            }
+        });
+        scene.remove(loadedObjectModelRoot);
+    }
     loadedObjectModelRoot = null;
     selectedObjectOrGroup = null;
     originalMeshMaterials.clear();
@@ -168,130 +341,78 @@ async function loadModel(projectFolderId, projectName) {
     elementIdDataMap.clear();
     modelTreeList.innerHTML = '';
     if (modelTreePanel) modelTreePanel.style.display = 'none';
-    parsedWSCenID = ""; // Reset header info
-    parsedPJNo = "";    // Reset header info
-    // updateInfoPanel();
+    parsedWSCenID = "";
+    parsedPJNo = "";
+    updateInfoPanel();
+}
+
+/**
+ * **REFACTORED for PERFORMANCE**
+ * Loads a model using a fast, direct-from-Box download strategy.
+ */
+async function loadModel(projectFolderId, projectName) {
+    resetScene();
+    if (loaderContainer) loaderContainer.style.display = 'flex';
 
     try {
-        if (loaderContainer) loaderContainer.style.display = 'flex';
+        // --- STEP 1: Get the list of file IDs from our server ---
         if (loaderTextElement) loaderTextElement.textContent = `Fetching file list for ${projectName}...`;
-
-        // 1. Fetch the list of OBJ/MTL file pairs from the server
-        const fileList = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getObjList",
-                data: { _token: CSRF_TOKEN, folderId: projectFolderId },
-                success: resolve,
-                error: reject
-            });
+        const fileList = await $.ajax({
+            type: "post",
+            url: url_prefix + "/box/getObjList",
+            data: { _token: CSRF_TOKEN, folderId: projectFolderId }
         });
-
         if (!fileList || !fileList.mtl || !fileList.objs || fileList.objs.length === 0) {
-            throw new Error(`Incomplete file list for project "${projectName}".`);
+            throw new Error(`Incomplete or empty file list for project "${projectName}".`);
         }
 
-        const mtlFileInfo = fileList.mtl;
-        const objFileInfoList = fileList.objs;
-
-        // 2. Get all file IDs to fetch
-        const allFileIds = [mtlFileInfo.id, ...objFileInfoList.map(f => f.id)];
-
-        // 3. Make a SINGLE call to your backend to get all temporary download URLs
+        // --- STEP 2: Get secure, temporary download URLs from our server ---
+        // This is a quick metadata request.
         if (loaderTextElement) loaderTextElement.textContent = `Preparing secure downloads...`;
-        const downloadUrlMap = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getDownloadUrls",
-                data: { _token: window.CSRF_TOKEN, fileIds: allFileIds },
-                success: resolve,
-                error: reject
-            });
+        const allFileIds = [fileList.mtl.id, ...fileList.objs.map(f => f.id)];
+        const downloadUrlMap = await $.ajax({
+            type: "post",
+            url: url_prefix + "/box/getDownloadUrls",
+            data: { _token: CSRF_TOKEN, fileIds: allFileIds }
         });
 
-        // 4. Load the SINGLE MTL file ONCE directly from Box
-        if (loaderTextElement) loaderTextElement.textContent = `Loading Materials...`;
-        const mtlUrl = downloadUrlMap[mtlFileInfo.id];
-        if (!mtlUrl) throw new Error(`Could not get download URL for MTL file ${mtlFileInfo.name}`);
-
+        // --- STEP 3: Load the single MTL file *directly from Box* ---
+        if (loaderTextElement) loaderTextElement.textContent = `Loading materials...`;
+        const mtlUrl = downloadUrlMap[fileList.mtl.id];
+        if (!mtlUrl) throw new Error(`Could not get download URL for the MTL file.`);
         const mtlLoader = new MTLLoader();
         const materialsCreator = await mtlLoader.loadAsync(mtlUrl);
         materialsCreator.preload();
 
-        // 5. Download all OBJ file contents in controlled parallel batches, DIRECTLY from Box
-        if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (0/${objFileInfoList.length})...`;
-        const CONCURRENT_DOWNLOADS = 10;
-        const allObjContents = [];
+        // --- STEP 4: Download all OBJ files in parallel, *directly from Box* ---
+        // This is the key performance improvement that prevents server timeouts.
+        const objFileInfoList = fileList.objs;
         let downloadedCount = 0;
-        const downloadQueue = [...objFileInfoList];
-
-        const downloadBatch = async () => {
-            const currentBatchPromises = [];
-            while (downloadQueue.length > 0 && currentBatchPromises.length < CONCURRENT_DOWNLOADS) {
-                const objInfo = downloadQueue.shift();
-                const objUrl = downloadUrlMap[objInfo.id];
-                if (objInfo && objUrl) {
-                    const promise = fetch(objUrl).then(res => {
-                        if (!res.ok) throw new Error(`Failed to download ${objInfo.name} from Box: ${res.statusText}`);
-                        return res.text();
-                    }).then(content => {
-                        downloadedCount++;
-                        if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (${downloadedCount}/${objFileInfoList.length})...`;
-                        return { content, info: objInfo };
-                    });
-                    currentBatchPromises.push(promise);
-                }
+        const totalFiles = objFileInfoList.length;
+        if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (0/${totalFiles})...`;
+        
+        const downloadPromises = objFileInfoList.map(objInfo => {
+            const objUrl = downloadUrlMap[objInfo.id];
+            if (!objUrl) {
+                console.warn(`Could not get download URL for ${objInfo.name}, skipping.`);
+                return Promise.resolve(null); // Resolve with null to filter out later
             }
-            const results = await Promise.all(currentBatchPromises);
-            allObjContents.push(...results);
-            if (downloadQueue.length > 0) await downloadBatch();
-        };
+            return fetch(objUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error(`Failed to download ${objInfo.name} from Box.`);
+                    downloadedCount++;
+                    if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (${downloadedCount}/${totalFiles})...`;
+                    return res.text();
+                })
+                .then(content => ({ content, info: objInfo }));
+        });
 
-        await downloadBatch();
-        // // 2. Load the SINGLE MTL file ONCE
-        // if (loaderTextElement) loaderTextElement.textContent = `Loading Materials...`;
-        // const mtlContent = await fetchBoxFileContent(mtlFileInfo.id);
-        // const mtlLoader = new MTLLoader();
-        // const materialsCreator = mtlLoader.parse(mtlContent, '');
-        // materialsCreator.preload();
+        // Wait for all downloads to complete and filter out any that failed
+        const allObjContents = (await Promise.all(downloadPromises)).filter(Boolean);
+        
+        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry...`;
 
-        // // 3. **PERFORMANCE & RATE-LIMIT FIX**: Download all OBJ file contents in controlled parallel batches.
-        // if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (0/${objFileInfoList.length})...`;
-
-        // const CONCURRENT_DOWNLOADS = 8;  // Keep this number low (e.g., 4-10)
-        // const allObjContents = [];
-        // let downloadedCount = 0;
-
-        // // Create a copy of the list to use as a queue
-        // const downloadQueue = [...objFileInfoList];
-
-        // const downloadBatch = async () => {
-        //     const promises = [];
-        //     // Start up to CONCURRENT_DOWNLOADS downloads
-        //     while (downloadQueue.length > 0 && promises.length < CONCURRENT_DOWNLOADS) {
-        //         const objInfo = downloadQueue.shift(); // Get next file from queue
-        //         if (objInfo) {
-        //             const promise = fetchBoxFileContent(objInfo.id).then(content => {
-        //                 downloadedCount++;
-        //                 if (loaderTextElement) loaderTextElement.textContent = `Downloading Geometry (${downloadedCount}/${objFileInfoList.length})...`;
-        //                 return { content: content, info: objInfo };
-        //             });
-        //             promises.push(promise);
-        //         }
-        //     }
-        //     // Wait for this batch of promises to complete
-        //     const results = await Promise.all(promises);
-        //     allObjContents.push(...results); // Add results to the main array
-
-        //     // If there are more files in the queue, recurse to download the next batch
-        //     if (downloadQueue.length > 0) {
-        //         await downloadBatch();
-        //     }
-        // };
-
-        // await downloadBatch(); // Start the first batch
-
-        // 4. Parse the header from the FIRST downloaded OBJ file
+        // --- STEP 5: Parse OBJ header and all geometries ---
         if (allObjContents.length > 0) {
             const headerData = await parseObjHeader(allObjContents[0].content);
             if (headerData) {
@@ -299,143 +420,90 @@ async function loadModel(projectFolderId, projectName) {
                 parsedPJNo = headerData.pjNo;
             }
         }
-
-        // 5. Parse all OBJ geometries using the SAME material creator
-        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry...`;
         const objLoader = new OBJLoader();
         objLoader.setMaterials(materialsCreator);
+        const loadedObjects = allObjContents.map(objData => objLoader.parse(objData.content));
 
-        const loadedObjects = allObjContents.map(objData => {
-            return objLoader.parse(objData.content);
-        });
+        // --- STEP 6: Combine all parts into a single group, then center and scale it ---
+        loadedObjectModelRoot = new THREE.Group();
+        loadedObjects.forEach(object => loadedObjectModelRoot.add(...object.children));
 
-        // 6. Combine all loaded objects into a single group
-        const combinedModel = new THREE.Group();
-        loadedObjects.forEach(object => {
-            while (object.children.length > 0) {
-                combinedModel.add(object.children[0]);
-            }
-        });
-        loadedObjectModelRoot = combinedModel;
-
-        // 7. Process the COMBINED model (center, scale, rotate)
-        const initialBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
-        const initialCenter = initialBox.getCenter(new THREE.Vector3());
-        loadedObjectModelRoot.position.sub(initialCenter);
-        const scaledBox = new THREE.Box3().setFromObject(loadedObjectModelRoot);
-        const maxDim = Math.max(scaledBox.getSize(new THREE.Vector3()).x, scaledBox.getSize(new THREE.Vector3()).y, scaledBox.getSize(new THREE.Vector3()).z);
-        const desiredMaxDimension = 150;
-        if (maxDim > 0) {
-            const scale = desiredMaxDimension / maxDim;
-            loadedObjectModelRoot.scale.set(scale, scale, scale);
-        }
+        const box = new THREE.Box3().setFromObject(loadedObjectModelRoot);
+        const center = box.getCenter(new THREE.Vector3());
+        loadedObjectModelRoot.position.sub(center);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = (maxDim > 0) ? (150 / maxDim) : 1;
+        loadedObjectModelRoot.scale.set(scale, scale, scale);
         loadedObjectModelRoot.rotation.x = -Math.PI / 2;
 
-        // 8. Fetch category data for all parts
-        const allIds = [];
-        loadedObjectModelRoot.traverse(child => {
-            if (child.name) {
+        // --- STEP 7: Fetch all category data in batches to avoid server input limits ---
+        const allIds = [...new Set(
+            loadedObjectModelRoot.children
+            .map(child => {
                 const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
-                if (splitIndex > 0) allIds.push(child.name.substring(splitIndex + 1));
-            }
-        });
-        await fetchAllCategoryData(parsedWSCenID, [...new Set(allIds)]);
+                return splitIndex > 0 ? child.name.substring(splitIndex + 1) : null;
+            })
+            .filter(Boolean) // Filter out nulls
+        )];
+        await fetchAllCategoryData(parsedWSCenID, allIds);
 
-        // 9. Build the tree, add to scene, frame, and hide loader
+        // --- STEP 8: Finalize the scene and UI ---
         await buildAndPopulateCategorizedTree();
         scene.add(loadedObjectModelRoot);
         frameObject(loadedObjectModelRoot);
-        if (loaderContainer) loaderContainer.style.display = 'none';
         updateInfoPanel();
 
     } catch (error) {
         console.error(`Failed to load model for ${projectName}:`, error);
-        if (loaderContainer) loaderContainer.style.display = 'flex';
-        if (loaderTextElement) loaderTextElement.textContent = `Error loading model: ${projectName}. Check console.`;
+        if (loaderTextElement) loaderTextElement.textContent = `Error: ${error.message}. Check console for details.`;
+    } finally {
         if (loaderContainer) loaderContainer.style.display = 'none';
-    }
-}
-
-// This function now acts as a simple wrapper for your backend endpoint
-async function fetchBoxFileContent(fileId) {
-    // console.log("Fetching content for File ID:", fileId);
-    try {
-        const fileContent = await new Promise((resolve, reject) => {
-            $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getFileContents", // Your new backend route
-                data: { _token: CSRF_TOKEN, fileId: fileId },
-                success: resolve, // On success, resolve the promise with the raw text data
-                error: (jqXHR, textStatus, errorThrown) => {
-                    console.error(`AJAX error for file ID ${fileId}: ${textStatus} - ${errorThrown}`);
-                    if (loaderContainer) loaderContainer.style.display = 'none';
-
-                    // Reject with a meaningful error
-                    reject(new Error(`AJAX error for file ID ${fileId}: ${jqXHR.responseJSON ? JSON.stringify(jqXHR.responseJSON) : errorThrown}`));
-                }
-            });
-        });
-
-        // The promise resolves with the file content directly.
-        // We can add a simple check to see if we got something back.
-        if (typeof fileContent !== 'string' || fileContent.length === 0) {
-            throw new Error(`Received empty or invalid content for file ${fileId}`);
-        }
-        return fileContent; // Return the raw text content
-    } catch (error) {
-        console.error(`Failed inside fetchBoxFileContent for file ID ${fileId}:`, error);
-        // Re-throw the error so Promise.all in the main loader function can catch it
-        throw error;
     }
 }
 
 
 async function parseObjHeader(objContent) {
-    // This function now only parses and returns the values, not setting globals.
     try {
-        const lines = objContent.split(/\r?\n/);
-        if (lines.length > 0) {
-            const firstLine = lines[0].trim();
-            if (firstLine.startsWith("# ")) {
-                const content = firstLine.substring(2).trim();
-                const pattern1Match = content.match(/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})_([a-zA-Z0-9]+)$/);
-                if (pattern1Match) {
-                    return { wscenId: pattern1Match[1], pjNo: pattern1Match[2] };
-                }
-                if (content.includes("ワークシェアリングされてない")) {
-                    return { wscenId: "", pjNo: "" };
-                }
+        const firstLine = objContent.substring(0, objContent.indexOf('\n')).trim();
+        if (firstLine.startsWith("# ")) {
+            const content = firstLine.substring(2).trim();
+            const match = content.match(/^([0-9a-fA-F-]{36})_(\w+)$/);
+            if (match) {
+                return { wscenId: match[1], pjNo: match[2] };
+            }
+            if (content.includes("ワークシェアリングされてない")) {
+                return { wscenId: "", pjNo: "" };
             }
         }
     } catch (error) {
         console.error("Error parsing OBJ header:", error);
     }
-    return { wscenId: null, pjNo: null }; // Return nulls if no match
+    return { wscenId: null, pjNo: null };
 }
 
 async function fetchAllCategoryData(wscenId, allElementIds) {
-    if (allElementIds.length === 0) return;
-    const batchSize = 900;
+    if (!wscenId || allElementIds.length === 0) return;
+    
+    // This batching is crucial to prevent the "max_input_vars" PHP error.
+    const batchSize = 900; 
+    
     for (let i = 0; i < allElementIds.length; i += batchSize) {
         const batch = allElementIds.slice(i, i + batchSize);
         if (loaderTextElement) loaderTextElement.textContent = `Fetching Categories... (${i + batch.length}/${allElementIds.length})`;
-        await new Promise((resolve, reject) => {
-            $.ajax({
+        
+        try {
+            const data = await $.ajax({
                 type: "post",
                 url: url_prefix + "/DLDWH/getDatas",
-                data: { _token: CSRF_TOKEN, WSCenID: wscenId, ElementIds: batch },
-                success: (data) => {
-                    for (const elementId in data) {
-                        elementIdDataMap.set(elementId, data[elementId]);
-                    }
-                    resolve();
-                },
-                error: (err) => {
-                    console.error(`Error fetching batch starting at index ${i}:`, err);
-                    reject(err);
-                }
+                data: { _token: CSRF_TOKEN, WSCenID: wscenId, ElementIds: batch }
             });
-        });
+            for (const elementId in data) {
+                elementIdDataMap.set(elementId, data[elementId]);
+            }
+        } catch (err) {
+            console.error(`Error fetching category data batch starting at index ${i}:`, err);
+        }
     }
 }
 
@@ -573,33 +641,29 @@ function handleSelection(target) {
 
 const applyHighlight = (target, color) => {
     if (!target) return;
-    const meshesToHighlight = [];
-    if (target.isMesh) meshesToHighlight.push(target);
-    else if (target.isGroup) target.traverse(child => { if (child.isMesh) meshesToHighlight.push(child); });
-    meshesToHighlight.forEach(mesh => {
-        if (mesh.material) {
-            if (!originalMeshMaterials.has(mesh.uuid)) originalMeshMaterials.set(mesh.uuid, mesh.material);
-            if (Array.isArray(mesh.material)) {
-                mesh.material = mesh.material.map(originalMat => {
-                    const highlightMat = originalMat.clone();
-                    if (highlightMat.color) highlightMat.color.set(color);
-                    else if (highlightMat.emissive) highlightMat.emissive.set(color);
-                    return highlightMat;
-                });
-            } else {
-                const highlightMat = mesh.material.clone();
-                if (highlightMat.color) highlightMat.color.set(color);
-                else if (highlightMat.emissive) highlightMat.emissive.set(color);
-                mesh.material = highlightMat;
+    target.traverse(mesh => {
+        if (mesh.isMesh && mesh.material) {
+            if (!originalMeshMaterials.has(mesh.uuid)) {
+                originalMeshMaterials.set(mesh.uuid, mesh.material);
             }
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            const highlightedMaterials = materials.map(originalMat => {
+                const highlightMat = originalMat.clone();
+                if (highlightMat.color) highlightMat.color.set(color);
+                else if (highlightMat.emissive) highlightMat.emissive.set(color); // Fallback for certain materials
+                return highlightMat;
+            });
+            mesh.material = Array.isArray(mesh.material) ? highlightedMaterials : highlightedMaterials[0];
         }
     });
 };
 
 const removeAllHighlights = () => {
-    originalMeshMaterials.forEach((originalMaterialOrArray, meshUuid) => {
+    originalMeshMaterials.forEach((originalMaterial, meshUuid) => {
         const mesh = scene.getObjectByProperty('uuid', meshUuid);
-        if (mesh && mesh.isMesh) mesh.material = originalMaterialOrArray;
+        if (mesh && mesh.isMesh) {
+            mesh.material = originalMaterial;
+        }
     });
     originalMeshMaterials.clear();
 };
@@ -608,52 +672,41 @@ function zoomToAndIsolate(targetObject) {
     if (!targetObject) return;
     deIsolateAllObjects();
     isIsolateModeActive = true;
+
+    // Frame the object
     const box = new THREE.Box3().setFromObject(targetObject);
     if (box.isEmpty()) { isIsolateModeActive = false; return; }
     const center = box.getCenter(new THREE.Vector3());
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     const radius = sphere.radius;
     const fovInRadians = THREE.MathUtils.degToRad(camera.fov);
-    let distance = radius / Math.sin(fovInRadians / 2);
-    distance = distance * 1.5;
+    let distance = (radius / Math.sin(fovInRadians / 2)) * 1.5; // Zoom in a bit closer
     const offsetDirection = camera.position.clone().sub(controls.target).normalize();
-    if (offsetDirection.lengthSq() === 0) offsetDirection.set(0.5, 0.5, 1).normalize();
     camera.position.copy(center).addScaledVector(offsetDirection, distance);
     controls.target.copy(center);
-    controls.update();
+    
+    // Isolate effect
     loadedObjectModelRoot.traverse((object) => {
         if (object.isMesh) {
-            let isPartOfSelectedTarget = false;
-            let temp = object;
-            while (temp) {
-                if (temp === targetObject) { isPartOfSelectedTarget = true; break; }
-                temp = temp.parent;
-            }
-            if (!isPartOfSelectedTarget) {
+            let isPartOfSelection = false;
+            object.traverseAncestors(ancestor => {
+                if (ancestor.uuid === targetObject.uuid) isPartOfSelection = true;
+            });
+            if (object.uuid === targetObject.uuid) isPartOfSelection = true;
+
+
+            if (!isPartOfSelection) {
                 if (!originalObjectPropertiesForIsolate.has(object.uuid)) {
                     originalObjectPropertiesForIsolate.set(object.uuid, { material: object.material, visible: object.visible });
                 }
-                if (object.visible) {
-                    const materials = Array.isArray(object.material) ? object.material : [object.material];
-                    const newMaterials = materials.map(mat => {
-                        const newMat = mat.clone();
-                        newMat.transparent = true;
-                        newMat.opacity = 0.1;
-                        return newMat;
-                    });
-                    object.material = Array.isArray(object.material) ? newMaterials : newMaterials[0];
-                }
-            } else {
-                if (originalObjectPropertiesForIsolate.has(object.uuid)) {
-                    const props = originalObjectPropertiesForIsolate.get(object.uuid);
-                    object.material = props.material;
-                    object.visible = props.visible;
-                    originalObjectPropertiesForIsolate.delete(object.uuid);
-                } else {
-                    const materials = Array.isArray(object.material) ? object.material : [object.material];
-                    materials.forEach(mat => { mat.transparent = false; mat.opacity = 1.0; });
-                    object.visible = true;
-                }
+                const materials = Array.isArray(object.material) ? object.material : [object.material];
+                const newMaterials = materials.map(mat => {
+                    const newMat = mat.clone();
+                    newMat.transparent = true;
+                    newMat.opacity = 0.1;
+                    return newMat;
+                });
+                object.material = Array.isArray(object.material) ? newMaterials : newMaterials[0];
             }
         }
     });
@@ -673,9 +726,12 @@ function deIsolateAllObjects() {
 }
 
 function updateInfoPanel() {
-    // if (!objectInfoPanel) return;
+    if (!objectInfoPanel) return;
     let headerInfo = `WSCenID: ${parsedWSCenID || "N/A"}\nPJNo: ${parsedPJNo || "N/A"}\n----\n`;
-    if (parsedWSCenID === "" && parsedPJNo === "") headerInfo = `WSCenID: \nPJNo: \n----\n`;
+    if (parsedWSCenID === "" && parsedPJNo === "") {
+        headerInfo = `WSCenID: \nPJNo: \n----\n`;
+    }
+
     if (selectedObjectOrGroup) {
         let rawName = selectedObjectOrGroup.name || "Unnamed";
         let displayName = rawName;
@@ -684,9 +740,10 @@ function updateInfoPanel() {
         if (splitIndex > 0) {
             displayName = rawName.substring(0, splitIndex);
             displayId = rawName.substring(splitIndex + 1);
-        } else displayName = rawName;
+        }
+
         let selectionInfo = `名前: ${displayName}\nID: ${displayId}\n`;
-        if (displayId && elementIdDataMap.has(displayId)) {
+        if (displayId !== "N/A" && elementIdDataMap.has(displayId)) {
             const data = elementIdDataMap.get(displayId);
             selectionInfo += `\nカテゴリー名: ${data['カテゴリー名'] || "N/A"}\nファミリ名: ${data['ファミリ名'] || "N/A"}\nタイプ_ID: ${data['タイプ_ID'] || "N/A"}`;
         } else {
@@ -700,18 +757,25 @@ function updateInfoPanel() {
 
 // --- Event Listeners and Animation Loop ---
 window.addEventListener('click', (event) => {
-    if (!loadedObjectModelRoot || event.target.closest('#modelTreePanel')) return;
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    if (!loadedObjectModelRoot || event.target.closest('#modelTreePanel') || event.target.closest('#model-selector')) return;
+    
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(loadedObjectModelRoot.children, true);
+
     let newlyClickedTarget = null;
     if (intersects.length > 0) {
         let current = intersects[0].object;
-        while (current && current.parent !== loadedObjectModelRoot && current !== loadedObjectModelRoot && current.parent !== scene) {
+        // Traverse up to find the main group that is a direct child of the root model
+        while (current && current.parent !== loadedObjectModelRoot && current.parent !== scene) {
             current = current.parent;
         }
-        if (current) newlyClickedTarget = current;
+        if (current && current.parent === loadedObjectModelRoot) {
+            newlyClickedTarget = current;
+        }
     }
     handleSelection(newlyClickedTarget);
 });
@@ -723,74 +787,56 @@ if (modelTreeSearch) {
         const searchTerm = e.target.value.toLowerCase().trim();
         const allListItems = modelTreeList.querySelectorAll('li');
         allListItems.forEach(li => {
-            const itemContentDiv = li.querySelector('.tree-item');
-            if (!itemContentDiv) return;
-            const nameSpan = itemContentDiv.querySelector('.group-name');
+            const nameSpan = li.querySelector('.group-name');
+            const isCategory = li.parentElement === modelTreeList;
+            
             if (!nameSpan) return;
+
             const itemName = nameSpan.textContent.toLowerCase();
             const isMatch = itemName.includes(searchTerm);
 
-            if (isMatch) {
-                li.style.display = '';
+            li.style.display = isMatch ? '' : 'none';
+            
+            if (isMatch && !isCategory) {
+                 // If a child matches, ensure its parent category is visible
                 let parentLi = li.parentElement.closest('li');
-                while (parentLi) {
+                if (parentLi) {
                     parentLi.style.display = '';
                     const parentSubList = parentLi.querySelector('ul');
-                    if (parentSubList) parentSubList.style.display = 'block';
                     const parentToggler = parentLi.querySelector('.toggler:not(.empty-toggler)');
-                    if (parentToggler) parentToggler.textContent = '▼';
-                    parentLi = parentLi.parentElement.closest('li');
+                    if (searchTerm) { // Expand categories on search
+                         if (parentSubList) parentSubList.style.display = 'block';
+                         if (parentToggler) parentToggler.textContent = '▼';
+                    }
                 }
-            } else {
-                li.style.display = 'none';
             }
         });
-        if (searchTerm === "") {
-            allListItems.forEach(li => li.style.display = '');
-        }
     });
 }
 
-// --- NEW: Event listener for the UI Toggle Button (Request ③) ---
 if (toggleUiButton) {
     toggleUiButton.addEventListener('click', () => {
-        // Check the current visibility of one of the panels to decide the action
         const isVisible = modelTreePanel.style.display !== 'none';
-
         if (isVisible) {
-            // Hide panels
             if (modelTreePanel) modelTreePanel.style.display = 'none';
-            // if (objectInfoPanel) objectInfoPanel.style.display = 'none';
-            toggleUiButton.textContent = '📊'; // Change icon to "show"
+            toggleUiButton.textContent = '📊';
             toggleUiButton.title = "Show UI Panels";
         } else {
-            // Show panels
             if (modelTreePanel) modelTreePanel.style.display = 'block';
-            // if (objectInfoPanel) objectInfoPanel.style.display = 'block';
-            toggleUiButton.textContent = '❌'; // Change icon to "hide"
+            toggleUiButton.textContent = '❌';
             toggleUiButton.title = "Hide UI Panels";
         }
     });
 }
 
-// window.addEventListener('resize', () => {
-//     camera.aspect = window.innerWidth / window.innerHeight;
-//     camera.updateProjectionMatrix();
-//     renderer.setSize(window.innerWidth, window.innerHeight);
-// });
-
-// This function now correctly resizes the renderer based on its container's dimensions
 function onWindowResize() {
     const { clientWidth, clientHeight } = viewerContainer;
-
     camera.aspect = clientWidth / clientHeight;
     camera.updateProjectionMatrix();
-
     renderer.setSize(clientWidth, clientHeight);
 }
 window.addEventListener('resize', onWindowResize);
 
-// --- Event Listeners and Animation Loop ---
 if (modelSelector) {
     modelSelector.addEventListener('change', (event) => {
         const selectedId = event.target.value;
@@ -799,256 +845,9 @@ if (modelSelector) {
     });
 }
 
-
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
-    renderer.autoClearColor = false;
+    renderer.autoClearColor = false; // Important for custom background
     renderer.render(scene, camera);
 }
-
-
-In controller file
-<?php
-
-namespace App\Http\Controllers;
-
-use App\Models\DLDHWDataImportModel;
-use GuzzleHttp\Client;
-use GuzzleHttp\Cookie\CookieJar;
-use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Http\Request; // For API request
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\File;
-use App\Models\LoginModel;
-use Exception;
-use GuzzleHttp\Exception\ClientException;
-//old
-class DLDWHDataObjectViewerController extends Controller
-{
-    public function objViewer()
-    {
-        return view('DLDWH.OBJViewer');
-    }
-
-    /**
-     * get category name by elementId
-     * @param $request
-     * @return string
-     */
-    public function getCategoryNameByElementId(Request $request)
-    {
-        $WSCenID = $request->input('WSCenID');
-        $elementIds = $request->input('ElementIds');
-        $dldwhModle = new DLDHWDataImportModel();
-        return $dldwhModle->getCategoryNameByElementId($WSCenID, $elementIds);
-    }
-
-    /**
-     * NEW FUNCTION: Lists the sub-folders (projects) within a main Box folder.
-     * This will populate the dropdown menu.
-     */
-    public function getProjectList(Request $request)
-    {
-        $mainFolderId = $request->input('folderId');
-        if (session()->has('access_token')) {
-            $access_token = session('access_token');
-            if ($access_token == "") {
-                return "no_token";
-            }
-            if (session()->has('authority_id')) {
-                $login = new LoginModel();
-                $result = $login->GetBoxAuthority(session('authority_id'));
-                // $mainFolderId = "332324771912"; // folderId
-                // $this->getProjectListInfo($mainFolderId, $access_token);
-                // return "success";
-                log::info("FolderId : " . $mainFolderId);
-                log::info("accessToken : " . $access_token);
-
-                if (empty($mainFolderId) || empty($access_token)) {
-                    return response()->json(['error' => 'Folder ID and Access Token are required.'], 400);
-                }
-
-                try {
-                    $client = new Client(['verify' => false]); // Consider setting 'verify' to true in production with proper SSL certs
-                    $requestURL = "https://api.box.com/2.0/folders/" . $mainFolderId . "/items?fields=id,name";
-                    $header = [
-                        "Authorization" => "Bearer " . $access_token,
-                        "Accept" => "application/json"
-                    ];
-
-                    $response = $client->request('GET', $requestURL, ['headers' => $header]);
-                    $items = json_decode($response->getBody()->getContents())->entries;
-
-                    $projects = [];
-                    foreach ($items as $item) {
-                        if ($item->type == "folder") {
-                            $projects[] = [
-                                'id' => $item->id,       // The Folder ID (e.g., "12345" for "GF")
-                                'name' => $item->name,   // The Folder Name (e.g., "GF")
-                            ];
-                        }
-                    }
-                    return response()->json($projects);
-                } catch (Exception $e) {
-                    return response()->json(['error' => "Failed to read project list from Box: " . $e->getMessage()], 500);
-                }
-            }
-        } else {
-            return "no_token";
-        }
-    }
-
-    /**
-     * MODIFIED FUNCTION: Lists ALL OBJ/MTL files within a specific project folder on Box,
-     * handling pagination automatically.
-     */
-    public function getObjList(Request $request)
-    {
-        $projectFolderId = $request->input('folderId');
-        if (session()->has('access_token')) {
-            $accessToken = session('access_token');
-        }
-        if (empty($projectFolderId) || empty($accessToken)) {
-            return response()->json(['error' => 'Folder ID and Access Token are required.'], 400);
-        }
-
-        try {
-            $client = new Client(['verify' => false]);
-            $header = ["Authorization" => "Bearer " . $accessToken, "Accept" => "application/json"];
-
-            $limit = 1000;
-            $offset = 0;
-            $totalCount = 0;
-            $allFolderItems = [];
-
-            do {
-                $requestURL = "https://api.box.com/2.0/folders/" . $projectFolderId . "/items?fields=id,name&limit=" . $limit . "&offset=" . $offset;
-                $response = $client->request('GET', $requestURL, ['headers' => $header]);
-                $body = json_decode($response->getBody()->getContents());
-
-                if ($offset === 0) $totalCount = $body->total_count;
-                $allFolderItems = array_merge($allFolderItems, $body->entries);
-                $offset += $limit;
-            } while (count($allFolderItems) < $totalCount);
-
-            $objFiles = [];
-            $mtlFile = null;
-
-            // First, find the single MTL file in the folder
-            foreach ($allFolderItems as $item) {
-                if ($item->type == "file" && strtolower(pathinfo($item->name, PATHINFO_EXTENSION)) === 'mtl') {
-                    $mtlFile = ['id' => $item->id, 'name' => $item->name];
-                    break; // Assume there's only one
-                }
-            }
-
-            if ($mtlFile === null) {
-                return response()->json(['error' => 'No MTL file found in the specified folder.'], 404);
-            }
-
-            // Now, collect all OBJ files
-            foreach ($allFolderItems as $item) {
-                if ($item->type == "file" && strtolower(pathinfo($item->name, PATHINFO_EXTENSION)) === 'obj') {
-                    $objFiles[] = ['id' => $item->id, 'name' => $item->name];
-                }
-            }
-
-            return response()->json([
-                'mtl' => $mtlFile,
-                'objs' => $objFiles
-            ]);
-        } catch (Exception $e) {
-            return response()->json(['error' => "Failed to read file list from Box: " . $e->getMessage()], 500);
-        }
-    }
-
-
-    public function getFileContents(Request $request)
-    {
-        $fileId = $request->input('fileId');
-        $access_token = session('access_token');
-
-        if (empty($fileId) || empty($access_token)) {
-            return response()->json(['error' => 'File ID or Access Token is missing.'], 400);
-        }
-
-        try {
-            $client = new Client(['verify' => false]);
-            $requestURL = "https://api.box.com/2.0/files/" . $fileId . "/content";
-            $header = ["Authorization" => "Bearer " . $access_token];
-
-            $response = $client->request('GET', $requestURL, ['headers' => $header]);
-
-            // Return the raw file content directly
-            return $response->getBody()->getContents();
-            // $fileContent = $response->getBody()->getContents();
-            // return response($fileContent, 200)->header('Content-Type', 'text/plain');
-        } catch (ClientException $e) {
-            // --- THIS IS THE KEY IMPROVEMENT ---
-            // This specifically catches HTTP errors from the API call (like 401 Unauthorized)
-            $statusCode = $e->getResponse()->getStatusCode();
-            $boxErrorBody = $e->getResponse()->getBody()->getContents();
-            log::error("Box API ClientException for file ID {$fileId}: " . $boxErrorBody);
-
-            // Return a specific error message to the frontend
-            return response()->json([
-                'error' => 'Box API Error',
-                'status' => $statusCode,
-                'message' => 'Failed to fetch file from Box. The access token may have expired or permissions are insufficient.',
-                'box_response' => json_decode($boxErrorBody) // Send the actual Box error back
-            ], $statusCode); // Use the status code from Box
-
-        } catch (Exception $e) {
-            log::error("Generic error in getFileContents for file ID {$fileId}: " . $e->getMessage());
-            return response()->json(['error' => "An unexpected error has occurred on the server."], 500);
-        }
-    }
-
-    /**
-     * NEW FUNCTION: Gets temporary, pre-authenticated download URLs for multiple files from Box.
-     */
-    public function getDownloadUrls(Request $request)
-    {
-        $fileIds = $request->input('fileIds'); // Expecting an array of file IDs
-        $accessToken = session('access_token');
-
-        if (empty($fileIds) || !is_array($fileIds) || empty($accessToken)) {
-            return response()->json(['error' => 'File IDs array and Access Token are required.'], 400);
-        }
-
-        try {
-            $client = new Client(['verify' => false]);
-            $header = [
-                "Authorization" => "Bearer " . $accessToken,
-                "Accept" => "application/json"
-            ];
-
-            $downloadUrls = [];
-
-            // Box API for temporary download URLs does not support batching,
-            // so we must loop. But this is very fast as it's just metadata.
-            foreach ($fileIds as $fileId) {
-                // The '?fields=download_url' is an optimization to only get the URL
-                $requestURL = "https://api.box.com/2.0/files/" . $fileId . "?fields=download_url";
-
-                try {
-                    $response = $client->request('GET', $requestURL, ['headers' => $header]);
-                    $fileInfo = json_decode($response->getBody()->getContents());
-
-                    if (isset($fileInfo->download_url)) {
-                        $downloadUrls[$fileId] = $fileInfo->download_url;
-                    }
-                } catch (\GuzzleHttp\Exception\ClientException $e) {
-                    // Log the error for a specific file but continue for others
-                    Log::error("Box API error getting download URL for file ID {$fileId}: " . $e->getResponse()->getBody()->getContents());
-                }
-            }
-
-            return response()->json($downloadUrls);
-        } catch (Exception $e) {
-            return response()->json(['error' => "An error occurred while generating download URLs: " . $e->getMessage()], 500);
-        }
-    }
-}
-
