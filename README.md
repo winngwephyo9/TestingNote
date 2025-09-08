@@ -1,3 +1,122 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\DLDHWDataImportModel;
+use GuzzleHttp\Client;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Pool;
+use GuzzleHttp\Psr7\Request as GuzzleRequest;
+use GuzzleHttp\Psr7\Response;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Exception;
+
+class DLDWHDataObjectViewerController extends Controller
+{
+    public function objViewer()
+    {
+        return view('DLDWH.OBJViewer');
+    }
+
+    public function getCategoryNameByElementId(Request $request)
+    {
+        // ... (this function is correct and does not need changes)
+    }
+
+    public function getProjectList(Request $request)
+    {
+        // ... (this function is correct and does not need changes)
+    }
+
+    /**
+     * **MODIFIED FUNCTION**
+     * Lists all files in a folder and intelligently pairs OBJ files with their
+     * corresponding MTL files based on the filename.
+     */
+    public function getObjList(Request $request)
+    {
+        $projectFolderId = $request->input('folderId');
+        if (!session()->has('access_token') || empty(session('access_token'))) {
+            return response()->json(['error' => 'Access token is missing.'], 401);
+        }
+        $accessToken = session('access_token');
+
+        if (empty($projectFolderId)) {
+            return response()->json(['error' => 'Folder ID is required.'], 400);
+        }
+
+        try {
+            $client = new Client(['verify' => false]);
+            $header = ["Authorization" => "Bearer " . $accessToken];
+            $allFolderItems = [];
+            $offset = 0;
+            $limit = 1000;
+
+            do {
+                $requestURL = "https://api.box.com/2.0/folders/{$projectFolderId}/items?fields=id,name&limit={$limit}&offset={$offset}";
+                $response = $client->get($requestURL, ['headers' => $header]);
+                $body = json_decode($response->getBody()->getContents());
+                
+                if (isset($body->entries)) {
+                    $allFolderItems = array_merge($allFolderItems, $body->entries);
+                    $offset += count($body->entries);
+                } else {
+                    break;
+                }
+            } while ($offset < $body->total_count);
+
+            $fileMap = [];
+            // Group files by their base name (e.g., "model_part_1")
+            foreach ($allFolderItems as $item) {
+                if ($item->type == "file") {
+                    $baseName = pathinfo($item->name, PATHINFO_FILENAME);
+                    $extension = strtolower(pathinfo($item->name, PATHINFO_EXTENSION));
+
+                    if (!isset($fileMap[$baseName])) {
+                        $fileMap[$baseName] = [];
+                    }
+
+                    if ($extension === 'obj' || $extension === 'mtl') {
+                        $fileMap[$baseName][$extension] = ['id' => $item->id, 'name' => $item->name];
+                    }
+                }
+            }
+
+            $objMtlPairs = [];
+            // Create the pairs from the grouped map
+            foreach ($fileMap as $baseName => $extensions) {
+                // A valid pair must have an OBJ file. MTL is optional.
+                if (isset($extensions['obj'])) {
+                    $objMtlPairs[] = [
+                        'baseName' => $baseName,
+                        'obj' => $extensions['obj'],
+                        'mtl' => $extensions['mtl'] ?? null // Use null if no MTL file exists
+                    ];
+                }
+            }
+
+            if (empty($objMtlPairs)) {
+                return response()->json(['error' => 'No OBJ files found in the folder.'], 404);
+            }
+
+            // Return the new array of paired objects
+            return response()->json($objMtlPairs);
+
+        } catch (Exception $e) {
+            Log::error("Box API Error (getObjList): " . $e->getMessage());
+            return response()->json(['error' => "Failed to read file list from Box."], 500);
+        }
+    }
+
+
+    public function getDownloadUrls(Request $request)
+    {
+        // ... (this function is correct and does not need changes)
+    }
+}
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
@@ -31,10 +150,10 @@ const highlightColorSingle = new THREE.Color(0xa0c4ff);
 const elementIdDataMap = new Map();
 
 const BOX_MAIN_FOLDER_ID = "339110566808";
-// const BOX_MAIN_FOLDER_ID = "338717350878";
 var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
 
-// --- Scene Setup, Camera, Renderer, Lighting, Controls ---
+// --- Scene Setup ---
+// ... (No changes needed in this section)
 const scene = new THREE.Scene();
 const backgroundGeometry = new THREE.PlaneGeometry(2, 2, 1, 1);
 const backgroundMaterial = new THREE.ShaderMaterial({
@@ -46,16 +165,13 @@ const backgroundMaterial = new THREE.ShaderMaterial({
 const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
 backgroundMesh.renderOrder = -1;
 scene.add(backgroundMesh);
-
 const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20000);
 camera.position.copy(initialCameraPosition);
 camera.lookAt(initialCameraLookAt);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 viewerContainer.appendChild(renderer.domElement);
-
 const ambientLight = new THREE.AmbientLight(0x606060, 2);
 scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 2.5);
@@ -65,13 +181,12 @@ scene.add(directionalLight);
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.5);
 hemiLight.position.set(0, 50, 0);
 scene.add(hemiLight);
-
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-// --- Main Application Logic ---
 
+// --- Main Application Logic ---
 $(document).ready(function () {
     const login_user_id = $("#hidLoginID").val();
     if (typeof recordAccessHistory === 'function') {
@@ -89,7 +204,6 @@ async function populateProjectDropdown() {
             url: url_prefix + "/box/getProjectList",
             data: { _token: CSRF_TOKEN, folderId: BOX_MAIN_FOLDER_ID }
         });
-
         modelSelector.innerHTML = '';
         if (projects.includes("no_token")) {
             alert("BOXにログインされていないためobjファイルを取得きませんでした。");
@@ -101,104 +215,120 @@ async function populateProjectDropdown() {
                 option.textContent = project.name;
                 modelSelector.appendChild(option);
             });
-            // const modelToLoad = projects.length > 2 ? projects[2] : projects[0];
-            const modelToLoad = projects[1];
+            const modelToLoad = projects.length > 1 ? projects[1] : projects[0];
             loadModel(modelToLoad.id, modelToLoad.name);
         } else {
-            if (loaderTextElement) loaderTextElement.textContent = "No projects found in the main folder.";
+            if (loaderTextElement) loaderTextElement.textContent = "No projects found.";
         }
     } catch (error) {
         console.error("Failed to populate project dropdown:", error);
-        if (loaderTextElement) loaderTextElement.textContent = "Error fetching project list from Box.";
+        if (loaderTextElement) loaderTextElement.textContent = "Error fetching project list.";
     }
 }
 
+/**
+ * **FULLY REFACTORED FOR MULTIPLE MTLs**
+ * Loads a model by pairing each OBJ with its own MTL file.
+ */
 async function loadModel(projectFolderId, projectName) {
     resetScene();
     if (loaderContainer) loaderContainer.style.display = 'flex';
 
     try {
-        // --- STEP 1: Get file list ---
+        // --- STEP 1: Get list of OBJ/MTL pairs ---
         if (loaderTextElement) loaderTextElement.textContent = `Fetching file list for ${projectName}...`;
-        const fileList = await $.ajax({
+        const filePairs = await $.ajax({
             type: "post",
-            url: url_prefix + "/box/getObjList",
+            url: url_prefix + "/box/getObjList", // This now returns pairs
             data: { _token: CSRF_TOKEN, folderId: projectFolderId }
         });
-        if (!fileList || !fileList.mtl || !fileList.objs || fileList.objs.length === 0) {
-            throw new Error(`Incomplete file list for project "${projectName}".`);
+        if (!Array.isArray(filePairs) || filePairs.length === 0) {
+            throw new Error(`No valid OBJ files found for project "${projectName}".`);
         }
 
-        // --- STEP 2: Get all download URLs in batches ---
-        const allFileIds = [fileList.mtl.id, ...fileList.objs.map(f => f.id)];
+        // --- STEP 2: Collect all unique file IDs and get their download URLs ---
+        const allFilesToFetch = [];
+        filePairs.forEach(pair => {
+            if (pair.obj) allFilesToFetch.push(pair.obj);
+            if (pair.mtl) allFilesToFetch.push(pair.mtl);
+        });
+        const allFileIds = [...new Set(allFilesToFetch.map(f => f.id))];
         const downloadUrlMap = await fetchAllDownloadUrlsInBatches(allFileIds);
 
-        // --- STEP 3: Load materials ---
-        if (loaderTextElement) loaderTextElement.textContent = `Loading materials...`;
-        const mtlUrl = downloadUrlMap[fileList.mtl.id];
-        if (!mtlUrl) throw new Error(`Could not get download URL for the MTL file.`);
-        const mtlLoader = new MTLLoader();
-        const materialsCreator = await mtlLoader.loadAsync(mtlUrl);
-        materialsCreator.preload();
+        // --- STEP 3: Download content of ALL files (both OBJ and MTL) concurrently ---
+        const allFileContents = await downloadAllFilesWithConcurrency(allFilesToFetch, downloadUrlMap);
 
-        // --- STEP 4: Download all OBJs ---
-        const allObjContents = await downloadAllObjsWithConcurrency(fileList.objs, downloadUrlMap);
-        if (allObjContents.length === 0 && fileList.objs.length > 0) {
-            throw new Error("All geometry downloads failed. Check console for details.");
-        }
+        // --- STEP 4: Process each OBJ/MTL pair individually ---
+        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry and materials...`;
+        
+        const allLoadedObjects = [];
+        const contentMap = new Map(allFileContents.map(item => [item.info.id, item.content]));
 
-        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry...`;
-
-        // --- STEP 5: Parse header and geometries ---
-        if (allObjContents.length > 0) {
-            const headerData = await parseObjHeader(allObjContents[0].content);
+        // Parse header from the first valid OBJ file content we find
+        const firstObjContent = allFileContents.find(f => f.info.name.toLowerCase().endsWith('.obj'))?.content;
+        if (firstObjContent) {
+            const headerData = await parseObjHeader(firstObjContent);
             if (headerData) {
                 parsedWSCenID = headerData.wscenId;
                 parsedPJNo = headerData.pjNo;
             }
         }
-        const objLoader = new OBJLoader();
-        objLoader.setMaterials(materialsCreator);
-
-        const loadedObjects = allObjContents
-            .map(objData => {
-                try {
-                    if (objData && objData.content.trim() !== '') {
-                        return objLoader.parse(objData.content);
-                    }
-                    return null;
-                } catch (e) {
-                    console.error("Could not parse OBJ file:", { name: objData.info.name, error: e });
-                    return null;
+        
+        for (const pair of filePairs) {
+            try {
+                const objContent = contentMap.get(pair.obj.id);
+                if (!objContent || !objContent.trim()) {
+                    console.warn(`Skipping empty or missing OBJ file: ${pair.obj.name}`);
+                    continue;
                 }
-            })
-            .filter(Boolean);
 
-        // --- STEP 6: **VALIDATE GEOMETRY** and combine valid model parts ---
+                let materialsCreator = null;
+                if (pair.mtl) {
+                    const mtlContent = contentMap.get(pair.mtl.id);
+                    if (mtlContent && mtlContent.trim()) {
+                        const mtlLoader = new MTLLoader();
+                        materialsCreator = mtlLoader.parse(mtlContent, '');
+                    }
+                }
+
+                const objLoader = new OBJLoader();
+                if (materialsCreator) {
+                    objLoader.setMaterials(materialsCreator);
+                }
+                
+                const parsedGroup = objLoader.parse(objContent);
+                if (parsedGroup) {
+                    allLoadedObjects.push(parsedGroup);
+                }
+
+            } catch (e) {
+                console.error("Could not parse OBJ/MTL pair:", { name: pair.baseName, error: e });
+            }
+        }
+
+        // --- STEP 5: Validate and combine all loaded objects ---
         loadedObjectModelRoot = new THREE.Group();
-        const validationBox = new THREE.Box3(); // Re-use the same Box3 object for efficiency
+        const validationBox = new THREE.Box3();
 
-        loadedObjects.forEach(parsedGroup => {
+        allLoadedObjects.forEach(parsedGroup => {
             if (parsedGroup && parsedGroup.isGroup) {
-                const childrenToAdd = []; // Store valid children here
+                const childrenToAdd = [];
                 parsedGroup.children.forEach(child => {
                     if (child.isMesh && child.geometry) {
                         try {
-                            // This is the validation step. If the geometry is bad, it will throw an error.
                             validationBox.setFromObject(child);
-                            childrenToAdd.push(child); // If it succeeds, the child is valid.
+                            childrenToAdd.push(child);
                         } catch (e) {
-                            console.warn("Discarding object with invalid geometry (likely NaN values):", { name: child.name, error: e });
+                            console.warn("Discarding object with invalid geometry:", { name: child.name, error: e });
                         }
                     }
                 });
-                // Add all validated children to the main root group
                 loadedObjectModelRoot.add(...childrenToAdd);
             }
         });
-
+        
         if (loadedObjectModelRoot.children.length === 0) {
-            throw new Error("No valid objects could be loaded. The files may be empty or corrupted.");
+             throw new Error("No valid objects could be loaded. Files may be empty or corrupted.");
         }
 
         const box = new THREE.Box3().setFromObject(loadedObjectModelRoot);
@@ -210,18 +340,18 @@ async function loadModel(projectFolderId, projectName) {
         loadedObjectModelRoot.scale.set(scale, scale, scale);
         loadedObjectModelRoot.rotation.x = -Math.PI / 2;
 
-        // --- STEP 7: Fetch category data ---
+        // --- STEP 6: Fetch category data ---
         const allIds = [...new Set(
             loadedObjectModelRoot.children
-                .map(child => {
-                    const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
-                    return splitIndex > 0 ? child.name.substring(splitIndex + 1) : null;
-                })
-                .filter(Boolean)
+            .map(child => {
+                const splitIndex = Math.max(child.name.lastIndexOf('_'), child.name.lastIndexOf('＿'));
+                return splitIndex > 0 ? child.name.substring(splitIndex + 1) : null;
+            })
+            .filter(Boolean)
         )];
         await fetchAllCategoryData(parsedWSCenID, allIds);
 
-        // --- STEP 8: Finalize scene ---
+        // --- STEP 7: Finalize scene ---
         await buildAndPopulateCategorizedTree();
         scene.add(loadedObjectModelRoot);
         frameObject(loadedObjectModelRoot);
@@ -229,11 +359,55 @@ async function loadModel(projectFolderId, projectName) {
 
     } catch (error) {
         console.error(`Failed to load model for ${projectName}:`, error);
-        if (loaderTextElement) loaderTextElement.textContent = `Error: ${error.message}. Check console for details.`;
+        if (loaderTextElement) loaderTextElement.textContent = `Error: ${error.message}. Check console.`;
     } finally {
         if (loaderContainer) loaderContainer.style.display = 'none';
     }
 }
+
+// Renamed for clarity, logic is the same
+async function downloadAllFilesWithConcurrency(fileInfoList, downloadUrlMap, concurrencyLimit = 20) {
+    const queue = [...fileInfoList];
+    const allResults = [];
+    let downloadedCount = 0;
+    const totalFiles = fileInfoList.length;
+
+    const worker = async () => {
+        while (queue.length > 0) {
+            const fileInfo = queue.shift();
+            if (!fileInfo) continue;
+
+            const fileUrl = downloadUrlMap[fileInfo.id];
+            if (!fileUrl) {
+                console.warn(`Could not get download URL for ${fileInfo.name}, skipping.`);
+                continue;
+            }
+            
+            try {
+                const response = await fetch(fileUrl);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                const content = await response.text();
+                allResults.push({ content, info: fileInfo });
+
+                downloadedCount++;
+                if (loaderTextElement) {
+                    loaderTextElement.textContent = `Downloading Files (${downloadedCount}/${totalFiles})...`;
+                }
+            } catch (error) {
+                console.error(`Failed to download ${fileInfo.name}:`, error);
+            }
+        }
+    };
+
+    const workerPromises = [];
+    for (let i = 0; i < concurrencyLimit; i++) {
+        workerPromises.push(worker());
+    }
+    await Promise.all(workerPromises);
+    return allResults;
+}
+
+// ... (The rest of the file is unchanged. All helper functions below are correct.)
 
 function resetScene() {
     if (loadedObjectModelRoot) {
@@ -265,13 +439,11 @@ function resetScene() {
 async function fetchAllDownloadUrlsInBatches(allFileIds) {
     const allUrls = {};
     const batchSize = 250;
-
     for (let i = 0; i < allFileIds.length; i += batchSize) {
         const batch = allFileIds.slice(i, i + batchSize);
         if (loaderTextElement) {
             loaderTextElement.textContent = `Preparing secure downloads... (${i + batch.length}/${allFileIds.length})`;
         }
-
         try {
             const batchUrls = await $.ajax({
                 type: "post",
@@ -285,56 +457,6 @@ async function fetchAllDownloadUrlsInBatches(allFileIds) {
     }
     return allUrls;
 }
-
-async function downloadAllObjsWithConcurrency(objFileInfoList, downloadUrlMap, concurrencyLimit = 20) {
-    const queue = [...objFileInfoList];
-    const allResults = [];
-    let downloadedCount = 0;
-    const totalFiles = objFileInfoList.length;
-
-    const worker = async () => {
-        while (queue.length > 0) {
-            const objInfo = queue.shift();
-            if (!objInfo) continue;
-
-            const objUrl = downloadUrlMap[objInfo.id];
-            if (!objUrl) {
-                console.warn(`Could not get download URL for ${objInfo.name}, skipping.`);
-                continue;
-            }
-
-            try {
-                const response = await fetch(objUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                const content = await response.text();
-                allResults.push({ content, info: objInfo });
-
-                downloadedCount++;
-                if (loaderTextElement) {
-                    loaderTextElement.textContent = `Downloading Geometry (${downloadedCount}/${totalFiles})...`;
-                }
-            } catch (error) {
-                console.error(`Failed to download ${objInfo.name}:`, error);
-            }
-        }
-    };
-
-    const workerPromises = [];
-    for (let i = 0; i < concurrencyLimit; i++) {
-        workerPromises.push(worker());
-    }
-
-    await Promise.all(workerPromises);
-
-    return allResults;
-}
-
-
-
-
-// ... (The rest of the file from here down is UNCHANGED) ...
 
 async function parseObjHeader(objContent) {
     try {
@@ -689,60 +811,5 @@ function animate() {
 }
 
 
-  public function getObjList(Request $request)
-    {
-        $projectFolderId = $request->input('folderId');
-        if (!session()->has('access_token') || empty(session('access_token'))) {
-            return response()->json(['error' => 'Access token is missing.'], 401);
-        }
-        $accessToken = session('access_token');
-
-        if (empty($projectFolderId)) {
-            return response()->json(['error' => 'Folder ID is required.'], 400);
-        }
-
-        try {
-            $client = new Client(['verify' => false]);
-            $header = ["Authorization" => "Bearer " . $accessToken];
-            $allFolderItems = [];
-            $offset = 0;
-            $limit = 1000;
-
-            do {
-                $requestURL = "https://api.box.com/2.0/folders/{$projectFolderId}/items?fields=id,name&limit={$limit}&offset={$offset}";
-                $response = $client->get($requestURL, ['headers' => $header]);
-                $body = json_decode($response->getBody()->getContents());
-
-                if (isset($body->entries)) {
-                    $allFolderItems = array_merge($allFolderItems, $body->entries);
-                    $offset += count($body->entries);
-                } else {
-                    break;
-                }
-            } while ($offset < $body->total_count);
-
-            $objFiles = [];
-            $mtlFile = null;
-
-            foreach ($allFolderItems as $item) {
-                if ($item->type == "file") {
-                    $extension = strtolower(pathinfo($item->name, PATHINFO_EXTENSION));
-                    if ($extension === 'mtl' && $mtlFile === null) {
-                        $mtlFile = ['id' => $item->id, 'name' => $item->name];
-                    } elseif ($extension === 'obj') {
-                        $objFiles[] = ['id' => $item->id, 'name' => $item->name];
-                    }
-                }
-            }
-
-            if ($mtlFile === null) {
-                return response()->json(['error' => 'No MTL file found in the folder.'], 404);
-            }
-            return response()->json(['mtl' => $mtlFile, 'objs' => $objFiles]);
-        } catch (Exception $e) {
-            Log::error("Box API Error (getObjList): " . $e->getMessage());
-            return response()->json(['error' => "Failed to read file list from Box."], 500);
-        }
-    }
 
 
