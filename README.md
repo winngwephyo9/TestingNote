@@ -2,15 +2,82 @@
 
 namespace App\Models;
 
-use Illuminate.Database\Eloquent\Model;
-use Illuminate.Support\Facades\DB;
-use Illuminate\Support\Facades\Log; // Logをインポート
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * Class ModelFileCache
+ *
+ * @package App\Models
+ * @property int $id
+ * @property string $project_box_id
+ * @property string $file_name
+ * @property string $base_name
+ * @property string $box_file_id
+ * @property string $file_type
+ * @property string|null $content
+ * @property \Illuminate\Support\Carbon $box_modified_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
+class ModelFileCache extends Model
+{
+    /**
+     * このモデルが関連付けられるテーブル名。
+     *
+     * @var string
+     */
+    protected $table = 'model_file_cache';
+
+    /**
+     * マスアサインメント（一括代入）から保護する属性。
+     *
+     * $guardedプロパティに['id']を指定することで、id以外の全ての属性が
+     * 一括で代入可能になります。upsertメソッドを安全に使うために重要です。
+     *
+     * @var array
+     */
+    protected $guarded = ['id'];
+
+    /**
+     * モデルの日付として扱う属性。
+     *
+     * この設定により、'box_modified_at' カラムの値が自動的に
+     * Carbon（PHPの日時操作ライブラリ）インスタンスに変換されます。
+     * これにより、日付の比較などが容易になります。
+     *
+     * @var array
+     */
+    protected $dates = [
+        'box_modified_at',
+    ];
+
+    /**
+     * Eloquentのタイムスタンプを無効にするかどうか。
+     *
+     * テーブルに created_at と updated_at カラムが存在するため、
+     * この値は false のままにしておきます。
+     *
+     * @var bool
+     */
+    public $timestamps = true;
+}
+
+
+<?php
+
+namespace App\Models;
+
+// 作成したEloquentモデルをインポート
+use App\Models\ModelFileCache; 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
-use GuzzleHttp\Pool; // Poolをインポート
-use GuzzleHttp\Psr7\Request as GuzzleRequest; // Requestをインポート
-use GuzzleHttp\HandlerStack; // HandlerStackをインポート
-use GuzzleHttp\Middleware; // Middlewareをインポート
-use GuzzleHttp\Psr7\Response; // Responseをインポート
+use GuzzleHttp\Pool;
+use GuzzleHttp\Psr7\Request as GuzzleRequest;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Response;
 use Exception;
 
 class DLDHWDataImportModel extends Model
@@ -19,12 +86,20 @@ class DLDHWDataImportModel extends Model
 
     public function getCachedModelData($projectFolderId)
     {
-        // ... この関数は変更ありません ...
+        // 取得部分もEloquentモデルを使うように変更（任意ですが推奨）
+        $cachedFiles = ModelFileCache::where('project_box_id', $projectFolderId)
+                         ->get()
+                         ->groupBy('base_name');
+
+        if ($cachedFiles->isEmpty()) {
+            return ['error' => 'No cached model found. Please log in to Box to sync data for the first time.'];
+        }
+        
+        return $this->formatDataForFrontend($cachedFiles);
     }
 
     /**
-     * **【修正版】並列ダウンロードでタイムアウトを解決**
-     * Boxにログインしている時に、BoxとDBを同期し、最新のモデルデータを取得する
+     * **【最終修正版】バルクUPSERTでデータベースのタイムアウトを解決**
      */
     public function syncAndGetModelData($projectFolderId)
     {
@@ -34,11 +109,10 @@ class DLDHWDataImportModel extends Model
             $boxFilesById = collect($boxFiles)->keyBy('id');
 
             // 2. DBから現在のファイルリストを取得
-            $dbFiles = DB::table('model_file_cache')
-                         ->where('project_box_id', $projectFolderId)
+            $dbFiles = ModelFileCache::where('project_box_id', $projectFolderId)
                          ->get()
                          ->keyBy('box_file_id');
-
+            
             // 3. 更新または追加が必要なファイルのリストを作成
             $filesToUpdate = [];
             foreach ($boxFiles as $boxFile) {
@@ -52,33 +126,42 @@ class DLDHWDataImportModel extends Model
             if (!empty($filesToUpdate)) {
                 $downloadedContents = $this->fetchMultipleBoxFileContentsConcurrently($filesToUpdate);
 
-                // 5. ダウンロードしたコンテンツでDBを更新
+                // 5. **ここが重要：UPSERT用のデータ配列を作成**
+                $dataToUpsert = [];
                 foreach ($downloadedContents as $fileId => $content) {
                     $boxFile = $boxFilesById->get($fileId);
                     if ($boxFile) {
-                        DB::table('model_file_cache')->updateOrInsert(
-                            ['box_file_id' => $fileId],
-                            [
-                                'project_box_id' => $projectFolderId,
-                                'file_name' => $boxFile->name,
-                                'base_name' => pathinfo($boxFile->name, PATHINFO_FILENAME),
-                                'file_type' => strtolower(pathinfo($boxFile->name, PATHINFO_EXTENSION)),
-                                'content' => $content,
-                                'box_modified_at' => new \DateTime($boxFile->modified_at),
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]
-                        );
+                        $dataToUpsert[] = [
+                            'project_box_id' => $projectFolderId,
+                            'file_name' => $boxFile->name,
+                            'base_name' => pathinfo($boxFile->name, PATHINFO_FILENAME),
+                            'box_file_id' => $fileId, // upsertの検索キー
+                            'file_type' => strtolower(pathinfo($boxFile->name, PATHINFO_EXTENSION)),
+                            'content' => $content,
+                            'box_modified_at' => new \DateTime($boxFile->modified_at),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
                     }
+                }
+                
+                // 6. **1回のクエリで全てのデータを挿入・更新する**
+                if (!empty($dataToUpsert)) {
+                    ModelFileCache::upsert(
+                        $dataToUpsert, // [1] 挿入・更新するデータの配列
+                        ['box_file_id'], // [2] 一意のキー（このカラムで重複をチェックする）
+                        // [3] 重複があった場合に更新するカラムのリスト
+                        ['project_box_id', 'file_name', 'base_name', 'file_type', 'content', 'box_modified_at', 'updated_at']
+                    );
                 }
             }
             
-            // 6. Boxで削除されたファイルをDBから削除
+            // 7. Boxで削除されたファイルをDBから削除
             $boxFileIds = $boxFilesById->keys()->all();
             $dbFileIds = $dbFiles->keys()->all();
             $deletedIds = array_diff($dbFileIds, $boxFileIds);
             if (!empty($deletedIds)) {
-                DB::table('model_file_cache')->whereIn('box_file_id', $deletedIds)->delete();
+                ModelFileCache::whereIn('box_file_id', $deletedIds)->delete();
             }
 
         } catch (Exception $e) {
@@ -88,61 +171,8 @@ class DLDHWDataImportModel extends Model
         return $this->getCachedModelData($projectFolderId);
     }
     
-    // ... formatDataForFrontend, fetchFullBoxFileList は変更ありません ...
-
-    /**
-     * 【新規・ヘルパー】複数のファイルコンテンツをGuzzle Poolで並列ダウンロードする
-     */
-    private function fetchMultipleBoxFileContentsConcurrently($files)
-    {
-        $accessToken = session('access_token');
-        $downloadedContents = [];
-        
-        // --- 以前実装した、レート制限に対応するためのリトライ機能付きハンドラ ---
-        $stack = HandlerStack::create();
-        $stack->push(Middleware::retry(
-            function ($retries, $request, $response = null, $exception = null) {
-                if ($retries >= 5) return false;
-                if ($response && in_array($response->getStatusCode(), [429, 500, 502, 503, 504])) {
-                    Log::warning("Retrying request for content. Attempt: {$retries}");
-                    return true;
-                }
-                return false;
-            },
-            function ($retries, $response) {
-                if ($response->hasHeader('Retry-After')) {
-                    return (int)$response->getHeader('Retry-After')[0] * 1000;
-                }
-                return (int)pow(2, $retries) * 1000 + rand(0, 100);
-            }
-        ));
-
-        $client = new Client(['handler' => $stack, 'verify' => false]);
-        $header = ["Authorization" => "Bearer " . $accessToken];
-
-        // リクエストを生成するジェネレータ
-        $requests = function ($files) use ($header) {
-            foreach ($files as $file) {
-                $url = "https://api.box.com/2.0/files/{$file->id}/content";
-                yield $file->id => new GuzzleRequest('GET', $url, $header);
-            }
-        };
-
-        // プールを作成
-        $pool = new Pool($client, $requests($files), [
-            'concurrency' => 10, // 同時接続数
-            'fulfilled' => function ($response, $fileId) use (&$downloadedContents) {
-                $downloadedContents[$fileId] = $response->getBody()->getContents();
-            },
-            'rejected' => function ($reason, $fileId) {
-                Log::error("Failed to download content for file ID {$fileId}: " . $reason->getMessage());
-            },
-        ]);
-
-        // プールを実行
-        $promise = $pool->promise();
-        $promise->wait();
-        
-        return $downloadedContents;
-    }
+    // ... formatDataForFrontend, fetchFullBoxFileList, fetchMultipleBoxFileContentsConcurrently は変更ありません ...
 }
+
+
+
