@@ -16,13 +16,6 @@ use Exception;
 
 class DLDHWDataImportModel extends Model
 {
-    // ... 既存の getCategoryNameByElementId メソッドなど ...
-
-    public function getCachedModelData($projectFolderId)
-    {
-        // ... この関数は変更ありません ...
-    }
-
     /**
      * **【最終修正版】プレースホルダ上限と文字化け対策**
      */
@@ -30,15 +23,21 @@ class DLDHWDataImportModel extends Model
     {
         // PHPの内部エンコーディングをUTF-8に設定（文字化け対策）
         mb_internal_encoding('UTF-8');
+        // 多数のファイルをダウンロードするため、実行時間制限を無効化
         set_time_limit(0); 
 
+        Log::info("Starting sync process for project: {$projectFolderId}");
+
         try {
-            // ... ファイルリスト取得、更新リスト作成のロジックは変更ありません ...
+            // 1. Boxから最新のファイルリストを取得
             $boxFiles = $this->fetchFullBoxFileList($projectFolderId);
             $boxFilesById = collect($boxFiles)->keyBy('id');
+
+            // 2. DBから現在のファイルリストを取得
             $dbFiles = ModelFileCache::where('project_box_id', $projectFolderId)
                          ->get()->keyBy('box_file_id');
             
+            // 3. 更新または追加が必要なファイルのリストを作成
             $filesToUpdate = [];
             foreach ($boxFiles as $boxFile) {
                 $dbFile = $dbFiles->get($boxFile->id);
@@ -47,9 +46,13 @@ class DLDHWDataImportModel extends Model
                 }
             }
             
+            // 4. 更新が必要なファイルがあれば、並列でコンテンツをダウンロード
             if (!empty($filesToUpdate)) {
+                Log::info("Found " . count($filesToUpdate) . " files to update/insert. Starting download...");
                 $downloadedContents = $this->fetchMultipleBoxFileContentsConcurrently($filesToUpdate);
+                Log::info("Finished downloading " . count($downloadedContents) . " files.");
 
+                // 5. UPSERT用のデータ配列を作成
                 $dataToUpsert = [];
                 foreach ($downloadedContents as $fileId => $content) {
                     $boxFile = $boxFilesById->get($fileId);
@@ -57,8 +60,7 @@ class DLDHWDataImportModel extends Model
                         $dataToUpsert[] = [
                             'project_box_id' => $projectFolderId,
                             'file_name' => $boxFile->name,
-                            // base_nameもUTF-8として正しく扱われるように
-                            'base_name' => mb_convert_encoding(pathinfo($boxFile->name, PATHINFO_FILENAME), 'UTF-8'),
+                            'base_name' => pathinfo($boxFile->name, PATHINFO_FILENAME),
                             'box_file_id' => $fileId,
                             'file_type' => strtolower(pathinfo($boxFile->name, PATHINFO_EXTENSION)),
                             'content' => $content,
@@ -69,47 +71,42 @@ class DLDHWDataImportModel extends Model
                     }
                 }
                 
-                // =================================================================
-                //  ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-                //
-                //  **【重要】データをチャンクに分割してUpsertする**
-                //
+                // 6. データを500件ずつのチャンクに分割してUpsertする（プレースホルダ上限エラー回避）
                 if (!empty($dataToUpsert)) {
-                    Log::info("Upserting " . count($dataToUpsert) . " records in chunks...");
-                    
-                    // データを1000件ずつのチャンクに分割
-                    $chunks = array_chunk($dataToUpsert, 1000); 
+                    $chunks = array_chunk($dataToUpsert, 500); 
 
-                    foreach ($chunks as $chunk) {
+                    Log::info("Upserting " . count($dataToUpsert) . " records in " . count($chunks) . " chunks...");
+                    foreach ($chunks as $index => $chunk) {
                         ModelFileCache::upsert(
                             $chunk,
-                            ['box_file_id'],
-                            ['project_box_id', 'file_name', 'base_name', 'file_type', 'content', 'box_modified_at', 'updated_at']
+                            ['box_file_id'], // 一意キー
+                            ['project_box_id', 'file_name', 'base_name', 'file_type', 'content', 'box_modified_at', 'updated_at'] // 更新対象カラム
                         );
-                        Log::info("Upserted a chunk of " . count($chunk) . " records.");
+                        Log::info("Upserted chunk " . ($index + 1) . "/" . count($chunks) . " (" . count($chunk) . " records).");
                     }
-                    
                     Log::info("Upsert complete.");
                 }
-                //
-                //  ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-                // =================================================================
+            } else {
+                Log::info("No files need to be updated.");
             }
             
-            // ... 削除処理のロジックは変更ありません ...
+            // 7. Boxで削除されたファイルをDBから削除
             $boxFileIds = $boxFilesById->keys()->all();
             $dbFileIds = $dbFiles->keys()->all();
             $deletedIds = array_diff($dbFileIds, $boxFileIds);
             if (!empty($deletedIds)) {
+                Log::info("Deleting " . count($deletedIds) . " records from database...");
                 ModelFileCache::whereIn('box_file_id', $deletedIds)->delete();
+                Log::info("Deletion complete.");
             }
 
         } catch (Exception $e) {
-            Log::error("Box Sync Failed: " . $e->getMessage());
+            Log::error("Box Sync Failed: " . $e->getMessage(), ['exception' => $e]);
         }
         
+        Log::info("Sync process finished. Returning cached data.");
         return $this->getCachedModelData($projectFolderId);
     }
-    
-    // ... 他のヘルパー関数は変更ありません ...
+
+    // ... その他のヘルパー関数は変更ありません ...
 }
