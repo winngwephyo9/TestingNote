@@ -1,3 +1,5 @@
+[2025-09-12 15:23:14] local.INFO: Found 11126 files to update/insert. Starting download...  
+
   /**
      * 【新規】Boxにログインしていない時に、DBキャッシュからモデルデータを取得する
      */
