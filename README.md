@@ -101,3 +101,37 @@ async function loadModel(projectFolderId, projectName) {
         }
     }
 }
+
+
+
+/**
+ * 【新規】同期状態をサーバーに定期的に問い合わせる関数
+ */
+function startSyncStatusPolling(projectFolderId, projectName) {
+    // グローバル変数を設定
+    syncPollingInterval = setInterval(async () => {
+        try {
+            const response = await $.ajax({
+                type: "post",
+                url: url_prefix + "/box/getSyncStatus",
+                data: { _token: CSRF_TOKEN, folderId: projectFolderId }
+            });
+
+            if (response.sync_status === 'completed' || response.sync_status === 'failed') {
+                // ジョブが完了または失敗したら、ポーリングを停止
+                clearInterval(syncPollingInterval);
+                syncPollingInterval = null;
+                
+                if (loaderTextElement) loaderTextElement.textContent = `同期が完了しました。最新のモデルを読み込みます...`;
+                // 完了後にモデルを再読み込み
+                loadModel(projectFolderId, projectName);
+            }
+            // 'processing'の間はメッセージを変えずに次の問い合わせを待つ
+
+        } catch (error) {
+            console.error("Failed to get sync status:", error);
+            clearInterval(syncPollingInterval);
+            syncPollingInterval = null;
+        }
+    }, 10000); // 10秒ごと
+}
