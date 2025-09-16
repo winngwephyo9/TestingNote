@@ -1,137 +1,166 @@
-// ... グローバル変数と初期設定は変更なし ...
+<?php
 
-async function loadModel(projectFolderId, projectName) {
-    if (syncPollingInterval) {
-        clearInterval(syncPollingInterval);
-        syncPollingInterval = null;
+namespace App\Jobs;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use App\Models\DLDHWDataImportModel;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Exception;
+
+class SyncBoxProject implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    protected $projectFolderId;
+    protected $sessionData;
+
+    /**
+     * 新しいジョブインスタンスの生成
+     *
+     * @param string $projectFolderId
+     * @param array $sessionData
+     * @return void
+     */
+    public function __construct($projectFolderId, array $sessionData)
+    {
+        $this->projectFolderId = $projectFolderId;
+        $this->sessionData = $sessionData;
+    }
+
+    /**
+     * ジョブの実行
+     *
+     * このメソッドは、`php artisan queue:work`コマンドによって
+     * バックグラウンドで実行されます。
+     *
+     * @return void
+     */
+    public function handle()
+    {
+        $jobStatusKey = "sync-status-{$this->projectFolderId}";
+        Log::info("Job started for project: {$this->projectFolderId}");
+
+        // ジョブの実行中にトークンを管理するためにセッションを模倣
+        session($this->sessionData);
+
+        try {
+            // DLDHWDataImportModelの同期メソッドを呼び出す
+            $dldwhModel = new DLDHWDataImportModel();
+            $dldwhModel->syncAndGetModelData($this->projectFolderId);
+
+            // 成功したらキャッシュを削除（または'completed'に更新）
+            Cache::forget($jobStatusKey);
+            
+            Log::info("Successfully completed sync job for project: {$this->projectFolderId}");
+
+        } catch (Exception $e) {
+            // 失敗した場合もキャッシュを更新してフロントに知らせる
+            Cache::put($jobStatusKey, 'failed', now()->addHours(12));
+            Log::error("Sync job failed for project {$this->projectFolderId}: " . $e->getMessage(), ['exception' => $e]);
+            
+            // 例外を再スローしてジョブを失敗としてマークする
+            // これにより、failed_jobsテーブルに記録される
+            $this->fail($e);
+        }
+    }
+}
+
+
+
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\DLDHWDataImportModel;
+use App\Jobs\SyncBoxProject; // 作成したジョブをインポート
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+
+class DLDWHDataObjectViewerController extends Controller
+{
+    public function objViewer()
+    {
+        return view('DLDWH.OBJViewer');
     }
     
-    resetScene();
-    if (loaderContainer) loaderContainer.style.display = 'flex';
+    // ... getProjectList, getCategoryNameByElementId は変更なし ...
 
-    try {
-        if (loaderTextElement) loaderTextElement.textContent = `Fetching model data for ${projectName}...`;
-        
-        const response = await $.ajax({
-            type: "post",
-            url: url_prefix + "/box/getModelData",
-            data: { _token: CSRF_TOKEN, folderId: projectFolderId }
-        });
-
-        // =================================================================
-        //  ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        //
-        //  **【重要】レスポンスの構造に合わせてデータを取得**
-        //
-        const filePairs = response.objMtlPairs; 
-        const syncStatus = response.sync_status;
-        //
-        //  ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-        // =================================================================
-
-        if (syncStatus === 'processing') {
-            if (loaderTextElement) loaderTextElement.textContent = `サーバーで大規模なモデル同期中です... この処理には数十分かかる場合があります。`;
-            // キャッシュデータがあれば、それをまず表示する
-            if (filePairs && filePairs.length > 0) {
-                if (loaderTextElement) loaderTextElement.textContent += ` (現在、前回同期したデータを表示しています)`;
-                // この後の解析処理に進む
-            } else {
-                // キャッシュもない場合はポーリングを開始して待つ
-                startSyncStatusPolling(projectFolderId, projectName);
-                return; 
-            }
+    /**
+     * モデルデータを取得するためのメインAPI
+     * 同期ジョブを投入し、キャッシュの状態とデータを返す
+     */
+    public function getModelData(Request $request)
+    {
+        $projectFolderId = $request->input('folderId');
+        if (empty($projectFolderId)) {
+            return response()->json(['error' => 'Folder ID is required.'], 400);
         }
-        if (syncStatus === 'failed') {
-            // 失敗した場合でも、キャッシュデータがあれば表示を試みる
-            if (loaderTextElement) loaderTextElement.textContent = `前回の同期に失敗しました。管理者にご確認ください。`;
-        }
-        
-        // --- ここからモデルのロード処理 ---
-        if (!Array.isArray(filePairs) || filePairs.length === 0) {
-            // 同期中でなく、キャッシュもない場合はエラー
-            if (syncStatus !== 'processing') {
-                throw new Error(response.error || `No model data found for project "${projectName}".`);
-            }
-            return;
-        }
-        
-        if (loaderTextElement) loaderTextElement.textContent = `Processing geometry and materials...`;
 
-        // ... この後の解析、結合、スケーリング、カテゴリ取得、UI構築のロジックは全て変更ありません ...
-        
-        const allLoadedObjects = [];
-        const firstObjContent = filePairs.find(p => p.obj)?.obj.content;
-        if (firstObjContent) {
-            const headerData = await parseObjHeader(firstObjContent);
-            if (headerData) {
-                parsedWSCenID = headerData.wscenId;
-                parsedPJNo = headerData.pjNo;
+        $jobStatusKey = "sync-status-{$projectFolderId}";
+
+        // Boxにログインしているかチェック
+        if (session()->has('access_token') && !empty(session('access_token'))) {
+            // 現在、このプロジェクトの同期ジョブが実行中でないかチェック
+            if (!Cache::has($jobStatusKey)) {
+                Log::info("Dispatching SyncBoxProject job for project: {$projectFolderId}");
+                
+                // ジョブ投入前に「実行中」の状態をキャッシュに保存（有効期限12時間）
+                Cache::put($jobStatusKey, 'processing', now()->addHours(12));
+
+                // ジョブに渡すセッションデータを準備
+                $sessionData = [
+                    'access_token' => session('access_token'),
+                    'refresh_token' => session('refresh_token')
+                ];
+
+                // ジョブをキューに投入する
+                SyncBoxProject::dispatch($projectFolderId, $sessionData);
             }
         }
         
-        // ... (forループでの解析処理) ...
-        
-        // ... (ジオメトリ検証と結合) ...
-        
-        // ... (スケーリングと回転) ...
+        $dldwhModel = new DLDHWDataImportModel();
+        $modelData = $dldwhModel->getCachedModelData($projectFolderId);
 
-        // ... (カテゴリデータ取得) ...
+        // レスポンス構造を統一
+        $responseData = [
+            'sync_status' => Cache::get($jobStatusKey, 'completed'),
+            'objMtlPairs' => [],
+        ];
+
+        if (isset($modelData['error'])) {
+            $responseData['error'] = $modelData['error'];
+        } else {
+            $responseData['objMtlPairs'] = $modelData;
+        }
         
-        await buildAndPopulateCategorizedTree();
-        scene.add(loadedObjectModelRoot);
-        frameObject(loadedObjectModelRoot);
-        updateInfoPanel();
-        
-        // もし裏で同期が進んでいるなら、ポーリングを開始する
-        if(syncStatus === 'processing'){
-            startSyncStatusPolling(projectFolderId, projectName);
+        return response()->json($responseData);
+    }
+
+    /**
+     * フロントエンドが同期状態を問い合わせるためのAPI
+     */
+    public function getSyncStatus(Request $request)
+    {
+        $projectFolderId = $request->input('folderId');
+        if (empty($projectFolderId)) {
+            return response()->json(['sync_status' => 'error', 'message' => 'Folder ID is required.'], 400);
         }
 
-    } catch (error) {
-        console.error(`Failed to load model for ${projectName}:`, error.responseText || error);
-        let errorMessage = `Error: ${error.message || 'An unknown error occurred'}.`;
-        if (error.responseJSON && error.responseJSON.error) {
-            errorMessage = `Error: ${error.responseJSON.error}`;
-        }
-        if (loaderTextElement) loaderTextElement.textContent = errorMessage;
-    } finally {
-        // ポーリング中でなければローダーを隠す
-        if (!syncPollingInterval) {
-            if (loaderContainer) loaderContainer.style.display = 'none';
-        }
+        $jobStatusKey = "sync-status-{$projectFolderId}";
+        $status = Cache::get($jobStatusKey, 'completed');
+
+        return response()->json(['sync_status' => $status]);
     }
 }
 
 
 
-/**
- * 【新規】同期状態をサーバーに定期的に問い合わせる関数
- */
-function startSyncStatusPolling(projectFolderId, projectName) {
-    // グローバル変数を設定
-    syncPollingInterval = setInterval(async () => {
-        try {
-            const response = await $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getSyncStatus",
-                data: { _token: CSRF_TOKEN, folderId: projectFolderId }
-            });
 
-            if (response.sync_status === 'completed' || response.sync_status === 'failed') {
-                // ジョブが完了または失敗したら、ポーリングを停止
-                clearInterval(syncPollingInterval);
-                syncPollingInterval = null;
-                
-                if (loaderTextElement) loaderTextElement.textContent = `同期が完了しました。最新のモデルを読み込みます...`;
-                // 完了後にモデルを再読み込み
-                loadModel(projectFolderId, projectName);
-            }
-            // 'processing'の間はメッセージを変えずに次の問い合わせを待つ
 
-        } catch (error) {
-            console.error("Failed to get sync status:", error);
-            clearInterval(syncPollingInterval);
-            syncPollingInterval = null;
-        }
-    }, 10000); // 10秒ごと
-}
+
