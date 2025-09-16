@@ -1,52 +1,163 @@
-**注意:** このロジックを機能させるには、`.env`ファイルにBoxアプリの`BOX_CLIENT_ID`と`BOX_CLIENT_SECRET`を設定する必要があります。また、ログイン時にリフレッシュトークンもセッションに保存するように、既存のログイン処理を修正する必要があります。
-
-#### ステップ6：コントローラーを修正して、ジョブを投入する
-
-最後に、`DLDWHDataObjectViewerController`を修正し、重い同期処理を直接実行する代わりに、作成したジョブをキューに投入するようにします。
-
-**`DLDWHDataObjectViewerController.php` （`getModelData`のみ修正）**
-```php
 <?php
 
-namespace App\HttpControllers;
+namespace App\Models;
 
-use App\Models\DLDHWDataImportModel;
-use App\Jobs\SyncBoxProject; // 作成したジョブをインポート
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+// ... 他に必要なuse文 ...
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Promise\EachPromise;
+use GuzzleHttp\Psr7\Request as GuzzleRequest;
+use GuzzleHttp\Psr7\Response;
+use Illuminate-Support-Facades-Log;
+use Exception;
 
-class DLDWHDataObjectViewerController extends Controller
+class DLDHWDataImportModel extends Model
 {
-    public function getModelData(Request $request)
+    // ... getCachedModelData, syncAndGetModelData, formatDataForFrontend, fetchFullBoxFileList は変更ありません ...
+    
+    /**
+     * 【修正版】トークン切れに対応し、自動リフレッシュとリトライを行う堅牢な並列ダウンロード関数
+     */
+    private function fetchMultipleBoxFileContentsConcurrently($files)
     {
-        $projectFolderId = $request->input('folderId');
-        if (empty($projectFolderId)) {
-            return response()->json(['error' => 'Folder ID is required.'], 400);
+        $downloadedContents = [];
+        $tokenExpiredAndRefreshed = false; // トークンを一度リフレッシュしたかどうかのフラグ
+
+        // 無限ループを防ぐための試行回数カウンター
+        $maxRetries = 2; 
+        $attempt = 1;
+
+        while ($attempt <= $maxRetries) {
+            
+            // 常にセッションから最新のアクセストークンを取得
+            $accessToken = session('access_token');
+            if (empty($accessToken)) {
+                Log::error("No access token available for download.");
+                return ['status' => 'error', 'message' => 'No access token.', 'contents' => []];
+            }
+
+            $tokenExpiredInThisAttempt = false; // この試行でトークンが切れたかどうかのフラグ
+            
+            $client = new Client(['verify' => false]);
+            $header = ["Authorization" => "Bearer " . $accessToken];
+
+            // ダウンロードが成功していないファイルのリストを毎回作成
+            $remainingFiles = array_filter($files, function ($file) use ($downloadedContents) {
+                return !isset($downloadedContents[$file->id]);
+            });
+
+            if (empty($remainingFiles)) {
+                break; // ダウンロードが全て完了したらループを抜ける
+            }
+
+            Log::info("Download attempt #{$attempt}. Remaining files: " . count($remainingFiles));
+
+            $requests = function ($files) use ($header) {
+                foreach ($files as $file) {
+                    $url = "https://api.box.com/2.0/files/{$file->id}/content";
+                    yield $file->id => new GuzzleRequest('GET', $url, $header);
+                }
+            };
+            
+            $promise = (new EachPromise($requests($remainingFiles), [
+                'concurrency' => 10,
+                'fulfilled' => function ($response, $fileId) use (&$downloadedContents) {
+                    $downloadedContents[$fileId] = $response->getBody()->getContents();
+                },
+                'rejected' => function ($reason, $fileId) use (&$tokenExpiredInThisAttempt, &$promise) {
+                    if ($reason instanceof ClientException && $reason->getResponse()->getStatusCode() == 401) {
+                        Log::warning("Box token expired (401) during download of file ID {$fileId}.");
+                        $tokenExpiredInThisAttempt = true; // この試行でトークンが切れたことを記録
+                        if (method_exists($promise, 'cancel')) {
+                            $promise->cancel(); // 残りのダウンロードをキャンセルして、速やかにループの次のステップに進む
+                        }
+                    } else {
+                        Log::error("Failed to download content for file ID {$fileId}: " . $reason->getMessage());
+                    }
+                }
+            ]))->promise();
+
+            try {
+                $promise->wait();
+            } catch(Exception $e) {
+                 Log::error("An unexpected error occurred during Guzzle execution: " . $e->getMessage());
+                 return ['status' => 'error', 'message' => $e->getMessage(), 'contents' => []];
+            }
+            
+            // --- ループの最後にトークン切れをチェック ---
+            if ($tokenExpiredInThisAttempt) {
+                Log::info("Attempting to refresh Box token...");
+                $newAccessToken = $this->refreshBoxToken();
+
+                if (!$newAccessToken) {
+                    Log::error("Failed to refresh Box token. Aborting sync process.");
+                    return ['status' => 'error', 'message' => 'Failed to refresh token.', 'contents' => $downloadedContents];
+                }
+                
+                Log::info("Token refreshed successfully. Continuing download process.");
+                $attempt++; // 次の試行へ
+                continue; // ループの最初に戻って、残りのファイルのダウンロードを再開
+            }
+            
+            // トークン切れが発生しなかった場合、正常に終了
+            break;
         }
 
-        $dldwhModel = new DLDHWDataImportModel();
-        
-        // Boxにログインしているかチェック
-        if (session()->has('access_token') && !empty(session('access_token'))) {
-            // 【重要】同期ジョブをキューに投入する
-            Log::info("Dispatching SyncBoxProject job for project: {$projectFolderId}");
-            SyncBoxProject::dispatch(
-                $projectFolderId,
-                session('access_token'),
-                session('refresh_token') // リフレッシュトークンも渡す
-            );
-
-            // ここでは同期の完了を待たずに、すぐにレスポンスを返すことも可能
-            // 例えば、「同期を開始しました」というメッセージと共に、古いキャッシュを表示する
-        }
-        
-        // 常にDBキャッシュからデータを取得して返す（ジョブはバックグラウンドで動く）
-        $data = $dldwhModel->getCachedModelData($projectFolderId);
-
-        if (isset($data['error'])) {
-            return response()->json($data, 404);
-        }
-        return response()->json($data);
+        return ['status' => 'success', 'contents' => $downloadedContents];
     }
-    // ... その他の関数 ...
+    
+    /**
+     * 【新規】Boxのアクセストークンをリフレッシュするヘルパーメソッド
+     */
+    private function refreshBoxToken()
+    {
+        try {
+            // **重要**: ジョブ内でセッションを扱う場合、ヘルパー関数を使うのが安全
+            $refreshToken = session('refresh_token');
+            
+            if (!$refreshToken) {
+                Log::error("No refresh token found in session.");
+                return null;
+            }
+
+            // .envファイルからクライアントIDとシークレットを取得
+            $clientId = env('BOX_CLIENT_ID');
+            $clientSecret = env('BOX_CLIENT_SECRET');
+
+            if (!$clientId || !$clientSecret) {
+                Log::error("BOX_CLIENT_ID or BOX_CLIENT_SECRET is not set in .env file.");
+                return null;
+            }
+
+            $client = new Client(['verify' => false]);
+            $response = $client->post('https://api.box.com/oauth2/token', [
+                'form_params' => [
+                    'grant_type' => 'refresh_token',
+                    'refresh_token' => $refreshToken,
+                    'client_id' => $clientId,
+                    'client_secret' => $clientSecret,
+                ]
+            ]);
+
+            $data = json_decode($response->getBody()->getContents());
+            
+            if (isset($data->access_token) && isset($data->refresh_token)) {
+                // 新しいトークンをセッションに保存
+                session(['access_token' => $data->access_token]);
+                session(['refresh_token' => $data->refresh_token]);
+                
+                Log::info("Successfully refreshed Box tokens.");
+                return $data->access_token;
+            } else {
+                Log::error("Refresh token response did not contain new tokens.");
+                return null;
+            }
+
+        } catch (Exception $e) {
+            Log::error("Exception occurred while refreshing Box token: " . $e->getMessage());
+            return null;
+        }
+    }
 }
