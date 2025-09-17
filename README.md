@@ -1,1 +1,3 @@
-, 2025-09-17 17:28:19, 240628_パナソニックエナジー西門真地区_2022__ｼﾞｪﾝﾀﾞｰﾚｽ 更衣室 542_15209798_20250912.obj, obj, 341287005287, パナ, 2025-09-17 17:28:19) on duplicate key update `project_box_id` = values(`project_box_id`), `project_name` = values(`project_name`), `file_name` = values(`file_name`), `base_name` = values(`base_name`), `file_type` = values(`file_type`), `content` = values(`content`), `box_modified_at` = values(`box_modified_at`), `updated_at` = values(`updated_at`)) in C:\\xampp\\htdocs\\CCC\\ccc\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:712
+ALTER TABLE model_file_cache
+    MODIFY `file_name` TEXT,
+    MODIFY `base_name` TEXT;
