@@ -1,200 +1,299 @@
-<?php
+/* ajax通信トークン定義 */
+var CSRF_TOKEN = $('meta[name="csrf-token"]').attr('content');
+var logContent = "";
+var fileNames;
+var folderNames;
+var successMessage;
 
-namespace App\Models;
+$(document).ready(function () {
+    var login_user_id = $("#hidLoginID").val();
+    var img_src = "/DL_DWH.png";
+    var url = "DLDWHDataImport/index";
+    var content_name = "情報データ取込";
+    recordAccessHistory(login_user_id, img_src, url, content_name);
+    showUpdateHistory();
 
-use App\Models\ModelFileCache;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-use GuzzleHttp\Client;
-use GuzzleHttp\Pool;
-use GuzzleHttp\Exception\ClientException;
-use Illuminate\Support\Carbon;
-use Exception;
-use Throwable;
+});
 
-class DLDHWDataImportModel extends Model
-{
-    public function getCategoryNameByElementId($WSCenID, $elementIds)
-    {
-        // ... (このメソッドは変更なし) ...
-    }
-    
-    public function getCachedProjectList()
-    {
-        $projects = ModelFileCache::select('project_box_id', 'project_name')
-            ->whereNotNull('project_name')->distinct()->get()
-            ->map(function ($file) {
-                return ['id' => $file->project_box_id, 'name' => $file->project_name];
+/**
+ * showUpdateHistory
+ * 
+ * 取込履歴の表示
+ */
+function showUpdateHistory() {
+    var loginUserName = $("#hiddenLoginUser").val();
+    $.ajax({
+        type: "get",
+        url: url_prefix + "/DLDWH/updateHistory",
+        success: function (data) {
+            if (data != null && data.length != 0) {
+                var latestIndex = data.length - 1;
+                var appendStr = "";
+                var userName = data[latestIndex]["login_user"];
+                var updating = data[latestIndex]["update_date"];
+                var updateHistory = userName + " さんが " + updating + " に取り込みをしました。";
+
+                appendStr += "<div class='dropdown'>";
+                appendStr += "<div class='select'>";
+                appendStr += "<i class='fa fa-chevron-left'></i>";
+                appendStr += "<span>" + updateHistory + "</span>";
+                appendStr += "</div>";
+                appendStr += "<ul class='dropdown-menu'>";
+
+                for (var i = latestIndex - 1; i >= 0; i--) {
+                    var tmp_id = data[i]["id"];
+                    var tmp_userName = data[i]["login_user"];
+                    var tmp_updating = data[i]["update_date"];
+                    var tmp_updateHistory = tmp_userName + " さんが " + tmp_updating + " に取り込みをしました。";
+
+                    appendStr += "<li id='updateHistory" + tmp_id + "'>" + tmp_updateHistory + "</li>";
+                }
+
+                appendStr += "</ul>";
+                appendStr += "</div>&nbsp";
+
+                $('#update_history').empty();
+                $('#update_history').append(appendStr);
+
+
+            } else {
+                var appendStr = "<span>取り込み履歴はありません。</span>";
+                $('#update_history').empty();
+                $('#update_history').append(appendStr);
+            }
+
+            /*Dropdown Menu*/
+            $('.dropdown').click(function () {
+                $(this).attr('tabindex', 1).focus();
+                $(this).toggleClass('active');
+                $(this).find('.dropdown-menu').slideToggle(300);
             });
-        return $projects->sortBy('name')->values();
-    }
+            $('.dropdown').focusout(function () {
+                $(this).removeClass('active');
+                $(this).find('.dropdown-menu').slideUp(300);
+            });
 
-    public function getCachedModelData($projectFolderId)
-    {
-        $cachedFiles = ModelFileCache::where('project_box_id', $projectFolderId)->get()->groupBy('base_name');
-        if ($cachedFiles->isEmpty()) {
-            return ['error' => 'No cached model found. Please log in to Box to sync data.'];
+        },
+        error: function (err) {
+            console.log(err);
         }
-        return $this->formatDataForFrontend($cachedFiles);
-    }
-    
-    private function formatDataForFrontend($groupedFiles)
-    {
-        $objMtlPairs = [];
-        foreach ($groupedFiles as $baseName => $files) {
-            $objFile = $files->firstWhere('file_type', 'obj');
-            $mtlFile = $files->firstWhere('file_type', 'mtl');
-            if ($objFile) {
-                $objMtlPairs[] = [
-                    'baseName' => $baseName,
-                    'obj' => ['name' => $objFile->file_name, 'content' => $objFile->content],
-                    'mtl' => $mtlFile ? ['name' => $mtlFile->file_name, 'content' => $mtlFile->content] : null
-                ];
-            }
-        }
-        return $objMtlPairs;
-    }
+    });
+}
 
-    public function syncAndGetModelData($projectFolderId)
-    {
-        mb_internal_encoding('UTF-8');
-        set_time_limit(0); 
-
-        try {
-            $accessToken = session('access_token');
-            if (empty($accessToken)) throw new Exception("Box access token is missing.");
-            
-            $client = new Client(['verify' => false]);
-            $header = ["Authorization" => "Bearer " . $accessToken];
-            $folderInfoUrl = "https://api.box.com/2.0/folders/{$projectFolderId}?fields=name";
-            $folderInfoResponse = $client->get($folderInfoUrl, ['headers' => $header]);
-            $projectName = json_decode($folderInfoResponse->getBody()->getContents())->name;
-            
-            $boxFiles = $this->fetchFullBoxFileList($projectFolderId, $accessToken, $client);
-            $boxFilesById = collect($boxFiles)->keyBy('id');
-            $dbFiles = ModelFileCache::where('project_box_id', $projectFolderId)->get()->keyBy('box_file_id');
-            
-            $filesToUpdate = [];
-            foreach ($boxFiles as $boxFile) {
-                $dbFile = $dbFiles->get($boxFile['id']);
-                if (!$dbFile) {
-                    $filesToUpdate[] = $boxFile;
-                    continue;
-                }
-                $boxModifiedAtJst = Carbon::parse($boxFile['modified_at'])->setTimezone('Asia/Tokyo')->startOfSecond();
-                $dbModifiedAtJst = $dbFile->box_modified_at->startOfSecond();
-                if ($dbModifiedAtJst->lt($boxModifiedAtJst)) {
-                    $filesToUpdate[] = $boxFile;
+/**
+ * importData
+ * 
+ * データベースにcsvデータを取り込む
+ */
+function importData() {
+    var loginUserName = $("#hiddenLoginUser").val();
+    // console.log(loginUserName);
+    showLoading();
+    $.ajax({
+        type: "post",
+        url: url_prefix + "/DLDWH/excel/import",
+        data: { _token: CSRF_TOKEN, loginUserName: loginUserName },
+        success: function (data) {
+            console.log(data);
+            if (data.token === "no_token") {
+                hideLoading();
+                alert("BOXにログインされていないため更新できませんでした。");
+            } else {
+                if (data.isfinishJob) {
+                    console.log("finish job. no file upload.");
+                    document.getElementById("result").innerHTML = "最新版のファイルがありません。";
+                    hideLoading();
+                } else {
+                    console.log("The job is not yet finished.");
+                    checkJobStatus();
                 }
             }
-            
-            if (!empty($filesToUpdate)) {
-                $updateChunks = array_chunk($filesToUpdate, 200);
-                foreach ($updateChunks as $chunkOfFiles) {
-                    $result = $this->fetchMultipleBoxFileContentsConcurrently($chunkOfFiles, $client);
-                    if ($result['status'] === 'error') throw new Exception($result['message']);
-                    
-                    $downloadedContents = $result['contents'];
-                    $dataToUpsert = [];
-                    foreach ($downloadedContents as $fileId => $content) {
-                        $boxFile = $boxFilesById->get($fileId);
-                        if ($boxFile) {
-                            $dataToUpsert[] = [
-                                'project_box_id' => $projectFolderId,
-                                'project_name' => $projectName,
-                                'file_name' => $boxFile['name'],
-                                'base_name' => pathinfo($boxFile['name'], PATHINFO_FILENAME),
-                                'box_file_id' => $fileId,
-                                'file_type' => strtolower(pathinfo($boxFile['name'], PATHINFO_EXTENSION)),
-                                'content' => $content,
-                                'box_modified_at' => Carbon::parse($boxFile['modified_at'])->setTimezone('Asia/Tokyo'),
-                                'created_at' => now(), 'updated_at' => now(),
-                            ];
+        },
+        error: function (err) {
+            console.log(err);
+            hideLoading();
+            alert("データロードに失敗しました。\n管理者に問い合わせてください。");
+        }
+    });
+}
+
+/**
+ * checkJobStatus
+ * 
+ * ジョブよりデータベースへの取込が完了したか50秒ごとに確認しに行く
+ */
+function checkJobStatus() {
+    $.ajax({
+        url: url_prefix + "/DLDWH/checkJobStatus",
+        method: 'GET',
+        success: function (response) {
+            if (response.status === 'completed') {
+                console.log(response.data);
+                let data = response.data;
+                fileNames = data.fileNames;
+                folderNames = data.folderNames;
+                successMessage = data.successMessage;
+                // console.log(fileNames);
+                // console.log(folderNames);
+                // console.log(successMessage);
+
+                const content = createLogContent(fileNames, successMessage);
+
+                if (fileNames.length > 0) {
+                    document.getElementById("result").innerHTML = content;
+                } else {
+                    document.getElementById("result").innerHTML = content;
+                }
+
+                showUpdateHistory();
+                setTimeout(() => {
+                    hideLoading();
+                }, 1000);
+
+            } else if (response.status === 'failedJob') {
+                console.log("failedJob");
+                console.log(response.data);
+                document.getElementById("result").innerHTML = response.data;
+                showUpdateHistory();
+                setTimeout(() => {
+                    hideLoading();
+                }, 1000);
+            }  else if(response.status === 'no_upload_file'){
+                console.log("finish job. no file upload.");  
+                document.getElementById("result").innerHTML = "最新版のファイルがありません。";              
+                setTimeout(() => {
+                    hideLoading();
+                }, 1000);
+            }else {
+                // 一定時間後に再度チェック
+                setTimeout(function () {
+                    checkJobStatus();
+                }, 5000); // 5000=5秒後に再チェック
+            }
+        }
+    });
+}
+
+/**
+ * createLogContent
+ * 
+ * ログの表示
+ */
+function createLogContent(fileNames, successMsg) {
+    var content = "";
+    var numErrors = 0;
+    var numErrors = 0;
+    if (successMsg.length > 0) {
+        for (let i = 0; i < successMsg.length; i++) {
+            for (const [key, values] of Object.entries(successMsg[i])) {
+                // console.log("values " + values);
+                // console.log("key " + key);
+                var keyName = "";
+                for (const value of values) {
+                    if(keyName !== key){
+                        // console.log("valueeeeee " + value);
+                        for (const val of value){
+                            if(val !== "OK"){
+                                // console.log(value);
+                                numErrors++;
+                                break; 
+                            }
                         }
                     }
-                    if (!empty($dataToUpsert)) {
-                        ModelFileCache::upsert($dataToUpsert, ['box_file_id'], ['project_box_id', 'project_name', 'file_name', 'base_name', 'file_type', 'content', 'box_modified_at', 'updated_at']);
-                    }
+                    keyName = key;
                 }
             }
-            
-            $boxFileIds = $boxFilesById->keys()->all();
-            $dbFileIds = $dbFiles->keys()->all();
-            $deletedIds = array_diff($dbFileIds, $boxFileIds);
-            if (!empty($deletedIds)) {
-                ModelFileCache::whereIn('box_file_id', $deletedIds)->delete();
-            }
-        } catch (Throwable $e) {
-            Log::error("Box Sync Failed: " . $e->getMessage(), ['exception' => $e]);
-            throw $e;
         }
-        return true;
+        content = "ファイル" + successMsg.length + "個中" + numErrors + "個エラーがあります。";
+    } else {
+        content += "最新版のファイルがありません。";
     }
-
-    private function fetchFullBoxFileList($projectFolderId, $accessToken, $client)
-    {
-        $header = ["Authorization" => "Bearer " . $accessToken];
-        $allFolderItems = []; $offset = 0; $limit = 1000;
-        do {
-            $requestURL = "https://api.box.com/2.0/folders/{$projectFolderId}/items?fields=id,name,modified_at&limit={$limit}&offset={$offset}";
-            $response = $client->get($requestURL, ['headers' => $header]);
-            $body = json_decode($response->getBody()->getContents(), true);
-            if (isset($body['entries'])) {
-                $allFolderItems = array_merge($allFolderItems, $body['entries']);
-                $offset += count($body['entries']);
-            } else { break; }
-        } while (isset($body['total_count']) && $offset < $body['total_count']);
-        return $allFolderItems;
-    }
-    
-    private function fetchMultipleBoxFileContentsConcurrently($files, $client)
-    {
-        $downloadedContents = []; $tokenExpired = false;
-        $header = ["Authorization" => "Bearer " . session('access_token')];
-        $requests = function ($files) use ($header) {
-            foreach ($files as $file) {
-                $url = "https://api.box.com/2.0/files/{$file['id']}/content";
-                yield $file['id'] => new \GuzzleHttp\Psr7\Request('GET', $url, $header);
-            }
-        };
-        $pool = new Pool($client, $requests($files), [
-            'concurrency' => 10,
-            'fulfilled' => function ($response, $fileId) use (&$downloadedContents) { $downloadedContents[$fileId] = $response->getBody()->getContents(); },
-            'rejected' => function ($reason, $fileId) { Log::error("Failed to download file ID {$fileId}: " . $reason->getMessage()); }
-        ]);
-        $promise = $pool->promise(); $promise->wait();
-        return ['status' => 'success', 'contents' => $downloadedContents];
-    }
-    
-    public function refreshBoxToken($refreshToken, $urlPath)
-    {
-        if (empty($refreshToken)) { Log::error("Refresh token is empty."); return null; }
-        try {
-            $clientId = env("BOX_CLIENT_ID"); $clientSecret = env("BOX_CLIENT_SECRET");
-            if (strpos($urlPath, 'deployment') !== false) {
-                $clientId = env("BOX_CLIENT_ID_FOR_DEV_SLOT"); $clientSecret = env("BOX_CLIENT_SECRET_FOR_DEV_SLOT");
-            }
-            if (!$clientId || !$clientSecret) { Log::error("Box client credentials are not set."); return null; }
-            $response = Http::asForm()->post('https://api.box.com/oauth2/token', [
-                'grant_type' => 'refresh_token', 'refresh_token' => $refreshToken,
-                'client_id' => $clientId, 'client_secret' => $clientSecret,
-            ]);
-            if ($response->successful()) {
-                $data = $response->json();
-                Log::info("Successfully refreshed Box tokens."); $this->saveBoxExpiryStatus();
-                return ['access_token' => $data['access_token'], 'refresh_token' => $data['refresh_token']];
-            } else {
-                Log::error("Failed to refresh Box token.", ['status' => $response->status(), 'body' => $response->body()]);
-                return null;
-            }
-        } catch (Exception $e) { Log::error("Exception on refresh token: " . $e->getMessage()); return null; }
-    }
-    
-    public function saveBoxExpiryStatus()
-    {
-        try { DB::connection('dldwh')->table('box_expiry_status')->insert(['status' => 'true', 'created_at' => now()]); }
-        catch (Exception $e) { Log::error("Failed to save box expiry status: " . $e->getMessage()); }
-    }
+    return content;
 }
+
+/**
+ * downloadLog
+ * 
+ * ログのダウンロード
+ */
+function downloadLog() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${year}${month}${day}`;
+
+    $.ajax({
+        type: "post", // POSTメソッドを使用
+        url: url_prefix + "/DLDWH/log/download",
+        data: { fileNames: fileNames, folderNames: folderNames, successMessage: successMessage, formattedDate: formattedDate, _token: CSRF_TOKEN },
+        xhrFields: {
+            responseType: 'blob'
+        },
+        success: function (blob) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = formattedDate + "_LOGS.xlsx"; // ファイル名を設定
+
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        },
+        error: function (err) {
+            console.log(err);
+            alert("ファイルのダウンロードに失敗しました。\n管理者に問い合わせてください。");
+        }
+    });
+}
+
+/**
+ * deleteData
+ * 
+ * 全データ削除機能（仮）
+ */
+function deleteData() {
+    showLoading();
+    $.ajax({
+        type: "post", // POSTメソッドを使用
+        url: url_prefix + "/DLDWH/deleteData",
+        data: { _token: CSRF_TOKEN },
+        success: function (result) {
+            console.log(result);
+            showUpdateHistory();
+            document.getElementById("result").innerHTML = "";
+            setTimeout(() => {
+                hideLoading();
+            }, 1000);
+        },
+        error: function (err) {
+            console.log(err);
+            alert("データの削除が失敗しました。\n管理者に問い合わせてください。");
+            hideLoading();
+        }
+    });
+}
+
+/**
+ * ShowCompleteMessage
+ * 
+ * 取込完了警告メッセージ表示
+ */
+function ShowCompleteMessage(data) {
+    toastr.success("取込完了しました。", "Success");
+}
+
+
+function showLoading() {
+    $(".custom-loading").removeClass("hide");
+    $(".custom-loading").addClass("show");
+}
+
+
+function hideLoading() {
+    $(".custom-loading").removeClass("show");
+    $(".custom-loading").addClass("hide");
+}
+
