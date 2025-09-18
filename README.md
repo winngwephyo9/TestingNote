@@ -1,5 +1,2 @@
-[2025-09-17 18:30:08] local.INFO: jobStatusKey: True  
-[2025-09-17 18:30:08] local.INFO: jobStatusKey: True  
-[2025-09-17 18:30:08] local.INFO: Dispatching SyncBoxProject job for project: 340574402165. Previous status was: null  
-[2025-09-17 18:30:08] local.INFO: Dispatching SyncBoxProject job for project: 341288887011. Previous status was: null  
-[2025-09-17 18:35:37] local.INFO: Job started for project: 341288887011 
+<img width="652" height="365" alt="image" src="https://github.com/user-attachments/assets/306043d5-b199-40a1-aef8-679d79946e87" />
+<img width="943" height="414" alt="image" src="https://github.com/user-attachments/assets/88fef5a5-d02b-4e69-b686-c385c02c03c5" />
