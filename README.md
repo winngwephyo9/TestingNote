@@ -1,83 +1,74 @@
-CREATE TABLE `job_logs` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `job_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `message` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `job_identifier_unique` (`job_identifier`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```**変更点:**
-*   `job_id`を`job_identifier`に変更し、ここにプロジェクトIDを保存します。
-*   `logs`カラムを`status`と`message`に分割し、状態管理をより明確にしました。
-
----
-
-### 2. 修正後の完全なコード
-
-#### A) `app/Models/DLDHWDataImportModel.php` （モデル）
-
-データベース操作のロジックをここに集約します。
-
-```php
 <?php
 
-namespace App\Models;
+namespace App\Jobs;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use App\Models\DLDHWDataImportModel;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
-use GuzzleHttp\Client;
-use GuzzleHttp\Pool;
-use GuzzleHttp\Exception\ClientException;
-use Illuminate\Support\Carbon;
-use Exception;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\DB; // DBファサードをインポート
 use Throwable;
 
-class DLDHWDataImportModel extends Model
+class SyncBoxProject implements ShouldQueue
 {
-    // ... getCategoryNameByElementId, getCachedProjectList, getCachedModelData, formatDataForFrontend ...
-    // ... syncAndGetModelData, fetchFullBoxFileList, fetchMultipleBoxFileContentsConcurrently ...
-    // ... refreshBoxToken, saveBoxExpiryStatus ...
-    // これらのOBJビューアのコアロジックは、以前の回答で完成したものをそのまま使用します。
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    // =================================================================
-    //  ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    //
-    //  **参考コードに合わせた、カスタムのジョブログ管理メソッド群**
-    //
-    
-    /**
-     * プロジェクトIDをキーとして、完了または失敗したジョブのログを取得する
-     */
-    public function getFinishedJobLog($projectId)
+    protected $projectFolderId;
+    protected $sessionData;
+
+    public function __construct($projectFolderId, array $sessionData)
     {
-        return DB::connection('dldwh')->table('job_logs')->where('job_identifier', $projectId)->first();
+        $this->projectFolderId = $projectFolderId;
+        $this->sessionData = $sessionData;
     }
 
-    /**
-     * プロジェクトIDを指定して、古いジョブログを削除する
-     */
-    public function deleteFinishedJobLog($projectId)
+    public function handle()
     {
-        DB::connection('dldwh')->table('job_logs')->where('job_identifier', $projectId)->delete();
-    }
+        Log::info("Job started for project: {$this->projectFolderId}");
+        
+        try {
+            $this->checkBoxExpiryStatus();
+            Session::put($this->sessionData);
 
-    /**
-     * 失敗したLaravelの標準ジョブテーブルから最新の失敗を取得する
-     */
-    public function getFailedJobs()
-    {
-        return DB::connection('dldwh')->table('failed_jobs')->latest()->first();
+            $dldwhModel = new DLDHWDataImportModel();
+            // syncAndGetModelDataは更新されたファイル数を返すように修正済みと仮定
+            $filesUpdatedCount = $dldwhModel->syncAndGetModelData($this->projectFolderId);
+
+            $status = ($filesUpdatedCount > 0) ? 'completed' : 'no_files_to_update';
+            $this->saveJobLog($status);
+            
+            Log::info("Successfully completed sync job for project: {$this->projectFolderId} with status: {$status}");
+
+        } catch (Throwable $e) {
+            $this->fail($e); // 失敗した場合はfailed()メソッドを呼び出す
+        }
     }
     
-    /**
-     * Laravelの標準失敗ジョブテーブルを空にする
-     */
-    public function deleteFailedJobs()
+    public function failed(Throwable $exception)
     {
-        DB::connection('dldwh')->table('failed_jobs')->truncate();
+        $this->saveJobLog('failed', $exception->getMessage());
+        Log::error("Sync job has failed for project {$this->projectFolderId}: " . $exception->getMessage());
     }
+    
+    /**
+     * job_logsテーブルに結果を保存する
+     */
+    private function saveJobLog($status, $message = null)
+    {
+        DB::connection('dldwh')->table('job_logs')->updateOrInsert(
+            ['job_identifier' => $this->projectFolderId], // このキーで検索
+            [ // 以下の内容で更新または作成
+                'status' => $status,
+                'message' => $message,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+    }
+    
+    // ... checkBoxExpiryStatus メソッドは変更なし ...
 }
