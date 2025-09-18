@@ -26,7 +26,60 @@ In the controller
             ];
             return response()->json($finishJob);
         }
+In the Job
+ public function handle()
+ {
+ $this->client = new \GuzzleHttp\Client();
+ $this->client = new \GuzzleHttp\Client(['verify' => false]);
+ $DLDWHModel = new DLDHWDataImportModel();
+ $dldwhImportController = new DLDWHDataImportController();
 
+ try {
+ Log::info('start LoadDataFromBox ');
+ $csvFiles = $dldwhImportController->LoadDataFromBox(
+ $this->parentFolderId,
+ $this->updatedDateWithoutSeconds,
+ $this->updatedDate,
+ $this->access_token
+ );
+
+ if (!empty($csvFiles)) {
+ Log::info('start organizeData ' . count($csvFiles));
+ $latestUpdateDate = $DLDWHModel->getLatestUpdatedDate_document();
+ $latestDate_KoSuu = $DLDWHModel->getLatestDateForKoSuu();
+ $this->organizeAndProcessData($csvFiles);
+
+ Log::info('job finished uploadDataToDB');
+
+ // ジョブ完了の保存
+ $successMessage = [];
+ $jsonResultList = $DLDWHModel->getDataImportLogs();
+ foreach ($jsonResultList as $result) {
+ array_push($successMessage, json_decode($result->import_logs, true)); // trueを追加して配列としてデコード
+ }
+ $finishJob = [
+ 'fileNames' => $this->fileNameList,
+ 'folderNames' => $this->folderNameList,
+ 'successMessage' => $successMessage,
+ ];
+ $jsonFinishJob = json_encode($finishJob);
+
+ $DLDWHModel->saveFinishedJob($jsonFinishJob);
+ } else {
+ //取り込むファイルがない
+ $finishJob = ["no_upload_file"];
+ $jsonFinishJob = json_encode($finishJob);
+ $DLDWHModel->saveFinishedJob($jsonFinishJob);
+ }
+ } catch (Exception $e) {
+ Log::error('DLDWHJob failed: ' . $e->getMessage(), [
+ 'file' => $e->getFile(),
+ 'line' => $e->getLine(),
+ 'trace' => $e->getTraceAsString()
+ ]);
+ $this->fail($e);
+ }
+ }
 In the model
     /**
      * saveFinishedJob
