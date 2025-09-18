@@ -1,74 +1,85 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Http\Controllers;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use App\Models\DLDHWDataImportModel;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\DB; // DBファサードをインポート
-use Throwable;
+use App\Jobs\SyncBoxProject;
+use Illuminate\Http\Request;
 
-class SyncBoxProject implements ShouldQueue
+class DLDWHDataObjectViewerController extends Controller
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    public function objViewer() { return view('DLDWH.OBJViewer'); }
 
-    protected $projectFolderId;
-    protected $sessionData;
-
-    public function __construct($projectFolderId, array $sessionData)
-    {
-        $this->projectFolderId = $projectFolderId;
-        $this->sessionData = $sessionData;
-    }
-
-    public function handle()
-    {
-        Log::info("Job started for project: {$this->projectFolderId}");
-        
-        try {
-            $this->checkBoxExpiryStatus();
-            Session::put($this->sessionData);
-
-            $dldwhModel = new DLDHWDataImportModel();
-            // syncAndGetModelDataは更新されたファイル数を返すように修正済みと仮定
-            $filesUpdatedCount = $dldwhModel->syncAndGetModelData($this->projectFolderId);
-
-            $status = ($filesUpdatedCount > 0) ? 'completed' : 'no_files_to_update';
-            $this->saveJobLog($status);
-            
-            Log::info("Successfully completed sync job for project: {$this->projectFolderId} with status: {$status}");
-
-        } catch (Throwable $e) {
-            $this->fail($e); // 失敗した場合はfailed()メソッドを呼び出す
-        }
-    }
-    
-    public function failed(Throwable $exception)
-    {
-        $this->saveJobLog('failed', $exception->getMessage());
-        Log::error("Sync job has failed for project {$this->projectFolderId}: " . $exception->getMessage());
-    }
-    
     /**
-     * job_logsテーブルに結果を保存する
+     * 【リファクタリング版】同期ジョブを開始させる
      */
-    private function saveJobLog($status, $message = null)
+    public function startSync(Request $request)
     {
-        DB::connection('dldwh')->table('job_logs')->updateOrInsert(
-            ['job_identifier' => $this->projectFolderId], // このキーで検索
-            [ // 以下の内容で更新または作成
-                'status' => $status,
-                'message' => $message,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]
-        );
+        if (!session()->has('access_token') || empty(session('access_token'))) {
+            return response()->json(['status' => 'no_token']);
+        }
+
+        $projectFolderId = $request->input('folderId');
+        if (empty($projectFolderId)) {
+            return response()->json(['error' => 'Folder ID is required.'], 400);
+        }
+        
+        $dldwhModel = new DLDHWDataImportModel();
+
+        // 以前のジョブログと失敗ジョブを削除
+        $dldwhModel->deleteFinishedJobLog($projectFolderId);
+        $dldwhModel->deleteFailedJobs();
+
+        $sessionData = [
+            'access_token' => session('access_token'),
+            'refresh_token' => session('refresh_token'),
+            'box_login_time' => session('box_login_time', time()),
+            'url_path' => url('/')
+        ];
+        SyncBoxProject::dispatch($projectFolderId, $sessionData);
+        
+        return response()->json(['status' => 'job_dispatched']);
+    }
+
+    /**
+     * 【リファクタリング版】ジョブの状態を確認する
+     */
+    public function checkSyncJobStatus(Request $request)
+    {
+        $projectFolderId = $request->input('folderId');
+        $dldwhModel = new DLDHWDataImportModel();
+        
+        $jobLog = $dldwhModel->getFinishedJobLog($projectFolderId);
+        if ($jobLog) {
+            // job_logsテーブルに記録があれば、それを返す
+            return response()->json(['status' => $jobLog->status, 'message' => $jobLog->message]);
+        }
+        
+        // Laravelの標準failed_jobsテーブルも念のためチェック
+        $failedJob = $dldwhModel->getFailedJobs();
+        if ($failedJob) {
+            // payloadを解析して、どのプロジェクトか特定するのが望ましいが、ここでは簡易的に
+            return response()->json(['status' => 'failed', 'message' => 'A job has failed. Check logs.']);
+        }
+
+        // どちらのテーブルにも記録がなければ、処理中とみなす
+        return response()->json(['status' => 'processing']);
+    }
+
+    /**
+     * キャッシュされたモデルデータを取得する
+     */
+    public function getModelData(Request $request)
+    {
+        $projectFolderId = $request->input('folderId');
+        $dldwhModel = new DLDHWDataImportModel();
+        $modelData = $dldwhModel->getCachedModelData($projectFolderId);
+        
+        if (isset($modelData['error'])) {
+            return response()->json($modelData, 404);
+        }
+        return response()->json($modelData);
     }
     
-    // ... checkBoxExpiryStatus メソッドは変更なし ...
+    // ... getProjectList, getCategoryNameByElementId, saveAccessTokenAfterLogin は変更なし ...
 }
