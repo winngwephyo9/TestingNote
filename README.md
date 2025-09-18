@@ -1,37 +1,44 @@
 /**
- * 【修正版】同期状態をサーバーに定期的に問い合わせる
+ * 【修正版】モデルの描画とポーリング要否の判断
  */
-function startSyncStatusPolling(projectFolderId, projectName) {
-    if (syncPollingInterval) clearInterval(syncPollingInterval);
+async function loadModel(projectFolderId, projectName) {
+    resetScene();
     if (loaderContainer) loaderContainer.style.display = 'flex';
-    
-    syncPollingInterval = setInterval(async () => {
-        // 【重要】ポーリングの問い合わせ先は、現在選択されているモデルID（modelSelector.value）にする
-        const currentlySelectedId = modelSelector.value;
-        if (!currentlySelectedId) return; // ドロップダウンが空なら何もしない
 
-        try {
-            const response = await $.ajax({
-                type: "post",
-                url: url_prefix + "/box/getSyncStatus",
-                data: { _token: CSRF_TOKEN, folderId: currentlySelectedId }
-            });
+    try {
+        if (loaderTextElement) loaderTextElement.textContent = `Fetching model data for ${projectName}...`;
+        const response = await $.ajax({/* ... */});
+        const filePairs = response.objMtlPairs; 
+        const syncStatus = response.sync_status;
 
-            if (response.sync_status === 'completed' || response.sync_status === 'failed') {
-                clearInterval(syncPollingInterval);
-                syncPollingInterval = null;
-                
-                if (loaderTextElement) loaderTextElement.textContent = `同期が完了しました。最新のモデルを再読み込みします...`;
-                
-                // 完了したのは現在選択中のモデルなので、それを再ロード
-                const selectedOption = modelSelector.options[modelSelector.selectedIndex];
-                initiateLoadProcess(selectedOption.value, selectedOption.text);
+        if (!Array.isArray(filePairs) || filePairs.length === 0) {
+            if (syncStatus === 'processing') {
+                if (loaderTextElement) loaderTextElement.textContent = `サーバーで初回同期中です... この処理には数十分かかる場合があります。`;
+                currentLoadedProjectId = projectFolderId;
+                return true; 
             }
-        } catch (error) {
-            console.error("Failed to get sync status:", error);
-            clearInterval(syncPollingInterval);
-            syncPollingInterval = null;
+            throw new Error(response.error || `No model data found.`);
+        }
+        
+        // ... (モデルの解析・表示ロジックは変更なし) ...
+        
+        await buildAndPopulateCategorizedTree();
+        scene.add(loadedObjectModelRoot);
+        frameObject(loadedObjectModelRoot);
+        updateInfoPanel();
+        
+        currentLoadedProjectId = projectFolderId;
+
+        // 【重要】ポーリングが不要なら、ここでローディングを完了させる
+        if (syncStatus !== 'processing') {
             if (loaderContainer) loaderContainer.style.display = 'none';
         }
-    }, 10000);
+        return syncStatus === 'processing';
+
+    } catch (error) {
+        if (loaderTextElement) loaderTextElement.textContent = `Error: ${error.message}`;
+        currentLoadedProjectId = null;
+        if (loaderContainer) loaderContainer.style.display = 'none'; // エラー時も隠す
+        return false;
+    }
 }
