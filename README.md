@@ -1,14 +1,2 @@
-  /**
-     * 【最終版】削除されたファイルをDBとストレージからクリーンアップする
-     */
-    private function cleanupDeletedFiles($projectFolderId, $boxFilesById)
-    {
-        $dbFileIds = ModelFileCache::where('project_box_id', $projectFolderId)->pluck('box_file_id');
-        $boxFileIds = $boxFilesById->keys();
-        $deletedIds = $dbFileIds->diff($boxFileIds)->all();
+ <img width="608" height="389" alt="image" src="https://github.com/user-attachments/assets/ffe7070e-7e32-4296-8519-6fdc251563a3" />
 
-        if (!empty($deletedIds)) {
-            Log::info("Deleting " . count($deletedIds) . " records from database...");
-            ModelFileCache::whereIn('box_file_id', $deletedIds)->delete();
-        }
-    }
