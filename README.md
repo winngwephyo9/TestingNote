@@ -1,1 +1,6 @@
-<img width="1221" height="772" alt="image" src="https://github.com/user-attachments/assets/03f4999b-fb08-45e5-a9a9-83475f8ee978" />
+  // 【重要】ジョブ開始時にDBから最新のトークン情報を取得
+            $dldwhModel = new DLDHWDataImportModel();
+            $latestTokens = $dldwhModel->getLatestBoxTokens();
+            if (!$latestTokens) {
+                throw new Exception("No valid tokens found in the database.");
+            }
