@@ -1,10 +1,1 @@
-    /**
-     * 【最終版】Boxからプロジェクト名（フォルダ名）を取得する
-     */
-    private function fetchProjectName($projectFolderId, Client $client)
-    {
-        $header = ["Authorization" => "Bearer " . session('access_token')];
-        $folderInfoUrl = "https://api.box.com/2.0/folders/{$projectFolderId}?fields=name";
-        $folderInfoResponse = $client->get($folderInfoUrl, ['headers' => $header]);
-        return json_decode($folderInfoResponse->getBody()->getContents())->name;
-    }
+[2025-09-19 14:26:46] local.ERROR: Job failed for project 341288887011: Each value yielded by the iterator must be a Psr7\Http\Message\RequestInterface or a callable that returns a promise that fulfills with a Psr7\Message\Http\ResponseInterface object.  
