@@ -1,231 +1,104 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Jobs;
 
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use App\Models\DLDHWDataImportModel;
-use GuzzleHttp\Client;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Exception;
-use App\Jobs\SyncBoxProject;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Session;
+use Throwable;
+use Exception;
 
-class DLDWHDataObjectViewerController extends Controller
+class SyncBoxProject implements ShouldQueue
 {
-    protected $access_token;
-    protected $refresh_token;
-    protected $box_login_time;
-    protected $url_path;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $projectFolderId;
+    protected $accessToken;
+    protected $refreshToken;
+    protected $boxLoginTime;
+    protected $urlPath;
 
     /**
-     * Display the 全体物件 Object Viewer page.
+     * 新しいジョブインスタンスの生成
      *
-     * @return \Illuminate\View\View The view for the Bara Object Viewer.
+     * @param string $projectFolderId
+     * @return void
      */
-    public function objViewer()
+    public function __construct($projectFolderId, $access_token, $refresh_token, $box_login_time, $urlPath)
     {
-        return view('DLDWH.OBJViewer');
-    }
-
-    /* Retrieve category names based on element IDs.
-     *
-     * @param \Illuminate\Http\Request $request The incoming HTTP request containing 'WSCenID' and 'ElementIds'.
-     * @return mixed The result from the model's `getCategoryNameByElementId` method, typically a list of category names.
-    */
-    public function getCategoryNameByElementId(Request $request)
-    {
-        $WSCenID = $request->input('WSCenID');
-        $elementIds = $request->input('ElementIds');
-        $dldwhModle = new DLDHWDataImportModel();
-        return $dldwhModle->getCategoryNameByElementId($WSCenID, $elementIds);
+        $this->projectFolderId = $projectFolderId;
+        $this->accessToken = $access_token;
+        $this->refreshToken = $refresh_token;
+        $this->boxLoginTime = $box_login_time;
+        $this->urlPath = $urlPath;
     }
 
     /**
-     * Display the Bara Object Viewer page.
+     * ジョブの実行
      *
-     * @return \Illuminate\View\View The view for the Bara Object Viewer.
+     * このメソッドは、`php artisan queue:work`コマンドによって
+     * バックグラウンドで実行されます。
+     *
+     * @return void
      */
-
-    public function bara_objViewer()
+    public function handle()
     {
-        return view("DLDWH.Bara_OBJViewer");
-    }
+        Log::info("Job started for project: {$this->projectFolderId}");
+        $dldwhModel = new DLDHWDataImportModel();
 
-    /**
-     * 【リファクタリング版】同期ジョブを開始させる
-     */
-    public function startSync(Request $request)
-    {
-        // if (!session()->has('access_token') || empty(session('access_token'))) {
-        //     return response()->json(['status' => 'no_token']);
-        // }
-        $finishJob = [];
-        if (session()->has('access_token')) {
-            $this->access_token = session('access_token');
-            if ($this->access_token == "") {
-                $finishJob = [
-                    'token' => "no_token",
-                ];
-                return response()->json($finishJob);
-            }
-
-            if (session()->has('box_login_time')) {
-                $this->box_login_time = session('box_login_time');
-                Log::info('box_login_time In session ' . $this->box_login_time);
-            }
-            if (session()->has('refresh_token')) {
-                $this->refresh_token = session('refresh_token');
-                Log::info('refresh_token in Session' . $this->refresh_token);
-            }
-            if (session()->has('url_path')) {
-                $this->url_path = session('url_path');
-                Log::info('url_path in Session ' . $this->url_path);
-            }
-
-            $this->projectFolderId = $request->input('folderId');
-            if (empty($this->projectFolderId)) {
-                return response()->json(['error' => 'Folder ID is required.'], 400);
-            }
-
-            $dldwhModel = new DLDHWDataImportModel();
-
-            // 以前のジョブログと失敗ジョブを削除
-            $dldwhModel->deleteFinishedJobLog($this->projectFolderId);
-            $dldwhModel->deleteFailedJobs();
-            // $dldwhModel = new DLDHWDataImportModel();
-            $tokens = $dldwhModel->getLatestBoxTokens();
-            if ($tokens) {
-                $this->access_token = $tokens->access_token;
-                $this->refresh_token = $tokens->refresh_token;
-                $this->box_login_time = $tokens->login_time;
-
-                // throw new \Exception("No valid tokens found in the database. Please log in again.");
-            }
+        try {
+            // ジョブ開始時にDBから最新のトークン情報を取得
+            // $tokens = $dldwhModel->getLatestBoxTokens();
+            // if (!$tokens) {
+            //     throw new \Exception("No valid tokens found in the database. Please log in again.");
+            // }
 
             // $accessToken = $tokens->access_token;
             // $refreshToken = $tokens->refresh_token;
             // $loginTime = $tokens->login_time;
 
-            // $this->saveAccessTokenAfterLogin(session('access_token'), session('refresh_token'));
-            // SyncBoxProject::dispatch($projectFolderId, session('url_path'));
-            Log::info('refresh_token before Job' . $this->refresh_token);
+            // // 2. 予防的なトークンリフレッシュ
+            // if (time() > $loginTime + (60 * 50)) {
+            //     Log::info('Box token is about to expire. Refreshing...');
+            //     $newTokens = $dldwhModel->refreshBoxToken($refreshToken, $this->urlPath);
+            //     if (!$newTokens) {
+            //         throw new \Exception("Failed to refresh Box token.");
+            //     }
+            //     // 変数を新しいトークンで上書き
+            //     $accessToken = $newTokens['access_token'];
+            //     $refreshToken = $newTokens['refresh_token'];
+            // }
 
-            SyncBoxProject::dispatch(
-                $this->projectFolderId,
-                $this->access_token,
-                $this->refresh_token,
-                $this->box_login_time,
-                $this->url_path
-            );
-            $finishJob = [
-                'isfinishJob' => false,
-            ];
-            return response()->json(['status' => 'job_dispatched']);
-        } else {
-            $finishJob = [
-                'token' => "no_token",
-            ];
-            return response()->json($finishJob);
+            // Log::info("Url JOb >>>>>" . $this->urlPath);
+
+            // 3. モデルに有効なアクセストークンを渡して同期を実行
+            Log::info('refresh_token In the Job' . $this->refreshToken);
+
+            $filesUpdatedCount = $dldwhModel->syncAndGetModelData($this->projectFolderId, $this->accessToken, $this->refreshToken, $this->urlPath, $this->boxLoginTime);
+
+            $status = ($filesUpdatedCount > 0) ? 'completed' : 'no_files_to_update';
+            $this->saveJobLog($status);
+            Log::info("Job completed for project {$this->projectFolderId} with status: {$status}");
+        } catch (Throwable $e) {
+            $this->failed($e);
         }
-        // return response()->json(['status' => 'job_dispatched']);
     }
 
-    /**
-     * 【リファクタリング版】ジョブの状態を確認する
-     */
-    public function checkSyncJobStatus(Request $request)
+    public function failed(Throwable $exception)
     {
-        $projectFolderId = $request->input('folderId');
-        $dldwhModel = new DLDHWDataImportModel();
-
-        $jobLog = $dldwhModel->getFinishedJobLog($projectFolderId);
-        if ($jobLog) {
-            // job_logsテーブルに記録があれば、それを返す
-            return response()->json(['status' => $jobLog->status, 'message' => $jobLog->message]);
-        }
-
-        // Laravelの標準failed_jobsテーブルも念のためチェック
-        $failedJob = $dldwhModel->getFailedJobs();
-        if ($failedJob) {
-            // payloadを解析して、どのプロジェクトか特定するのが望ましいが、ここでは簡易的に
-            return response()->json(['status' => 'failed', 'message' => 'A job has failed. Check logs.']);
-        }
-
-        // どちらのテーブルにも記録がなければ、処理中とみなす
-        return response()->json(['status' => 'processing']);
+        $this->saveJobLog('failed', $exception->getMessage());
+        Log::error("Job failed for project {$this->projectFolderId}: " . $exception->getMessage());
     }
 
-    /**
-     * キャッシュされたモデルデータを取得する
-     */
-    public function getModelData(Request $request)
+    private function saveJobLog($status, $message = null)
     {
-        $projectFolderId = $request->input('folderId');
-        $dldwhModel = new DLDHWDataImportModel();
-        $modelData = $dldwhModel->getCachedModelData($projectFolderId);
-
-        if (isset($modelData['error'])) {
-            return response()->json($modelData, 404);
-        }
-        return response()->json($modelData);
+        $model = new DLDHWDataImportModel();
+        $model->jobLogsUpdateOrInsert($this->projectFolderId, $status, $message);
     }
-
-    /**
-     * ログイン状態に応じてBoxまたはDBキャッシュからプロジェクトリストを返す
-     */
-    public function getProjectList(Request $request)
-    {
-        $mainFolderId = $request->input('folderId');
-        $dldwhModel = new DLDHWDataImportModel();
-
-        if (session()->has('access_token') && !empty(session('access_token'))) {
-            try {
-                $client = new Client(['verify' => false]);
-                $requestURL = "https://api.box.com/2.0/folders/" . $mainFolderId . "/items?fields=id,name";
-                $header = ["Authorization" => "Bearer " . session('access_token')];
-                $response = $client->request('GET', $requestURL, ['headers' => $header]);
-                $items = json_decode($response->getBody()->getContents())->entries;
-
-                $projects = [];
-                foreach ($items as $item) {
-                    if ($item->type == "folder") {
-                        $projects[] = ['id' => $item->id, 'name' => $item->name];
-                    }
-                }
-
-                usort($projects, function ($a, $b) {
-                    return strcmp($a['name'], $b['name']);
-                });
-
-                return response()->json(['login_status' => 'logged_in', 'projects' => $projects]);
-            } catch (Exception $e) {
-                Log::error("Failed to read project list from Box: " . $e->getMessage());
-                $cachedProjects = $dldwhModel->getCachedProjectList();
-                return response()->json(['login_status' => 'error', 'projects' => $cachedProjects]);
-            }
-        } else {
-            $cachedProjects = $dldwhModel->getCachedProjectList();
-            return response()->json(['login_status' => 'logged_out', 'projects' => $cachedProjects]);
-        }
-    }
-
-    /**
-     * Box認証後などに呼び出され、トークンとログイン時刻をセッションに保存する
-     */
-    // public function saveAccessTokenAfterLogin($accessToken, $refreshToken)
-    // {
-    //     // セッションに保存
-    //     session([
-    //         'access_token' => $accessToken,
-    //         'refresh_token' => $refreshToken,
-    //         'box_login_time' => time(),
-    //         'url_path' => url('/')
-    //     ]);
-
-    //     // DBにも保存
-    //     $dldwhModel = new DLDHWDataImportModel();
-    //     $dldwhModel->saveBoxTokens($accessToken, $refreshToken);
-    // }
 }
