@@ -1,1 +1,1 @@
-UPDATE box_tokens SET login_time = login_time - 7200 WHERE id = 1;
+BOXにログインされていないため更新できません。キャッシュされたデータを表示します。
