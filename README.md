@@ -1,8 +1,1 @@
- const message = 'BOXにログインされていない場合、最新のデータを取得することができません。' + 
-                                '<br><br>' + // 2つの<br>で空行を表現
-                                'そのため、データベースに保存されている既存のモデルデータを表示いたします。' +
-                                '<br>' +
-                                'BOX側に更新されたデータが存在する場合は、最新の情報を取得するために、BOXへのログインをお願いいたします。';
-
-                // innerHTMLを使ってHTMLとしてメッセージをセット
-                boxStatusText.innerHTML = message;
+App\Jobs\SyncBoxProject has been attempted too many times or run too long. The job may have previously timed out.
