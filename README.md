@@ -1,10 +1,1 @@
-// 'model_files/project123/file.txt' に 'Hello World' という内容を書き込む
-Storage::disk('local')->put('model_files/project123/file.txt', 'Hello World');
-
-
-// 'model_files/project123/file.txt' の中身を取得
-$content = Storage::disk('local')->get('model_files/project123/file.txt');
-
-if (Storage::disk('local')->exists('model_files/project123/file.txt')) {
-    // ...
-}
+<img width="1607" height="272" alt="image" src="https://github.com/user-attachments/assets/229a4d54-0c7c-4dd6-b059-33f00e0f5f52" />
