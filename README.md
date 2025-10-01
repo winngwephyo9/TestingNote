@@ -1,194 +1,168 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\ModelFileCache;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+// ... 他のuse文 ...
+use Throwable;
+
+class DLDHWDataImportModel extends Model
+{
+    // ... クラスプロパティの宣言 ...
+    protected $accessToken;
+    protected $refreshToken;
+    // ...
+
+    // ... コンストラクタ ...
 
     /**
-     * 【OBJ】同期時にプロジェクト名をDBに保存する
+     * 【最終修正版】メモリ効率とタイムアウトを解決する同期ロジック
      */
     public function syncAndGetModelData($projectFolderId, $accessToken, $refreshToken, $urlPath, $boxLoginTime)
     {
         mb_internal_encoding('UTF-8');
         set_time_limit(0);
-        $this->projectFolderId = $projectFolderId;
+        
+        // ジョブから渡された情報をクラスのプロパティに保存
         $this->accessToken = $accessToken;
         $this->refreshToken = $refreshToken;
         $this->urlPath = $urlPath;
         $this->boxLoginTime = $boxLoginTime;
+        
         try {
-            $this->checkBoxExpiryStatus();
             $client = new Client(['verify' => false]);
-            $projectName = $this->fetchProjectName($client);
-            $boxFiles = $this->fetchFullBoxFileList($client);
-            $boxFilesById = collect($boxFiles)->keyBy('id');
-            $dbFiles = ModelFileCache::where('project_box_id', $projectFolderId)->get()->keyBy('box_file_id');
+            $projectName = $this->fetchProjectName($projectFolderId, $client);
 
-            $filesToUpdate = [];
-            foreach ($boxFiles as $boxFile) {
-                $dbFile = $dbFiles->get($boxFile['id']);
-                $boxModifiedAtJst = Carbon::parse($boxFile['modified_at'])->setTimezone('Asia/Tokyo')->startOfSecond();
-                $dbModifiedAtJst = $dbFile ? $dbFile->box_modified_at->startOfSecond() : null;
+            // DBに保存されている全ファイルIDを一度だけ取得（差分チェックのため）
+            $dbFiles = ModelFileFileCache::where('project_box_id', $projectFolderId)->get()->keyBy('box_file_id');
+            
+            // =================================================================
+            //  ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+            //
+            //  **【重要】ファイルリストの取得と処理をページ単位でループ実行する**
+            //
+            $offset = 0;
+            $limit = 1000;
+            $totalFilesProcessed = 0;
+            $totalFilesUpdated = 0;
 
-                if (!$dbFile || $dbModifiedAtJst->lt($boxModifiedAtJst)) {
-                    $filesToUpdate[] = $boxFile;
-                }
-            }
+            do {
+                // 1. Boxからファイルリストを1ページ(1000件)だけ取得
+                $pageOfFilesResponse = $this->fetchBoxFileListByPage($projectFolderId, $client, $limit, $offset);
+                $pageOfFiles = $pageOfFilesResponse['entries'];
 
-            if (empty($filesToUpdate)) {
-                Log::info("No files need to be updated. Sync is complete.");
-                return 0;
-            }
+                if (empty($pageOfFiles)) break; // 取得するファイルがなくなったらループを抜ける
 
-            Log::info("Found " . count($filesToUpdate) . " files to update/insert.");
-            $updateChunks = array_chunk($filesToUpdate, 500);
-
-            foreach ($updateChunks as $chunkIndex => $chunkOfFiles) {
-                Log::info("Processing chunk " . ($chunkIndex + 1) . "/" . count($updateChunks) . " (" . count($chunkOfFiles) . " files)...");
-
-                // ダウンロードとリフレッシュを自動で処理するメソッドを呼び出す
-                $downloadedContents = $this->fetchContentsWithRefresh($chunkOfFiles);
-
-                $dataToUpsert = [];
-                foreach ($downloadedContents as $fileId => $content) {
-                    $boxFile = $boxFilesById->get($fileId);
-                    if ($boxFile) {
-                        $dataToUpsert[] = [
-                            'project_box_id' => $projectFolderId,
-                            'project_name' => $projectName,
-                            'file_name' => $boxFile['name'],
-                            'base_name' => pathinfo($boxFile['name'], PATHINFO_FILENAME),
-                            'box_file_id' => $fileId,
-                            'file_type' => strtolower(pathinfo($boxFile['name'], PATHINFO_EXTENSION)),
-                            'content' => $content,
-                            'box_modified_at' => Carbon::parse($boxFile['modified_at'])->setTimezone('Asia/Tokyo'),
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
+                Log::info("Processing file list page from offset {$offset}. Files in page: " . count($pageOfFiles));
+                
+                // 2. この1000件の中から、更新が必要なファイルだけを抽出
+                $filesToUpdateInPage = [];
+                foreach ($pageOfFiles as $boxFile) {
+                    $dbFile = $dbFiles->get($boxFile['id']);
+                    $boxModifiedAtJst = Carbon::parse($boxFile['modified_at'])->setTimezone('Asia/Tokyo')->startOfSecond();
+                    $dbModifiedAtJst = $dbFile ? $dbFile->box_modified_at->startOfSecond() : null;
+                    if (!$dbFile || $dbModifiedAtJst->lt($boxModifiedAtJst)) {
+                        $filesToUpdateInPage[] = $boxFile;
                     }
                 }
-                if (!empty($dataToUpsert)) {
-                    ModelFileCache::upsert($dataToUpsert, ['box_file_id'], ['project_name', 'file_name', 'base_name', 'file_type', 'content', 'box_modified_at', 'updated_at']);
+                
+                // 3. 更新が必要なファイルがあれば、ダウンロードとDB保存を実行
+                if (!empty($filesToUpdateInPage)) {
+                    Log::info("Found " . count($filesToUpdateInPage) . " files to update in this page.");
+                    
+                    // fetchContentsWithRefreshは内部でリフレッシュを処理し、最新のトークンを返す
+                    $downloadedContents = $this->fetchContentsWithRefresh($filesToUpdateInPage);
+                    
+                    if (!empty($downloadedContents)) {
+                        $boxFilesByIdInPage = collect($filesToUpdateInPage)->keyBy('id');
+                        $dataToUpsert = [];
+                        foreach ($downloadedContents as $fileId => $content) {
+                            $boxFile = $boxFilesByIdInPage->get($fileId);
+                            if ($boxFile) {
+                                $dataToUpsert[] = [ /* ... contentを含むデータ配列 ... */ ];
+                            }
+                        }
+                        if (!empty($dataToUpsert)) {
+                            ModelFileCache::upsert($dataToUpsert, ['box_file_id'], [/* ... */]);
+                        }
+                    }
+                    $totalFilesUpdated += count($filesToUpdateInPage);
                 }
-            }
+                
+                $offset += count($pageOfFiles);
+                $totalFilesProcessed += count($pageOfFiles);
+                
+            } while ($totalFilesProcessed < $pageOfFilesResponse['total_count']);
+            //
+            //  ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+            // =================================================================
 
-            $this->cleanupDeletedFiles($projectFolderId, $boxFilesById);
+            // Boxに存在しなくなったファイルをDBから削除する処理は、最後に一度だけ行う
+            $allBoxFileIds = $this->fetchAllBoxFileIds($projectFolderId, $client);
+            $this->cleanupDeletedFiles($projectFolderId, $allBoxFileIds);
 
-            return count($filesToUpdate);
+            return $totalFilesUpdated;
+
         } catch (Throwable $e) {
             Log::error("Box Sync Failed: " . $e->getMessage(), ['exception' => $e]);
             throw $e;
         }
     }
-
+    
     /**
-     * 【OBJ】Boxからプロジェクト名（フォルダ名）を取得する
+     * 【新規・修正】Box APIからファイルリストをページ単位で取得する
      */
-    private function fetchProjectName(Client $client)
+    private function fetchBoxFileListByPage($folderId, $client, $limit, $offset)
     {
+        $this->checkBoxExpiryStatus(); // APIを叩く前にトークンをチェック
         $header = ["Authorization" => "Bearer " . $this->accessToken];
-        $folderInfoUrl = "https://api.box.com/2.0/folders/{$this->projectFolderId}?fields=name";
-        $folderInfoResponse = $client->get($folderInfoUrl, ['headers' => $header]);
-        return json_decode($folderInfoResponse->getBody()->getContents())->name;
+        $requestURL = "https://api.box.com/2.0/folders/{$folderId}/items?fields=id,name,modified_at&limit={$limit}&offset={$offset}";
+        $response = $client->get($requestURL, ['headers' => $header]);
+        return json_decode($response->getBody()->getContents(), true);
     }
-
+    
     /**
-     * 【OBJ】Boxからファイルリストを全て取得（更新日時も含む）
+     * 【新規】Boxから全ファイルIDだけを効率的に取得する（削除チェック用）
      */
-    private function fetchFullBoxFileList($client)
+    private function fetchAllBoxFileIds($folderId, $client)
     {
-        $header = ["Authorization" => "Bearer " . $this->accessToken];
-        $allFolderItems = [];
-        $offset = 0;
-        $limit = 1000;
-        do {
-            $requestURL = "https://api.box.com/2.0/folders/{$this->projectFolderId}/items?fields=id,name,modified_at&limit={$limit}&offset={$offset}";
-            $response = $client->get($requestURL, ['headers' => $header]);
-            $body = json_decode($response->getBody()->getContents(), true);
-            if (isset($body['entries'])) {
-                $allFolderItems = array_merge($allFolderItems, $body['entries']);
-                $offset += count($body['entries']);
-            } else {
-                break;
-            }
-        } while (isset($body['total_count']) && $offset < $body['total_count']);
-        return $allFolderItems;
+        $allFileIds = [];
+        // ... fields=id だけを指定して、ページネーションループで全IDを取得するロジック ...
+        return $allFileIds;
     }
-
+    
     /**
-     * 【OBJ】ダウンロードとトークンリフレッシュを自動で処理するラッパー
+     * 【修正版】ダウンロードとリフレッシュのラッパー
      */
     private function fetchContentsWithRefresh(array $filesToDownload)
     {
         $maxRetries = 3;
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            $result = $this->fetchMultipleBoxFileContentsConcurrently($filesToDownload, $this->accessToken);
-
+            $result = $this->fetchMultipleBoxFileContentsConcurrently($filesToDownload);
             if ($result['status'] === 'success') {
-                return $result['contents']; // 成功したらすぐに返す
+                return $result['contents'];
             }
-
             if ($result['status'] === 'token_expired') {
-                $this->checkBoxExpiryStatus();
+                $this->checkBoxExpiryStatus(); // リフレッシュを実行
                 continue;
             }
-            // その他のエラー
             throw new Exception($result['message'] ?? 'Unknown download error.');
         }
-
         throw new Exception("Failed to download files after {$maxRetries} refresh attempts.");
     }
 
     /**
-     * 【OBJ】Guzzle Poolに渡すリクエストの形式を修正
+     * 【修正版】並列ダウンロード関数は$this->accessTokenを参照
      */
-    private function fetchMultipleBoxFileContentsConcurrently(array $files, $accessToken)
+    private function fetchMultipleBoxFileContentsConcurrently(array $files)
     {
-        $downloadedContents = [];
-        $tokenExpired = false;
-
-        $client = new Client(['verify' => false]);
-        $header = ["Authorization" => "Bearer " . $accessToken];
-
-        //  **【重要】リクエストジェネレータの修正**
-        $requests = function ($files) use ($header) {
-            foreach ($files as $file) {
-                $url = "https://api.box.com/2.0/files/{$file['id']}/content";
-                // GuzzleRequestオブジェクトそのものをyieldする
-                yield $file['id'] => new GuzzleRequest('GET', $url, $header);
-            }
-        };
-
-        $pool = new Pool($client, $requests($files), [
-            'concurrency' => 10,
-            'fulfilled' => function ($response, $fileId) use (&$downloadedContents) {
-                // fulfilledはキー（fileId）を受け取るので、マッピングは不要
-                $downloadedContents[$fileId] = $response->getBody()->getContents();
-            },
-            'rejected' => function ($reason, $fileId) use (&$tokenExpired) {
-                if ($reason instanceof ClientException && $reason->getResponse()->getStatusCode() == 401) {
-                    $tokenExpired = true;
-                } else {
-                    Log::error("Failed to download file ID {$fileId}: " . $reason->getMessage());
-                }
-            }
-        ]);
-
-        $promise = $pool->promise();
-        $promise->wait();
-
-        if ($tokenExpired) {
-            return ['status' => 'token_expired', 'contents' => []];
-        }
-        return ['status' => 'success', 'contents' => $downloadedContents];
+        $header = ["Authorization" => "Bearer " . $this->accessToken];
+        // ... (以前の回答と同じ、Poolのロジック) ...
     }
 
-    /**
-     * 【OBJ】削除されたファイルをDBとストレージからクリーンアップする
-     */
-    private function cleanupDeletedFiles($projectFolderId, $boxFilesById)
-    {
-        $dbFileIds = ModelFileCache::where('project_box_id', $projectFolderId)->pluck('box_file_id');
-        $boxFileIds = $boxFilesById->keys();
-        $deletedIds = $dbFileIds->diff($boxFileIds)->all();
-
-        if (!empty($deletedIds)) {
-            Log::info("Deleting " . count($deletedIds) . " records from database...");
-            ModelFileCache::whereIn('box_file_id', $deletedIds)->delete();
-        }
-    }
+    // ... wnpcheckBoxExpiryStatus, wnpsaveAccessTokenなどのメソッドは、
+    // このクラスの標準メソッドとしてリファクタリング・統一する ...
+}
