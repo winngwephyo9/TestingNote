@@ -1,54 +1,14 @@
-/**
-     * 【最終修正版】DBキャッシュからモデルデータを取得し、CSVとOBJペアに分離する
-     */
-    public function getCachedModelData($projectFolderId)
-    {
-        // =================================================================
-        //  ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        //
-        //  **【重要】CSVと、その他のファイル（OBJ/MTL）を別々に取得する**
-        //
+ //
+                //  **【重要】typeIdを'g'タグから抽出するように修正**
+                //
+                // 1. OBJファイルの中身から 'g' で始まる行を探す
+                const gTagMatch = pair.obj.content.match(/^g\s+(.*)$/m);
+                const objectName = gTagMatch ? gTagMatch[1].trim() : '';
 
-        // 1. CSVファイルを検索・取得
-        $csvFile = ModelFileCache::where('project_box_id', $projectFolderId)
-                                 ->where('file_type', 'csv')
-                                 ->first();
+                // 2. 'g' タグのオブジェクト名から、最後のアンダースコア以降の数字をtypeIdとして抽出
+                const typeIdMatch = objectName.match(/_(\d+)$/);
+                const typeId = typeIdMatch ? typeIdMatch[1] : null;
 
-        // 2. OBJとMTLファイルだけを取得
-        $objMtlFiles = ModelFileCache::where('project_box_id', $projectFolderId)
-                                     ->whereIn('file_type', ['obj', 'mtl'])
-                                     ->get();
-
-        if ($objMtlFiles->isEmpty()) {
-            return ['error' => 'No cached model files found.'];
-        }
-
-        // 3. OBJ/MTLファイルをbase_nameでグループ化してペアにする
-        $objMtlPairs = [];
-        $groupedFiles = $objMtlFiles->groupBy('base_name');
-
-        foreach ($groupedFiles as $baseName => $files) {
-            $objFile = $files->firstWhere('file_type', 'obj');
-            $mtlFile = $files->firstWhere('file_type', 'mtl');
-
-            // OBJファイルが存在する場合のみペアとして成立
-            if ($objFile) {
-                $objMtlPairs[] = [
-                    'baseName' => $baseName,
-                    'obj' => ['name' => $objFile->file_name, 'content' => $objFile->content],
-                    'mtl' => $mtlFile ? ['name' => $mtlFile->file_name, 'content' => $mtlFile->content] : null
-                ];
-            }
-        }
-        
-        //
-        //  ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-        // =================================================================
-
-        // 4. フロントエンドに返すための最終的なデータ構造を組み立てる
-        return [
-            'csv_data' => $csvFile ? ['name' => $csvFile->file_name, 'content' => $csvFile->content] : null,
-            'obj_mtl_pairs' => $objMtlPairs
-        ];
-    }"Property [file_type] does not exist on this collection instance."
-
+                // 3. ジオメトリIDの抽出はこれまで通り
+                const geoIdMatch = pair.obj.content.match(/#\s*GeometryObject\.Id\s*:\s*(\d+)/);
+                const insGeoObjX = geoIdMatch ? geoIdMatch[1] : null;
