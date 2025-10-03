@@ -1,3 +1,6 @@
+<img width="800" height="403" alt="image" src="https://github.com/user-attachments/assets/d48dc60c-2352-4132-8245-fcc39360b8a6" />
+<img width="712" height="610" alt="image" src="https://github.com/user-attachments/assets/61c6b730-b49a-454a-9165-86a338d35de5" />
+
 import * as THREE from './library/three.module.js';
 import { OrbitControls } from './library/controls/OrbitControls.js';
 import { OBJLoader } from './library/controls/OBJLoader.js';
