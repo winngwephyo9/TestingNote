@@ -1,3 +1,5 @@
+<img width="1101" height="962" alt="image" src="https://github.com/user-attachments/assets/2de27391-f36a-4b3f-a579-4821910c324a" />
+
 import numpy as np
 import laspy
 import os
