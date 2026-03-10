@@ -1,5 +1,75 @@
 import numpy as np
 import laspy
+
+# --- パス設定 ---
+bin_path = "/mnt/d/PointCloudLibrary/data/ob_testing_point_cloud_data/dataset/sequences/00/velodyne/000000.bin"
+label_path = "/mnt/d/PointCloudLibrary/Open3D-ML/test/sequences/00/predictions/000000.label"
+output_laz = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/ob_downsampled_final.laz"
+
+# 1. データの読み込み (float64で精度を確保)
+points = np.fromfile(bin_path, dtype=np.float32).reshape(-1, 4)
+xyz = points[:, :3].astype(np.float64) 
+labels = (np.fromfile(label_path, dtype=np.uint32) & 0xFFFF).astype(np.uint8)
+
+# 2. ボクセルダウンサンプリング
+# 座標が「詰まる」場合は、この voxel_size を少し大きく(例: 0.05) してみてください
+voxel_size = 0.01 
+voxel_indices = np.floor(xyz / voxel_size).astype(np.int64)
+_, unique_indices = np.unique(voxel_indices, axis=0, return_index=True)
+
+down_xyz = xyz[unique_indices]
+down_labels = labels[unique_indices]
+
+print(f"Original: {len(xyz)} -> Downsampled: {len(down_xyz)}")
+
+# 3. LASヘッダーの設定
+header = laspy.LasHeader(point_format=7, version="1.4")
+
+# スケールを 0.001 (1mm単位の整数保存) に設定
+header.scales = [0.001, 0.001, 0.001]
+
+# オフセットをデータの最小値に設定（重要：これにより大きな座標値を小さな相対値として保存できる）
+header.offsets = np.min(down_xyz, axis=0)
+
+# 4. データの作成と代入
+las = laspy.LasData(header)
+
+# laspy 2.x 以降では、.x .y .z への直接代入で
+# 自動的に (raw_value - offset) / scale のスケーリングが行われます
+las.x = down_xyz[:, 0]
+las.y = down_xyz[:, 1]
+las.z = down_xyz[:, 2]
+
+las.classification = down_labels
+
+# 5. 色の割り当て (16bitカラー: 0-65535)
+def get_color_255(label):
+    colors = {
+        0: [100, 100, 100], 10: [0, 0, 255], 11: [77, 179, 255],
+        13: [0, 77, 128], 15: [255, 128, 0], 18: [128, 51, 26],
+        20: [77, 77, 153], 30: [255, 51, 51], 40: [255, 0, 255],
+        50: [255, 204, 0], 70: [0, 255, 0], 80: [0, 255, 255], 81: [255, 255, 0]
+    }
+    return colors.get(label, [255, 0, 0])
+
+rgb = np.array([get_color_255(l) for l in down_labels], dtype=np.uint16)
+las.red = rgb[:, 0] * 256
+las.green = rgb[:, 1] * 256
+las.blue = rgb[:, 2] * 256
+
+# 6. 保存
+las.write(output_laz)
+print(f"--- 完了! ---")
+
+
+
+
+
+
+
+
+import numpy as np
+import laspy
 import os
 
 # --- パス設定 ---
