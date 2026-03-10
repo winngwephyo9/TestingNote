@@ -123,4 +123,9 @@ las.update_header()
 las.write(output_laz)
 print(f"--- 完了! {output_laz} ---")
 
-<img width="1251" height="922" alt="image" src="https://github.com/user-attachments/assets/7266c243-876e-43b4-b918-e7b4027b2bd4" />
+SemanticKITTIのテストデータセットの正しく表示
+<img width="1368" height="1002" alt="image" src="https://github.com/user-attachments/assets/76a0526f-6e57-4ec4-b54e-2b505167b636" />
+現在のテストデータの詰まって状態
+<img width="1107" height="990" alt="image" src="https://github.com/user-attachments/assets/9a05170c-2135-4f4c-9dff-11821ee47cad" />
+
+
