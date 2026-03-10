@@ -123,6 +123,40 @@ las.update_header()
 las.write(output_laz)
 print(f"--- 完了! {output_laz} ---")
 
+.lazをCloudCompareで開く時に
+Point in original coordinate system(on disk)側に
+x = - 148.963791
+y= -8.728610
+z= 11.263080
+真ん中に
+Previous input
+Shift 148.96
+          144.49
+          0.00
+Scale 1.0
+Point in local coordinate systemには
+x = -0.00379
+y= -135.76139
+z= 11.26308
+の情報が表示しています。
+Propertyの下に
+Box Dimensions  X: 297.482(-0.00379089:297.477)
+                                  Y: 281.084(0.00239014:281.086)
+                                  Z:64.659(-13.7879:50.8711)
+Shifted box center X: 148.737
+                                  Y: 140.544
+                                  Z:18.5416
+Global box center X: -0.223290
+                                  Y: -3.945612
+                                  Z:18.541580
+
+Points 5,460,851
+Global shift (148.96,144.49,0.00)
+Global Scale 1
+<img width="391" height="678" alt="image" src="https://github.com/user-attachments/assets/f1cc1b71-e6e6-482a-9281-6b178e36d1f8" />
+<img width="737" height="497" alt="image" src="https://github.com/user-attachments/assets/3fda1c18-f400-4224-bd30-fa470dff4119" />
+<img width="1493" height="787" alt="image" src="https://github.com/user-attachments/assets/beb0275a-6a14-44f2-a718-fef114b9976b" />
+
 SemanticKITTIのテストデータセットの正しく表示
 <img width="1368" height="1002" alt="image" src="https://github.com/user-attachments/assets/76a0526f-6e57-4ec4-b54e-2b505167b636" />
 現在のテストデータの詰まって状態
