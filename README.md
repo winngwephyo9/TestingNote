@@ -1,235 +1,83 @@
 import numpy as np
 import laspy
+import os
 
 # --- パス設定 ---
 bin_path = "/mnt/d/PointCloudLibrary/data/ob_testing_point_cloud_data/dataset/sequences/00/velodyne/000000.bin"
 label_path = "/mnt/d/PointCloudLibrary/Open3D-ML/test/sequences/00/predictions/000000.label"
-output_laz = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/ob_downsampled_final.laz"
+output_laz = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/ob_downsampled_final_11.laz"
 
-# 1. データの読み込み (float64で精度を確保)
+# 1. データの読み込み
 points = np.fromfile(bin_path, dtype=np.float32).reshape(-1, 4)
-xyz = points[:, :3].astype(np.float64) 
+xyz = points[:, :3].astype(np.float64)
 labels = (np.fromfile(label_path, dtype=np.uint32) & 0xFFFF).astype(np.uint8)
 
-# 2. ボクセルダウンサンプリング
-# 座標が「詰まる」場合は、この voxel_size を少し大きく(例: 0.05) してみてください
-voxel_size = 0.01 
+# 2. ボクセルダウンサンプリング (Web表示用に少し粗めに設定 2cm 推奨)
+voxel_size = 0.05
 voxel_indices = np.floor(xyz / voxel_size).astype(np.int64)
 _, unique_indices = np.unique(voxel_indices, axis=0, return_index=True)
 
 down_xyz = xyz[unique_indices]
 down_labels = labels[unique_indices]
 
-print(f"Original: {len(xyz)} -> Downsampled: {len(down_xyz)}")
-
-# 3. LASヘッダーの設定
+# 3. LASヘッダーの設定 (ここがWeb表示の鍵)
 header = laspy.LasHeader(point_format=7, version="1.4")
+header.scales = [0.001, 0.001, 0.001] # 1mm精度
 
-# スケールを 0.001 (1mm単位の整数保存) に設定
-header.scales = [0.001, 0.001, 0.001]
+# オフセットの設定（最小値から少し引いて安全マージンを確保）
+header.offsets = np.min(down_xyz, axis=0) - 0.1
+# 【重要】オフセットをデータの最小値に設定することで、
+# Potree内部での計算精度を最大化します。
+# header.offsets = np.min(down_xyz, axis=0)
+# header.scales = [0.0001, 0.0001, 0.0001] # 0.1mm精度に上げる
+# header.offsets = np.mean(down_xyz, axis=0) # 最小値ではなく「平均値」を中央にする
 
-# オフセットをデータの最小値に設定（重要：これにより大きな座標値を小さな相対値として保存できる）
-header.offsets = np.min(down_xyz, axis=0)
-
-# 4. データの作成と代入
 las = laspy.LasData(header)
+# laspyはヘッダーのオフセットを設定していれば、
+# 以下の代入時に自動で「(値 - オフセット) / スケール」を計算して保存します。
+las.x = down_xyz[:, 0] 
+las.y = down_xyz[:, 1] 
+las.z = down_xyz[:, 2] 
 
-# laspy 2.x 以降では、.x .y .z への直接代入で
-# 自動的に (raw_value - offset) / scale のスケーリングが行われます
-las.x = down_xyz[:, 0]
-las.y = down_xyz[:, 1]
-las.z = down_xyz[:, 2]
+# 【最重要】データの統計情報をヘッダーに書き込む（これがないとWebで映らない）
+las.update_header()
 
-las.classification = down_labels
+# 4. 属性の代入
+# las.classification = down_labels
+las.classification = down_labels.astype(np.uint8)
 
-# 5. 色の割り当て (16bitカラー: 0-65535)
-def get_color_255(label):
-    colors = {
+# 5. 色の割り当て (高速化版)
+def get_color_map():
+    return {
         0: [100, 100, 100], 10: [0, 0, 255], 11: [77, 179, 255],
         13: [0, 77, 128], 15: [255, 128, 0], 18: [128, 51, 26],
         20: [77, 77, 153], 30: [255, 51, 51], 40: [255, 0, 255],
         50: [255, 204, 0], 70: [0, 255, 0], 80: [0, 255, 255], 81: [255, 255, 0]
     }
-    return colors.get(label, [255, 0, 0])
 
-rgb = np.array([get_color_255(l) for l in down_labels], dtype=np.uint16)
-las.red = rgb[:, 0] * 256
-las.green = rgb[:, 1] * 256
-las.blue = rgb[:, 2] * 256
+cmap = get_color_map()
+# デフォルト色[255,0,0]を適用しつつマッピング
+rgb = np.array([cmap.get(l, [255, 0, 0]) for l in down_labels], dtype=np.uint16)
 
-# 6. 保存
-las.write(output_laz)
-print(f"--- 完了! ---")
-
-
-
-
-
-
-
-
-import numpy as np
-import laspy
-import os
-
-# --- パス設定 ---
-bin_path = "/mnt/d/PointCloudLibrary/data/SemanticKITTI/dataset/sequences/08/velodyne/000000.bin"
-label_path = "/mnt/d/PointCloudLibrary/Open3D-ML/test/sequences/08/predictions/000000.label"
-output_laz = "/mnt/d/PointCloudLibrary/Open3D-ML/segmented_result.laz"
-
-# 1. データの読み込み
-points = np.fromfile(bin_path, dtype=np.float32).reshape(-1, 4)
-xyz = points[:, :3]
-labels = (np.fromfile(label_path, dtype=np.uint32) & 0xFFFF).astype(np.uint8)
-
-# 数を合わせる
-min_len = min(len(xyz), len(labels))
-xyz, labels = xyz[:min_len], labels[:min_len]
-
-# 2. 色情報の作成 (0-255)
-def get_color_255(label):
-    colors = {
-        0: [128, 128, 128], 10: [0, 0, 255], 11: [77, 179, 255],
-        13: [0, 77, 128], 15: [255, 128, 0], 18: [128, 51, 26],
-        20: [77, 77, 153], 30: [255, 51, 51], 40: [255, 0, 255],
-        50: [255, 204, 0], 70: [0, 255, 0], 80: [0, 255, 255]
-    }
-    return colors.get(label, [255, 255, 255])
-
-# ここで 'rgb' 変数を定義します
-rgb = np.array([get_color_255(l) for l in labels], dtype=np.uint8)
-
-# 3. LASファイル（LAZ圧縮）の作成
-# point_format=7 にすることで、RGB と Classification(255まで) が両立できます
-header = laspy.LasHeader(point_format=7, version="1.4")
-las = laspy.LasData(header)
-
-# 座標の代入
-las.x = xyz[:, 0]
-las.y = xyz[:, 1]
-las.z = xyz[:, 2]
-
-# 分類番号の代入
-las.classification = labels
-
-# 色情報の代入 (LASは16bitカラーのため256倍)
-las.red = rgb[:, 0].astype(np.uint16) * 256
-las.green = rgb[:, 1].astype(np.uint16) * 256
-las.blue = rgb[:, 2].astype(np.uint16) * 256
-
-# 保存
-las.write(output_laz)
-print(f"--- 完了! LAZファイル(LAS 1.4)を作成しました: {output_laz} ---")
-
-
-そのコードはSemanticKITTIのデータセットをlazファイルを作成して、その.lazファイルをPotreeConverterで交換してもらった.htmlファイルをweb上に表示という流れで正しくコードです。
-
-専門点群テストデータをこのコードで確認してみると”Too many duplicate points were encountered”が発生しています。
-そのため、以下のコードで変更してテストしましたが、.lazファイルがCloudCompareで正しく座標配置していますがweb上には座標は詰まっている状況になっております。
-そのため、どうやって修正したらいいでしょうか。きちんと調査して修正してください。
-import numpy as np
-import laspy
-
-# --- パス設定 ---
-bin_path = "/mnt/d/PointCloudLibrary/data/ob_testing_point_cloud_data/dataset/sequences/00/velodyne/000000.bin"
-label_path = "/mnt/d/PointCloudLibrary/Open3D-ML/test/sequences/00/predictions/000000.label"
-output_laz = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/ob_downsampled_final.laz"
-
-# 1. データの読み込み
-points = np.fromfile(bin_path, dtype=np.float32).reshape(-1, 4)
-# xyz = points[:, :3].astype(np.float64)
-xyz = points[:, :3]
-labels = (np.fromfile(label_path, dtype=np.uint32) & 0xFFFF).astype(np.uint8)
-
-# 2. ボクセルダウンサンプリング (1cm単位)
-voxel_size = 0.01
-voxel_indices = np.floor(xyz / voxel_size).astype(np.int64)
-_, unique_indices = np.unique(voxel_indices, axis=0, return_index=True)
-
-down_xyz = xyz[unique_indices]
-down_labels = labels[unique_indices]
-
-print(f"Original: {len(xyz)} -> Downsampled: {len(down_xyz)}")
-
-# 3. LASヘッダーの設定 (重要: ここを修正)
-header = laspy.LasHeader(point_format=7, version="1.4")
-
-# Potree Converter 2.x系で精度を保つためのスケール (0.001 = 1mm精度)
-header.scales = [0.001, 0.001, 0.001]
-
-# 手動で引くのではなく、ヘッダーにオフセットを定義する
-header.offsets = np.min(down_xyz, axis=0)
-
-las = laspy.LasData(header)
-
-# 座標の代入: 元の値をそのまま入れる (laspyが内部で offset を考慮して処理します)
-las.x = down_xyz[:, 0]
-las.y = down_xyz[:, 1]
-las.z = down_xyz[:, 2]
-
-# 4. 属性の代入
-las.classification = down_labels
-las.return_number = np.ones(len(down_xyz), dtype=np.uint8)
-las.number_of_returns = np.ones(len(down_xyz), dtype=np.uint8)
-
-# 5. 色の割り当て (16bitカラー対応)
-def get_color_255(label):
-    colors = {
-        0: [100, 100, 100], 10: [0, 0, 255], 11: [77, 179, 255],
-        13: [0, 77, 128], 15: [255, 128, 0], 18: [128, 51, 26],
-        20: [77, 77, 153], 30: [255, 51, 51], 40: [255, 0, 255],
-        50: [255, 204, 0], 70: [0, 255, 0], 80: [0, 255, 255], 81: [255, 255, 0]
-    }
-    return colors.get(label, [255, 0, 0]) 
-
-rgb = np.array([get_color_255(l) for l in down_labels], dtype=np.uint16)
-# LASは各チャンネル16bit(0-65535)なので、256倍する
-las.red = rgb[:, 0] * 256
-las.green = rgb[:, 1] * 256
-las.blue = rgb[:, 2] * 256
+# LASは16bitカラー(0-65535)を必要とするため256倍する
+# las.red = rgb[:, 0] * 256
+# las.green = rgb[:, 1] * 256
+# las.blue = rgb[:, 2] * 256
+las.red = (rgb[:, 0] * 256).astype(np.uint16)
+las.green = (rgb[:, 1] * 256).astype(np.uint16)
+las.blue = (rgb[:, 2] * 256).astype(np.uint16)
 
 # 6. 保存
-las.update_header()
 las.write(output_laz)
-print(f"--- 完了! {output_laz} ---")
+print(f"Original points: {len(xyz)} -> Downsampled: {len(down_xyz)}")
+print(f"Offsets used: {header.offsets}")
 
-.lazをCloudCompareで開く時に
-Point in original coordinate system(on disk)側に
-x = - 148.963791
-y= -8.728610
-z= 11.263080
-真ん中に
-Previous input
-Shift 148.96
-          144.49
-          0.00
-Scale 1.0
-Point in local coordinate systemには
-x = -0.00379
-y= -135.76139
-z= 11.26308
-の情報が表示しています。
-Propertyの下に
-Box Dimensions  X: 297.482(-0.00379089:297.477)
-                                  Y: 281.084(0.00239014:281.086)
-                                  Z:64.659(-13.7879:50.8711)
-Shifted box center X: 148.737
-                                  Y: 140.544
-                                  Z:18.5416
-Global box center X: -0.223290
-                                  Y: -3.945612
-                                  Z:18.541580
+このようにコードを実行して、.lasファイルを作成した後web上に確認してみると形が正しく表示できない状況になっています。
+修正してください。.lasファイルをPotreeConverterで交換してweb上に確認しましたがCloudCompareに表示している点群みたいの形になっていないため、どのように修正したらいいでしょうか。
+そして、classificationは画像の通りになっているので実際の時はroad,などclassificationがある可能性があると思ういます。
+<img width="1529" height="750" alt="image" src="https://github.com/user-attachments/assets/53390207-d29c-483f-8f4c-dd1bf73688d8" />
+<img width="1492" height="785" alt="image" src="https://github.com/user-attachments/assets/6e685baa-d1a0-4472-864b-02ff04009b62" />
+<img width="1172" height="950" alt="image" src="https://github.com/user-attachments/assets/d4e376a4-05c5-426f-9756-6ba49eec606d" />
 
-Points 5,460,851
-Global shift (148.96,144.49,0.00)
-Global Scale 1
-<img width="391" height="678" alt="image" src="https://github.com/user-attachments/assets/f1cc1b71-e6e6-482a-9281-6b178e36d1f8" />
-<img width="737" height="497" alt="image" src="https://github.com/user-attachments/assets/3fda1c18-f400-4224-bd30-fa470dff4119" />
-<img width="1493" height="787" alt="image" src="https://github.com/user-attachments/assets/beb0275a-6a14-44f2-a718-fef114b9976b" />
-
-SemanticKITTIのテストデータセットの正しく表示
-<img width="1368" height="1002" alt="image" src="https://github.com/user-attachments/assets/76a0526f-6e57-4ec4-b54e-2b505167b636" />
-現在のテストデータの詰まって状態
-<img width="1107" height="990" alt="image" src="https://github.com/user-attachments/assets/9a05170c-2135-4f4c-9dff-11821ee47cad" />
 
 
