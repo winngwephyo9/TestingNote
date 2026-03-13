@@ -1,3 +1,46 @@
+import numpy as np
+import laspy
+
+# ... (読み込み・ダウンサンプリング部分は同じ) ...
+
+# 3. LASヘッダーの設定 (1.4を指定して0-255のIDを許可する)
+header = laspy.LasHeader(point_format=6, version="1.4") # Format 6は基本的な1.4形式
+header.scales = [0.001, 0.001, 0.001]
+header.offsets = np.min(down_xyz, axis=0)
+
+las = laspy.LasData(header)
+las.x = down_xyz[:, 0]
+las.y = down_xyz[:, 1]
+las.z = down_xyz[:, 2]
+
+# 4. Classificationの修正（ここが重要）
+# Potreeの標準フィルタに邪魔されないよう、一旦すべて「0 (Created, never classified)」
+# もしくは「1 (Unclassified)」に設定し、色はRGBで表現するのが最も安全です。
+# もしPotreeのサイドメニューで名前（Roadなど）を出したい場合は、ここでマッピングを行います。
+las.classification = down_labels.astype(np.uint8) 
+
+# 5. 色の割り当て (RGBを優先させる)
+def get_color_map():
+    return {
+        0: [100, 100, 100], 10: [0, 0, 255], 11: [77, 179, 255],
+        13: [0, 77, 128], 15: [255, 128, 0], 18: [128, 51, 26],
+        20: [77, 77, 153], 30: [255, 51, 51], 40: [255, 0, 255],
+        50: [255, 204, 0], 70: [0, 255, 0], 80: [0, 255, 255], 81: [255, 255, 0]
+    }
+
+cmap = get_color_map()
+rgb = np.array([cmap.get(l, [255, 0, 0]) for l in down_labels], dtype=np.float64)
+
+# 16bitカラーへ変換
+las.red = (rgb[:, 0] * 256).astype(np.uint16)
+las.green = (rgb[:, 1] * 256).astype(np.uint16)
+las.blue = (rgb[:, 2] * 256).astype(np.uint16)
+
+las.update_header()
+las.write(output_laz)
+
+
+
 146000,283000,340000,696000
 
 
