@@ -1,6 +1,76 @@
 import numpy as np
 import laspy
 
+# --- パス設定などは変更なし ---
+
+# 4. Classificationの変換マッピング (SemanticKITTI -> ASPRS LAS 1.4)
+# Potreeの標準表示に合わせるための変換表
+def map_kitti_to_asprs(labels):
+    asprs_labels = np.zeros_like(labels)
+    
+    mapping = {
+        0: 0,    # unclassified
+        10: 1,   # car -> Processed
+        11: 1,   # bicycle
+        13: 1,   # bus
+        15: 1,   # motorcycle
+        18: 1,   # truck
+        20: 1,   # other-vehicle
+        30: 1,   # person
+        31: 1,   # bicyclist
+        32: 1,   # motorcyclist
+        40: 11,  # road -> Road (ASPRS 11)
+        44: 11,  # sidewalk
+        48: 11,  # other-ground
+        49: 11,  # terrain
+        50: 6,   # building -> Building (ASPRS 6)
+        51: 6,   # wall
+        52: 6,   # fence
+        70: 5,   # vegetation -> High Vegetation (ASPRS 5)
+        71: 4,   # trunk -> Medium Veg
+        72: 3,   # terrain -> Low Veg
+        80: 1,   # pole
+        81: 1,   # traffic-sign
+    }
+    
+    for kitti_id, asprs_id in mapping.items():
+        asprs_labels[labels == kitti_id] = asprs_id
+    return asprs_labels
+
+# --- メイン処理 ---
+# 1.4 Format 6 を使用 (高精度・多機能)
+header = laspy.LasHeader(point_format=6, version="1.4")
+header.scales = [0.001, 0.001, 0.001]
+header.offsets = np.min(down_xyz, axis=0)
+
+las = laspy.LasData(header)
+las.x = down_xyz[:, 0]
+las.y = down_xyz[:, 1]
+las.z = down_xyz[:, 2]
+
+# ここでラベルを変換して代入
+las.classification = map_kitti_to_asprs(down_labels).astype(np.uint8)
+
+# 5. 色の割り当て (見た目をCloudCompareに合わせるためにRGBも保存)
+cmap = {
+    0: [100, 100, 100], 10: [0, 0, 255], 11: [77, 179, 255],
+    40: [255, 0, 255], 50: [255, 204, 0], 70: [0, 255, 0], # 道路は紫、建物は黄色など
+}
+rgb = np.array([cmap.get(l, [255, 0, 0]) for l in down_labels], dtype=np.uint16)
+
+las.red = rgb[:, 0] * 256
+las.green = rgb[:, 1] * 256
+las.blue = rgb[:, 2] * 256
+
+las.update_header()
+las.write(output_laz)
+
+
+
+
+import numpy as np
+import laspy
+
 # ... (読み込み・ダウンサンプリング部分は同じ) ...
 
 # 3. LASヘッダーの設定 (1.4を指定して0-255のIDを許可する)
