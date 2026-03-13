@@ -1,4 +1,42 @@
-import numpy as np
+146000,283000,340000,696000
+
+
+
+
+
+Traceback (most recent call last):
+
+  File "/mnt/d/PointCloudLIbrary/Open3D-ML/1_ob_convert_to_laz.py", line 39, in <module>
+
+    las.classification = down_labels
+
+  File "/home/winngwephyo/miniconda3/envs/randla/lib/python3.9/site-packages/laspy/lasdata.py", line 403, in __setattr__
+
+    self[key] = value
+
+  File "/home/winngwephyo/miniconda3/envs/randla/lib/python3.9/site-packages/laspy/lasdata.py", line 435, in __setitem__
+
+    self.points[key] = value
+
+  File "/home/winngwephyo/miniconda3/envs/randla/lib/python3.9/site-packages/laspy/point/record.py", line 223, in __setitem__
+
+    self[key][:] = value
+
+  File "/home/winngwephyo/miniconda3/envs/randla/lib/python3.9/site-packages/laspy/point/dims.py", line 684, in __setitem__
+
+    raise OverflowError(
+
+OverflowError: value 81 is greater than allowed (max: 31)
+
+このエラーが発生していますので、headerを変更しました。
+
+header = laspy.LasHeader(point_format=7, version="1.4")
+
+PotreeConverterで交換してweb上に確認してみるとこの形になっています。
+
+classificationにはbuilding, low point(noise), keypoint, overlap, defaultしかない
+
+pointの数もpoint budgetから10,000,000まで増えましたが、形が変わらないです。import numpy as np
 import laspy
 import os
 
