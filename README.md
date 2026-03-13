@@ -73,3 +73,5 @@ print(f"Done: {output_laz}")
 2. Classification（クラス分け）について
 SemanticKITTIのラベル番号（例: 40は道路）は、LAS標準（ASPRS）の番号とは異なります。
 • 対策: las.classification に入れる値を、以下の表のように変換すると、Web上のPotreeのサイドメニューで正しく名前（Ground, Building等）が表示されます。
+
+
