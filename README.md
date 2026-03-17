@@ -692,6 +692,7 @@ index.html
 
 
 
+<img width="1836" height="955" alt="image" src="https://github.com/user-attachments/assets/ad5b6367-4f7d-43bf-abb7-bf0b1050d5ba" />
 
 
 
