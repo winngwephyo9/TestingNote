@@ -1,3 +1,67 @@
+# --- Step 5: Classificationのマッピング修正 ---
+def map_kitti_to_asprs(labels):
+    asprs_labels = np.zeros_like(labels)
+    mapping = {
+        0: 0,    # never classified
+        10: 8,   # car -> Key-point (8番をCarとして利用)
+        40: 11,  # road -> Road (11番)
+        44: 11,  # sidewalk -> Road (11番)
+        50: 6,   # building -> Building (6番)
+        51: 6,   # wall -> Building (6番)
+        70: 5,   # vegetation -> High Veg (5番)
+        71: 4,   # trunk -> Medium Veg (4番)
+        72: 2,   # terrain -> Ground (2番)
+    }
+    for kitti_id, asprs_id in mapping.items():
+        asprs_labels[labels == kitti_id] = asprs_id
+    return asprs_labels
+
+# ここを必ず有効にする
+las.classification = map_kitti_to_asprs(down_labels).astype(np.uint8)
+
+# --- Step 6: 色の割り当て修正 (RGBA表示用) ---
+color_map = {
+    6: [255, 165, 0],   # Building: Orange
+    11: [128, 128, 128], # Road: Gray
+    8: [255, 0, 0],      # Car: Red
+    5: [0, 128, 0],      # Veg: Green
+    2: [139, 69, 19],    # Ground: Brown
+}
+# (以下、色の代入処理は前回のコードと同様)
+
+
+Potree.loadPointCloud("pointclouds/index/cloud.js", "index", e => {
+    let pointcloud = e.pointcloud;
+    let material = pointcloud.material;
+    viewer.scene.addPointCloud(pointcloud);
+    
+    material.activeAttributeName = "classification";
+
+    // --- 分類名と色のカスタマイズ ---
+    // 番号とラベルの紐付けを上書き
+    viewer.setClassColor(6, new THREE.Color(1, 0.64, 0)); // Building -> Orange
+    viewer.setClassColor(11, new THREE.Color(0.5, 0.5, 0.5)); // Road -> Gray
+    viewer.setClassColor(8, new THREE.Color(1, 0, 0)); // Car -> Red
+    
+    // Potreeの内部分類名を変更（UIに反映させるため）
+    Potree.Classification = {
+        0: { visible: true, name: 'Never Classified', color: [0.5, 0.5, 0.5, 1] },
+        2: { visible: true, name: 'Ground', color: [0.6, 0.3, 0.1, 1] },
+        5: { visible: true, name: 'Vegetation', color: [0, 0.5, 0, 1] },
+        6: { visible: true, name: 'Building', color: [1, 0.64, 0, 1] },
+        8: { visible: true, name: 'Car', color: [1, 0, 0, 1] },
+        11: { visible: true, name: 'Road', color: [0.3, 0.3, 0.3, 1] }
+    };
+
+    // UIを再描画（サイドバーに反映）
+    viewer.gui.sidebar.initClassification();
+
+    material.size = 1;
+    material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+    viewer.fitToScreen();
+});
+
+
 new
 
 import os
