@@ -1,271 +1,221 @@
-# --- Step 5: Classificationのマッピング修正 ---
-def map_kitti_to_asprs(labels):
-    asprs_labels = np.zeros_like(labels)
-    mapping = {
-        0: 0,    # never classified
-        10: 8,   # car -> Key-point (8番をCarとして利用)
-        40: 11,  # road -> Road (11番)
-        44: 11,  # sidewalk -> Road (11番)
-        50: 6,   # building -> Building (6番)
-        51: 6,   # wall -> Building (6番)
-        70: 5,   # vegetation -> High Veg (5番)
-        71: 4,   # trunk -> Medium Veg (4番)
-        72: 2,   # terrain -> Ground (2番)
-    }
-    for kitti_id, asprs_id in mapping.items():
-        asprs_labels[labels == kitti_id] = asprs_id
-    return asprs_labels
-
-# ここを必ず有効にする
-las.classification = map_kitti_to_asprs(down_labels).astype(np.uint8)
-
-# --- Step 6: 色の割り当て修正 (RGBA表示用) ---
-color_map = {
-    6: [255, 165, 0],   # Building: Orange
-    11: [128, 128, 128], # Road: Gray
-    8: [255, 0, 0],      # Car: Red
-    5: [0, 128, 0],      # Veg: Green
-    2: [139, 69, 19],    # Ground: Brown
-}
-# (以下、色の代入処理は前回のコードと同様)
-
-
-Potree.loadPointCloud("pointclouds/index/cloud.js", "index", e => {
-    let pointcloud = e.pointcloud;
-    let material = pointcloud.material;
-    viewer.scene.addPointCloud(pointcloud);
-    
-    material.activeAttributeName = "classification";
-
-    // --- 分類名と色のカスタマイズ ---
-    // 番号とラベルの紐付けを上書き
-    viewer.setClassColor(6, new THREE.Color(1, 0.64, 0)); // Building -> Orange
-    viewer.setClassColor(11, new THREE.Color(0.5, 0.5, 0.5)); // Road -> Gray
-    viewer.setClassColor(8, new THREE.Color(1, 0, 0)); // Car -> Red
-    
-    // Potreeの内部分類名を変更（UIに反映させるため）
-    Potree.Classification = {
-        0: { visible: true, name: 'Never Classified', color: [0.5, 0.5, 0.5, 1] },
-        2: { visible: true, name: 'Ground', color: [0.6, 0.3, 0.1, 1] },
-        5: { visible: true, name: 'Vegetation', color: [0, 0.5, 0, 1] },
-        6: { visible: true, name: 'Building', color: [1, 0.64, 0, 1] },
-        8: { visible: true, name: 'Car', color: [1, 0, 0, 1] },
-        11: { visible: true, name: 'Road', color: [0.3, 0.3, 0.3, 1] }
-    };
-
-    // UIを再描画（サイドバーに反映）
-    viewer.gui.sidebar.initClassification();
-
-    material.size = 1;
-    material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
-    viewer.fitToScreen();
-});
-
-
-new
-
-import os
-import torch
-import numpy as np
+import open3d as o3d
 import open3d.ml.torch as ml3d
-import open3d.ml as ml
+import torch
+import torch.nn as nn
+import numpy as np
 import laspy
+import os
 
 def main():
     base_path = "/mnt/d/PointCloudLibrary/Open3D-ML"
-    cfg_path = os.path.join(base_path, "ml3d/configs/randlanet_semantickitti.yml")
-    ckpt_path = os.path.join(base_path, "randlanet_semantickitti_202201071330utc.pth")
-    input_las = os.path.join(base_path, "3d_point_data/tokyo_data.las")
-    output_las = os.path.join(base_path, "3d_point_data/tokyo_segmented_detailed.las")
+    ckpt_path = os.path.join(base_path, "randlanet_s3dis_202201071330utc.pth") 
+    input_las = os.path.join(base_path, "3d_point_data/Zuiko314.las")
+    output_las = os.path.join(base_path, "3d_point_data/Zuiko314_segmented.las")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # --- Step 1: モデル準備 ---
-    cfg = ml.utils.Config.load_from_file(cfg_path)
-    model = ml3d.models.RandLANet(**cfg.model)
-    pipeline = ml3d.pipelines.SemanticSegmentation(model)
-    pipeline.load_ckpt(ckpt_path)
-
-    # --- Step 2: データ読み込み ---
-    las = laspy.read(input_las)
-    points = np.asarray(las.xyz, dtype=np.float32)
-    points_normalized = points - np.mean(points, axis=0)
-
-    input_dict = {
-        'point': points_normalized,
-        'feat': np.zeros((len(points), 0), dtype=np.float32), 
-        'label': np.zeros((len(points),), dtype=np.int32)
+    # --- 1. モデル準備 (入力を3次元に設定) ---
+    model_cfg = {
+        'name': 'RandLANet', 'num_neighbors': 16, 'num_layers': 5, 'num_classes': 13,
+        'dim_input': 3,        # 3次元(XYZ)のみを受け取るように変更
+        'dim_features': 8, 
+        'dim_output': [16, 64, 128, 256, 512],
+        'sub_sampling_ratio': [4, 4, 4, 4, 4], 'grid_size': 0.04
     }
-
-    # --- Step 3: AI推論 ---
-    pipeline.model.eval()
-    with torch.no_grad():
-        result = pipeline.run_inference(input_dict)
-    kitti_labels = result['predict_labels']
-
-    # --- Step 4: 詳細マッピング (SemanticKITTI -> LAS/Potree Standard) ---
-    # Potreeのサイドバーにある項目に連動するように番号を振り直します
-    las_labels = np.zeros_like(kitti_labels, dtype=np.uint8)
-
-    # マッピング辞書 {SemanticKITTI ID : Potree/LAS ID}
-    mapping = {
-        0: 0,    # unlabeled -> never classified
-        1: 1,    # outlier -> unclassified
-        10: 9,   # car -> water (Potreeで他と被らない予備番号として利用可)
-        11: 9,   # bicycle
-        13: 11,  # road -> road
-        15: 11,  # sidewalk -> road
-        16: 5,   # vegetation -> high vegetation
-        18: 6,   # building -> building
-        19: 5,   # other-ground -> high vegetation
-        20: 12,  # fence -> overlap (予備)
-        30: 2,   # pole -> ground (あえてgroundに近い色にするか、1番へ)
-        40: 1,   # road-marking
-    }
-
-    for kitti_id, las_id in mapping.items():
-        las_labels[kitti_labels == kitti_id] = las_id
-
-    # --- Step 5: 保存処理 ---
-    new_las = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
-    new_las.header.offsets = las.header.offsets
-    new_las.header.scales = las.header.scales
-    new_las.x, new_las.y, new_las.z = las.x, las.y, las.z
-
-    # Classification書き込み（これがフィルタリングの鍵です）
-    new_las.classification = las_labels
-
-    # Potreeでの視認性を高めるためのRGB色設定 (16bit)
-    colors = np.zeros((len(las_labels), 3), dtype=np.uint16)
-    # クラスごとの色定義 [R, G, B]
-    color_map = {
-        6: [255, 255, 0],   # Building: Yellow
-        5: [0, 255, 0],     # Vegetation: Green
-        11: [60, 60, 60],   # Road: Dark Gray
-        9: [255, 0, 0],     # Vehicle: Red
-        2: [150, 75, 0],    # Ground: Brown
-    }
+    model = ml3d.models.RandLANet(**model_cfg)
+    model.device = device
     
-    for cid, rgb in color_map.items():
-        mask = (las_labels == cid)
-        colors[mask] = np.array(rgb, dtype=np.uint16)
+    # 重みのロードと特殊な変換
+    checkpoint = torch.load(ckpt_path, map_location=device)
+    state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+    
+    # 【重要】元が6次元の重みから、XYZに対応する最初の3次元分だけを取り出す
+    if state_dict['fc0.weight'].shape[1] == 6:
+        print("Converting 6D weights to 3D (extracting XYZ components)...")
+        original_weight = state_dict['fc0.weight'] # [8, 6]
+        state_dict['fc0.weight'] = original_weight[:, :3] # [8, 3] に切り出し
+        
+    model.load_state_dict(state_dict)
+    
+    pipeline = ml3d.pipelines.SemanticSegmentation(model, device=device)
+    pipeline.model.to(device)
+    pipeline.model.eval()
 
-    new_las.red = colors[:, 0] << 8
-    new_las.green = colors[:, 1] << 8
-    new_las.blue = colors[:, 2] << 8
+    # --- 2. データ読み込み ---
+    las = laspy.read(input_las)
+    xyz_raw = np.stack([las.x, las.y, las.z], axis=1).astype(np.float32)
+    
+    # 座標の正規化
+    xyz_min = np.min(xyz_raw, axis=0)
+    xyz_norm = xyz_raw - xyz_min
+    if np.max(xyz_norm[:, 2]) > 50.0:
+        xyz_norm *= 0.001
+    
+    # Pipelineに渡すデータ (featはあえてXYZと同じにする)
+    inference_data = {
+        'point': xyz_norm,
+        'feat': xyz_norm, # 3次元として渡す
+        'label': np.zeros(len(xyz_norm), dtype=np.int32)
+    }
 
+    # --- 3. 推論実行 ---
+    print(f"Final Height for AI: {np.max(xyz_norm[:, 2]):.2f}m")
+    print("Running Inference with 3D-Adapted Model...")
+    
+    with torch.no_grad():
+        results = pipeline.run_inference(inference_data)
+        labels = results['predict_labels']
+
+    # --- 4. 結果表示と保存 ---
+    unique, counts = np.unique(labels, return_counts=True)
+    labels_dict = {0:"ceiling", 1:"floor", 2:"wall", 3:"beam", 4:"column", 5:"window", 
+                   6:"door", 7:"table", 8:"chair", 9:"sofa", 10:"bookcase", 11:"board", 12:"clutter"}
+    
+    print("\n--- AI Classification Stats ---")
+    for u, c in zip(unique, counts):
+        name = labels_dict.get(int(u), f"unknown({u})")
+        print(f"ID {u:2} ({name:8}): {c:10} points")
+
+    new_las = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
+    new_las.header.scales = las.header.scales
+    new_las.header.offsets = las.header.offsets
+    new_las.x, new_las.y, new_las.z = las.x, las.y, las.z
+    new_las.classification = labels.astype(np.uint8)
+    if hasattr(las, 'red'):
+        new_las.red, new_las.green, new_las.blue = las.red, las.green, las.blue
+    
     new_las.write(output_las)
-    print(f"詳細分類完了: {output_las}")
+    print(f"\nSaved successfully to: {output_las}")
 
 if __name__ == "__main__":
     main()
-
-import numpy as np
-import laspy
-import os
-
-# --- 設定 ---
-bin_path = "/mnt/d/PointCloudLibrary/data/ob_testing_point_cloud_data/dataset/sequences/00/velodyne/000000.bin"
-label_path = "/mnt/d/PointCloudLibrary/Open3D-ML/test/sequences/00/predictions/000000.label"
-output_laz = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/0b_segmented_result_fixed.laz"
-
-os.makedirs(os.path.dirname(output_laz), exist_ok=True)
-
-# --- データ読み込み ---
-points = np.fromfile(bin_path, dtype=np.float32).reshape(-1, 4)
-xyz = points[:, :3].astype(np.float64)
-# SemanticKITTIラベル取得
-labels = (np.fromfile(label_path, dtype=np.uint32) & 0xFFFF).astype(np.uint8)
-
-# --- ダウンサンプリング ---
-voxel_size = 0.01
-voxel_indices = np.floor(xyz / voxel_size).astype(np.int64)
-_, unique_indices = np.unique(voxel_indices, axis=0, return_index=True)
-down_xyz = xyz[unique_indices]
-down_labels = labels[unique_indices]
-
-# --- LASヘッダー ---
-header = laspy.LasHeader(point_format=7, version="1.4")
-header.offsets = np.min(down_xyz, axis=0)
-header.scales = [0.001, 0.001, 0.001]
-las = laspy.LasData(header)
-las.x, las.y, las.z = down_xyz[:, 0], down_xyz[:, 1], down_xyz[:, 2]
-
-# --- Step 5: Classificationのマッピング (ココが重要) ---
-# Potreeのチェックボックス(ASPRS規格)に合わせる
-def map_kitti_to_asprs(labels):
-    asprs_labels = np.zeros_like(labels)
-    mapping = {
-        0: 0,    # never classified
-        10: 1,   # car -> Unclassified(1)
-        40: 11,  # road -> Road(11)
-        44: 11,  # sidewalk -> Road(11)
-        50: 6,   # building -> Building(6) ★重要
-        70: 5,   # vegetation -> High Veg(5)
-        71: 4,   # trunk -> Medium Veg(4)
-        72: 3,   # terrain -> Low Veg(3)
-    }
-    for kitti_id, asprs_id in mapping.items():
-        asprs_labels[labels == kitti_id] = asprs_id
-    return asprs_labels
-
-# 修正：マッピングした後の値を代入
-las.classification = map_kitti_to_asprs(down_labels).astype(np.uint8)
-
-# --- Step 6: 色の割り当て (赤色=建物に設定) ---
-# クラスIDごとの色設定 [R, G, B]
-color_map = {
-    6: [255, 0, 0],    # Building: Red (ご要望通り)
-    11: [128, 128, 128], # Road: Gray
-    5: [0, 255, 0],    # Veg: Green
-    1: [255, 255, 0],  # Car/Other: Yellow
-    0: [100, 100, 100] # Default
-}
-
-# デフォルトはグレー
-colors = np.full((len(las.classification), 3), [100, 100, 100], dtype=np.uint16)
-for cid, rgb in color_map.items():
-    colors[las.classification == cid] = rgb
-
-# laspyは16bitカラーなので256倍する
-las.red = colors[:, 0] * 256
-las.green = colors[:, 1] * 256
-las.blue = colors[:, 2] * 256
-
-las.update_header()
-las.write(output_laz)
-print(f"変換成功: {output_laz}")
-
-
-Potree.loadPointCloud("pointclouds/index/cloud.js", "index", e => {
-    let pointcloud = e.pointcloud;
-    let material = pointcloud.material;
-    viewer.scene.addPointCloud(pointcloud);
     
-    // --- 修正ポイント ---
-    // 1. 最初から属性を「Classification」に設定
-    material.activeAttributeName = "classification"; 
+
+    <!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>Potree Viewer</title>
+
+	<link rel="stylesheet" type="text/css" href="./libs/potree/potree.css">
+	<link rel="stylesheet" type="text/css" href="./libs/jquery-ui/jquery-ui.min.css">
+	<link rel="stylesheet" type="text/css" href="./libs/openlayers3/ol.css">
+	<link rel="stylesheet" type="text/css" href="./libs/spectrum/spectrum.css">
+	<link rel="stylesheet" type="text/css" href="./libs/jstree/themes/mixed/style.css">
+</head>
+
+<body>
+	<script src="./libs/jquery/jquery-3.1.1.min.js"></script>
+	<script src="./libs/spectrum/spectrum.js"></script>
+	<script src="./libs/jquery-ui/jquery-ui.min.js"></script>
+	<script src="./libs/three.js/build/three.min.js"></script>
+	<script src="./libs/three.js/extra/lines.js"></script>
+	<script src="./libs/other/BinaryHeap.js"></script>
+	<script src="./libs/tween/tween.min.js"></script>
+	<script src="./libs/d3/d3.js"></script>
+	<script src="./libs/proj4/proj4.js"></script>
+	<script src="./libs/openlayers3/ol.js"></script>
+	<script src="./libs/i18next/i18next.js"></script>
+	<script src="./libs/jstree/jstree.js"></script>
+	<script src="./libs/potree/potree.js"></script>
+	<script src="./libs/plasio/js/laslaz.js"></script>
+
+	<!-- INCLUDE ADDITIONAL DEPENDENCIES HERE -->
+	document.title = "";
+	viewer.setEDLEnabled(false);
+	viewer.setBackground("gradient"); // ["skybox", "gradient", "black", "white"];
+	viewer.setDescription(``);
+
+	<div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; ">
+		<div id="potree_render_area" style="background-image: url('./libs/potree/resources/images/background.jpg');">
+		</div>
+		<div id="potree_sidebar_container"> </div>
+	</div>
+
+	<script>
+
+		window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+
+		viewer.setEDLEnabled(true);
+		viewer.setFOV(60);
+		viewer.setPointBudget(2_000_000);
+		document.title = "";
+		viewer.setEDLEnabled(false);
+		viewer.setBackground("gradient"); // ["skybox", "gradient", "black", "white"];
+		viewer.setDescription(``);
+		viewer.loadSettingsFromURL();
+
+		viewer.setDescription("");
+
+		viewer.loadGUI(() => {
+			viewer.setLanguage('en');
+			$("#menu_appearance").next().show();
+			$("#menu_tools").next().show();
+			$("#menu_clipping").next().show();
+			viewer.toggleSidebar();
+		});
+
+		// Potree.loadPointCloud("pointclouds/index/cloud.js", "index", e => {
+		// 	let pointcloud = e.pointcloud;
+		// 	let material = pointcloud.material;
+		// 	viewer.scene.addPointCloud(pointcloud);
+		// 	//material.activeAttributeName = "rgba"; //[rgba, intensity, classification, ...]
+		// 	material.size = 1;
+		// 	material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+		// 	material.shape = Potree.PointShape.SQUARE;
+		// 	viewer.fitToScreen();
+		// });
+
+		Potree.loadPointCloud("pointclouds/index/cloud.js", "index", function (e) {
+			let pointcloud = e.pointcloud;
+			let material = pointcloud.material;
+
+			// --- 1. 表示設定をRGBA（自分で塗った色）に固定する ---
+			material.activeAttributeName = "rgba";
+			material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+			material.size = 1;
+
+			// --- 2. Classification（左側メニュー）の日本語化と定義追加 ---
+			// ここで番号(2, 5, 6, 8, 11)と名前を紐付けます
+			viewer.setClassifications({
+				// --- 既存の定義 ---
+				0: { visible: true, name: '未分類', color: [0.5, 0.5, 0.5, 1.0] },
+				2: { visible: true, name: '地面', color: [0.6, 0.4, 0.2, 1.0] },
+				5: { visible: true, name: '高木(植物)', color: [0.0, 0.6, 0.0, 1.0] },
+				6: { visible: true, name: '建物', color: [1.0, 0.0, 0.0, 1.0] },
+				8: { visible: true, name: '車', color: [1.0, 1.0, 0.0, 1.0] },
+				11: { visible: true, name: '道路', color: [0.4, 0.4, 0.4, 1.0] },
+
+				// --- 追加可能なクラス ---
+				3: { visible: true, name: '低木', color: [0.3, 1.0, 0.3, 1.0] },
+				4: { visible: true, name: '中木', color: [0.0, 0.8, 0.0, 1.0] },
+				7: { visible: true, name: 'ノイズ', color: [1.0, 0.0, 1.0, 1.0] }, // ピンク系
+				9: { visible: true, name: '水面', color: [0.0, 0.0, 1.0, 1.0] }, // 青
+				10: { visible: true, name: 'レール/軌道', color: [0.8, 0.8, 0.2, 1.0] },
+				12: { visible: true, name: 'オーバーラップ', color: [1.0, 1.0, 0.0, 0.5] }, // 半透明
+				13: { visible: true, name: '電線', color: [1.0, 0.5, 0.0, 1.0] }, // オレンジ
+				14: { visible: true, name: '電柱/塔', color: [0.6, 0.3, 0.0, 1.0] },
+				15: { visible: true, name: '橋梁', color: [0.0, 0.7, 0.7, 1.0] },
+				17: { visible: true, name: '縁石(路肩)', color: [0.7, 0.7, 0.7, 1.0] }
+			});
+
+			viewer.scene.addPointCloud(pointcloud);
+			viewer.fitToScreen();
+		});
+
+	</script>
+
+
+</body>
+
+</html>
+
+これで大丈夫ですが、詳しく見るとdoorの色はdoorの部分だけでなくwallにも付いていると思ういます。Windowも同じWindowの部分だけでなく他の部分にも色が付いています。
+
+きちんとclassificationを修正してください。
     
-    // 2. クラスごとの色をJS側でも定義（赤色=建物にする場合）
-    // ASPRS Class 6 (Building) を 赤色に設定
-    viewer.setClassColor(6, new THREE.Color(1, 0, 0)); 
-    // ASPRS Class 11 (Road) を グレーに設定
-    viewer.setClassColor(11, new THREE.Color(0.5, 0.5, 0.5));
-    
-    material.size = 1;
-    material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
-    material.shape = Potree.PointShape.SQUARE;
-    viewer.fitToScreen();
-});
-
-点群専用データのコードを実行して試してみると、classificationの時建物の部分はgreenとyellow二つの色がついています。そのため、greenはmedium vegetationの色になっています。建物なのにこの色が付いているので変なclassificationになっています。後左側のclassificationにroad,car,なども追加して
-<img width="1387" height="961" alt="image" src="https://github.com/user-attachments/assets/7dcd1f22-e637-4e82-b0b2-a103044a36b7" />
-<img width="1285" height="941" alt="image" src="https://github.com/user-attachments/assets/1a621736-7ba7-4e7b-a89a-88d87ff18776" />
-
-tokyo dataset はrgbaの時に建物の色がgray,yellow,redなどがついています。なぜですか。
-classification時に建物の色がdefault color, yellow is building color and blue is water colorになっています。これも変な形になっています。修正してください。
-<img width="1659" height="931" alt="image" src="https://github.com/user-attachments/assets/c6f2fba3-8820-45a0-9c65-09e6d86e6469" />
-<img width="1621" height="967" alt="image" src="https://github.com/user-attachments/assets/0806f9d1-2950-43e1-9b16-6aca7f69bb87" />
-
-
-
-
-
+    <img width="1146" height="912" alt="image" src="https://github.com/user-attachments/assets/37270175-8ec1-4453-becc-3e62da3abf5d" />
+<img width="1111" height="901" alt="image" src="https://github.com/user-attachments/assets/8e003755-ee21-419c-aaae-15c71ca103f0" />
