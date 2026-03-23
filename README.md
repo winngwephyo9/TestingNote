@@ -1,6 +1,122 @@
 import open3d as o3d
 import open3d.ml.torch as ml3d
 import torch
+import numpy as np
+import laspy
+import os
+
+def main():
+    base_path = "/mnt/d/PointCloudLibrary/Open3D-ML"
+    ckpt_path = os.path.join(base_path, "randlanet_s3dis_202201071330utc.pth") 
+    input_las = os.path.join(base_path, "3d_point_data/Zuiko314.las")
+    output_las = os.path.join(base_path, "3d_point_data/Zuiko314_segmented.las")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # --- 1. モデル準備 (本来の6次元入力に設定) ---
+    model_cfg = {
+        'name': 'RandLANet', 'num_neighbors': 16, 'num_layers': 5, 'num_classes': 13,
+        'dim_input': 6,        # XYZ + RGB の6次元に戻す
+        'dim_features': 8, 
+        'dim_output': [16, 64, 128, 256, 512],
+        'sub_sampling_ratio': [4, 4, 4, 4, 4], 'grid_size': 0.04
+    }
+    model = ml3d.models.RandLANet(**model_cfg)
+    
+    # 重みのロード（次元カットせずそのまま読み込む）
+    checkpoint = torch.load(ckpt_path, map_location=device)
+    state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+    model.load_state_dict(state_dict)
+    
+    pipeline = ml3d.pipelines.SemanticSegmentation(model, device=device)
+    pipeline.model.to(device)
+    pipeline.model.eval()
+
+    # --- 2. データ読み込みと6次元化 ---
+    las = laspy.read(input_las)
+    xyz = np.stack([las.x, las.y, las.z], axis=1).astype(np.float32)
+    
+    # RGBの取得と正規化 (S3DISモデルは 0.0-255.0 の範囲を想定)
+    if hasattr(las, 'red'):
+        # laspyのRGBは16bit(0-65535)の場合があるため、8bit(0-255)に変換
+        red = np.array(las.red) / (256 if np.max(las.red) > 255 else 1)
+        green = np.array(las.green) / (256 if np.max(las.green) > 255 else 1)
+        blue = np.array(las.blue) / (256 if np.max(las.blue) > 255 else 1)
+        rgb = np.stack([red, green, blue], axis=1).astype(np.float32)
+    else:
+        print("Warning: No RGB found. Using dummy gray color.")
+        rgb = np.full((len(xyz), 3), 128, dtype=np.float32)
+
+    # 座標の正規化（中心を0に寄せる）
+    xyz_min = np.min(xyz, axis=0)
+    xyz_norm = xyz - xyz_min
+
+    # 特徴量：[X, Y, Z, R, G, B]
+    features = np.concatenate([xyz_norm, rgb], axis=1)
+
+    inference_data = {
+        'point': xyz_norm,
+        'feat': features, 
+        'label': np.zeros(len(xyz_norm), dtype=np.int32)
+    }
+
+    # --- 3. 推論実行 ---
+    print(f"Running Inference with RGB-Aware Model (Points: {len(xyz)})...")
+    with torch.no_grad():
+        results = pipeline.run_inference(inference_data)
+        labels = results['predict_labels']
+
+    # --- 4. LAS保存 ---
+    new_las = laspy.create(point_format=las.header.point_format, file_version=las.header.version)
+    new_las.header.scales = las.header.scales
+    new_las.header.offsets = las.header.offsets
+    new_las.x, new_las.y, new_las.z = las.x, las.y, las.z
+    new_las.classification = labels.astype(np.uint8)
+    if hasattr(las, 'red'):
+        new_las.red, new_las.green, new_las.blue = las.red, las.green, las.blue
+    
+    new_las.write(output_las)
+    print(f"Saved: {output_las}")
+
+if __name__ == "__main__":
+    main()
+
+
+Potree.loadPointCloud("pointclouds/index/cloud.js", "index", function (e) {
+    let pointcloud = e.pointcloud;
+    let material = pointcloud.material;
+
+    // 分類表示をデフォルトにする
+    material.activeAttributeName = "classification"; 
+    material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+    material.size = 1;
+
+    // S3DISの13クラス定義に正確に合わせる
+    viewer.setClassifications({
+        0:  { visible: true, name: 'Ceiling',  color: [1.0, 1.0, 0.0, 1.0] }, // 黄
+        1:  { visible: true, name: 'Floor',    color: [0.0, 1.0, 0.0, 1.0] }, // 緑
+        2:  { visible: true, name: 'Wall',     color: [1.0, 0.0, 0.0, 1.0] }, // 赤
+        3:  { visible: true, name: 'Beam',     color: [0.0, 1.0, 1.0, 1.0] }, // 水色
+        4:  { visible: true, name: 'Column',   color: [0.5, 0.0, 0.5, 1.0] }, // 紫
+        5:  { visible: true, name: 'Window',   color: [0.0, 0.0, 1.0, 1.0] }, // 青
+        6:  { visible: true, name: 'Door',     color: [1.0, 0.5, 0.0, 1.0] }, // オレンジ
+        7:  { visible: true, name: 'Table',    color: [0.7, 0.3, 0.1, 1.0] },
+        8:  { visible: true, name: 'Chair',    color: [0.3, 0.3, 0.3, 1.0] },
+        9:  { visible: true, name: 'Sofa',     color: [1.0, 0.7, 0.7, 1.0] },
+        10: { visible: true, name: 'Bookcase', color: [0.5, 0.5, 0.0, 1.0] },
+        11: { visible: true, name: 'Board',    color: [0.0, 0.5, 0.5, 1.0] },
+        12: { visible: true, name: 'Clutter',  color: [0.7, 0.7, 0.7, 1.0] }  // グレー
+    });
+
+    viewer.scene.addPointCloud(pointcloud);
+    viewer.fitToScreen();
+});
+
+
+
+
+import open3d as o3d
+import open3d.ml.torch as ml3d
+import torch
 import torch.nn as nn
 import numpy as np
 import laspy
