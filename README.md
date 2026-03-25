@@ -1,3 +1,9 @@
+まずは左側のclassificationの下にある色と画像の色が間違ってる
+
+例え壁、なのに、テーブルの色が付いています。
+
+床も壁の色が付いています。
+
 import os
 import numpy as np
 import open3d as o3d
