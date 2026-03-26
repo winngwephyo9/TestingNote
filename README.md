@@ -1,3 +1,73 @@
+def refine_s3dis_full_logic(xyz_m, ai_labels, spacing_m):
+    print("\n" + "="*20 + " OBJECT-BASED REFINEMENT " + "="*20)
+
+    # 座標の取得 (Zを高さとして扱う)
+    x, y, z = xyz_m[:, 0], xyz_m[:, 1], xyz_m[:, 2]
+    z_min, z_max = np.min(z), np.max(z)
+    
+    # 法線計算 (0.1m〜0.15m程度が室内家具には最適)
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(xyz_m)
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.12, max_nn=30))
+    normals = np.asarray(pcd.normals)
+    nz = np.abs(normals[:, 2]) # Z軸方向の水平度 (1.0=水平, 0.0=垂直)
+
+    final_labels = np.full(len(xyz_m), 12, dtype=np.uint8) # 初期値 Clutter
+
+    # 1. 床と天井の確定
+    final_labels[z < z_min + 0.15] = 1  # Floor
+    final_labels[z > z_max - 0.15] = 0  # Ceiling
+
+    # 2. 壁の暫定判定 (垂直面)
+    is_wall_candidate = (final_labels == 12) & (nz < 0.5)
+    final_labels[is_wall_candidate] = 2
+
+    # 3. 家具（水平面）の抽出とクラスタリング
+    # 床・天井・壁候補以外の「水平に近い面」
+    furn_mask = (final_labels == 12) & (nz > 0.5)
+    
+    if np.any(furn_mask):
+        f_pcd = o3d.geometry.PointCloud()
+        f_pcd.points = o3d.utility.Vector3dVector(xyz_m[furn_mask])
+        # epsを少し広めの0.2mに設定
+        clusters = np.array(f_pcd.cluster_dbscan(eps=0.20, min_points=15))
+        
+        for c_id in set(clusters):
+            if c_id == -1: continue
+            idx_in_mask = (clusters == c_id)
+            original_idx = np.where(furn_mask)[0][idx_in_mask]
+            
+            c_points = xyz_m[original_idx]
+            avg_z = np.mean(c_points[:, 2]) - z_min # 床からの高さ
+            
+            # 塊のサイズ計測
+            bbox = np.max(c_points, axis=0) - np.min(c_points, axis=0)
+            diag = np.sqrt(bbox[0]**2 + bbox[1]**2)
+            
+            # --- 家具の種類判定 ---
+            if avg_z > 0.65 and diag > 0.6:
+                target_label = 7 # Table
+            else:
+                target_label = 8 # Chair
+
+            # --- 重要：塊の「周辺」を巻き込む (脚や背もたれの救済) ---
+            # その水平面（座面/天板）の重心から一定距離にある Wall や Clutter を同じラベルに。
+            center = np.mean(c_points, axis=0)
+            dist_sq = (x - center[0])**2 + (y - center[1])**2
+            
+            # 水平距離 0.3m 以内で、高さがその家具の範囲内にあるものを上書き
+            # これで「椅子の脚」や「背もたれ」を Wall から Chair に奪い取ります
+            influence_mask = (dist_sq < 0.3**2) & \
+                             (z > z_min + 0.15) & (z < center[2] + 0.5) & \
+                             ((final_labels == 2) | (final_labels == 12) | (final_labels == 1))
+            
+            final_labels[influence_mask] = target_label
+            final_labels[original_idx] = target_label # 最後に水平面自体を上書き
+
+    return final_labels
+
+
+
 import os
 import numpy as np
 import open3d as o3d
