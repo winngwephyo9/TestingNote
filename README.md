@@ -1,3 +1,75 @@
+def refine_s3dis_full_logic(xyz_m, ai_labels, spacing_m):
+    print("\n" + "="*20 + " GEOMETRY ANALYSIS " + "="*20)
+    
+    # 1. 点群のスケールに合わせた法線推定
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(xyz_m)
+    # 半径を固定値（例: 10cm〜20cm）にする方が安定します
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.15, max_nn=30))
+    normals = np.asarray(pcd.normals)
+    
+    # Z軸方向の法線強度（絶対値）
+    # 1.0に近い = 真上/真下を向いている（水平面：床・天井・テーブル）
+    # 0.0に近い = 横を向いている（垂直面：壁）
+    nz = np.abs(normals[:, 2]) 
+    
+    z = xyz_m[:, 2]
+    z_min, z_max = np.min(z), np.max(z)
+    z_range = z_max - z_min
+    
+    final_labels = np.full(len(xyz_m), 12, dtype=np.uint8) # Default: Clutter
+
+    # --- 修正ロジック ---
+
+    # A. 床 (Floor) の判定
+    # 最下部から20cm以内で、かつ法線がしっかり上を向いているもの
+    is_floor = (z < z_min + 0.2) & (nz > 0.85)
+    final_labels[is_floor] = 1
+
+    # B. 壁 (Wall) の判定
+    # 法線が横を向いている（nzが小さい）ものはほぼ壁
+    # しきい値を 0.3 程度に下げて、少しの傾きも壁として許容する
+    is_wall = (nz < 0.4) 
+    final_labels[is_wall] = 2
+
+    # C. 天井 (Ceiling) 
+    # 最上部付近で、法線が下（または上）を向いている
+    is_ceil = (z > z_max - 0.2) & (nz > 0.85)
+    final_labels[is_ceil] = 0
+
+    # D. 家具 (Table / Chair) の抽出
+    # 床でも壁でも天井でもない、中間の高さにある水平面
+    remain_mask = (final_labels == 12) & (nz > 0.7)
+    
+    if np.any(remain_mask):
+        f_pcd = o3d.geometry.PointCloud()
+        f_pcd.points = o3d.utility.Vector3dVector(xyz_m[remain_mask])
+        
+        # クラスタリング（epsを0.1〜0.2に絞り、椅子とテーブルを分離しやすくする）
+        clusters = np.array(f_pcd.cluster_dbscan(eps=0.2, min_points=20))
+        
+        for c_id in set(clusters):
+            if c_id == -1: continue
+            idx = np.where(remain_mask)[0][clusters == c_id]
+            
+            c_points = xyz_m[idx]
+            bbox = np.max(c_points, axis=0) - np.min(c_points, axis=0)
+            diag = np.linalg.norm(bbox[:2]) # 水平方向の広がり
+            
+            # 高さ(Z)の平均でテーブルか椅子（座面）かを補助判定
+            avg_z = np.mean(c_points[:, 2])
+            rel_z = avg_z - z_min
+            
+            # 判定: 広がりが大きく、ある程度の高さ(0.6m以上)ならテーブル
+            if diag > 0.6 and rel_z > 0.5:
+                final_labels[idx] = 7 
+            else:
+                final_labels[idx] = 8 # Chair
+
+    return final_labels
+
+
+
 import os
 import numpy as np
 import open3d as o3d
