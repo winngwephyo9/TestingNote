@@ -1,3 +1,123 @@
+
+import os
+import numpy as np
+import open3d as o3d
+import laspy
+
+# S3DISカラー定義 (RGB)
+S3DIS_COLORS = np.array([
+    [255, 0, 0],   # 0: Ceiling (赤)
+    [0, 255, 0],   # 1: Floor (緑)
+    [0, 0, 255],   # 2: Wall (青)
+    [0, 255, 255], # 3: Beam
+    [255, 255, 0], # 4: Column
+    [255, 0, 255], # 5: Window
+    [100, 100, 255], # 6: Door (明るい青)
+    [255, 128, 0], # 7: Table (オレンジ)
+    [0, 128, 255], # 8: Chair (水色)
+    [128, 0, 255], # 9: Sofa
+    [255, 0, 128], # 10: Bookcase
+    [128, 128, 128], # 11: Board
+    [0, 0, 0]      # 12: Clutter (黒)
+], dtype=np.uint8)
+
+# クラスIDと名前のマップ
+LABEL_NAMES = {0:"Ceiling", 1:"Floor", 2:"Wall", 6:"Door", 7:"Table", 8:"Chair", 12:"Clutter"}
+
+def final_refined_analysis(input_ply, output_laz):
+    print(f"--- 精密解析開始: {os.path.basename(input_ply)} ---")
+    pcd = o3d.io.read_point_cloud(input_ply)
+    xyz = np.asarray(pcd.points)
+    
+    up_axis = np.argmin(np.ptp(xyz, axis=0))
+    h = xyz[:, up_axis]
+    h_min, h_max = h.min(), h.max()
+    room_height = h_max - h_min
+
+    # 法線推定
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    normals = np.asarray(pcd.normals)
+    is_horiz = np.abs(normals[:, up_axis]) > 0.80 
+    is_vert = np.abs(normals[:, up_axis]) < 0.20
+
+    labels = np.full(len(xyz), 12, dtype=np.uint8) # 初期値はClutter
+
+    # 1. 構造物（天井・床・壁）の初期分類
+    labels[(h < h_min + room_height*0.1) & is_horiz] = 0 # Ceiling
+    labels[(h > h_max - room_height*0.1) & is_horiz] = 1 # Floor
+    labels[(labels == 12) & is_vert] = 2 # Wall
+
+    # 2. 家具解析（残りの点群から）
+    rem_mask = (labels == 12)
+    if np.any(rem_mask):
+        rem_pcd = pcd.select_by_index(np.where(rem_mask)[0])
+        # DBSCANによるクラスタリング
+        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.07, min_points=20))
+        
+        for c_id in set(clusters):
+            if c_id == -1: continue # ノイズは無視
+            idx = np.where(rem_mask)[0][clusters == c_id]
+            c_pts = xyz[idx]
+            c_normals = normals[idx]
+            
+            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
+            horiz_diag = np.sqrt(np.sum(np.delete(bbox, up_axis)**2)) # 水平方向の対角線長
+            dist_from_floor = np.abs(c_pts[:, up_axis].mean() - h_max) # 床からの平均高さ
+            
+            # 水平面の割合
+            horiz_ratio = np.sum(np.abs(c_normals[:, up_axis]) > 0.8) / len(c_pts)
+
+            # --- 判定ロジックの修正 ---
+
+            # テーブル (Table):
+            # 高い水平面比率、床から浮いている、一定以上の大きさ
+            if horiz_ratio > 0.8 and 0.5 < dist_from_floor < 1.1 and horiz_diag > 0.6:
+                labels[idx] = 7 
+            
+            # 椅子 (Chair): 
+            # 塊のサイズが小さく、床から適切な高さにある（水平面比率は緩める）
+            elif 0.2 < horiz_diag < 0.7 and 0.3 < dist_from_floor < 1.0:
+                 # さらに、塊の中にいくらか水平面があるか確認（背もたれや座面）
+                 if np.sum(np.abs(c_normals[:, up_axis]) > 0.6) / len(c_pts) > 0.2:
+                    labels[idx] = 8
+
+            # ドア (Door): 
+            # 壁に近く、背が高く、床に接している
+            elif bbox[up_axis] > 1.5 and dist_from_floor < 0.3:
+                # 完全に壁（2）と判定されないように調整
+                labels[idx] = 6 
+            
+            # それ以外はClutterのまま
+            else:
+                labels[idx] = 12
+
+    # 結果表示
+    print("\n" + "="*40)
+    for i, name in LABEL_NAMES.items():
+        count = np.sum(labels == i)
+        print(f"{name:10}: {count:8} pts")
+    print("="*40)
+
+    # 保存処理
+    header = laspy.LasHeader(point_format=3, version="1.2")
+    header.offsets, header.scales = np.min(xyz, axis=0), [0.001, 0.001, 0.001]
+    las = laspy.LasData(header)
+    las.x, las.y, las.z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
+    las.classification = labels
+    c8 = S3DIS_COLORS[labels]
+    # LAZフォーマットは16ビットカラーを想定しているため、256倍する
+    las.red, las.green, las.blue = c8[:,0].astype(np.uint16)*256, c8[:,1].astype(np.uint16)*256, c8[:,2].astype(np.uint16)*256
+    las.write(output_laz)
+    print(f"結果を保存しました: {output_laz}")
+
+if __name__ == "__main__":
+    # 入力ファイルと出力ファイルのパス。適宜変更してください。
+    input_file = "path/to/your/input_cloud.ply" # 入力PLYファイルのパス
+    output_file = "path/to/your/output_semantic.laz" # 出力LAZファイルのパス
+    
+    final_refined_analysis(input_file, output_file)
+
+
 --- 修正版解析開始: cloud_bin_0.ply ---
 Room Height: 3.41m
 
