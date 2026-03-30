@@ -1,3 +1,141 @@
+import os
+import numpy as np
+import open3d as o3d
+import laspy
+
+# S3DISカラー定義 (RGB) - 全クラス
+S3DIS_COLORS = np.array([
+    [255, 0, 0],   # 0: Ceiling (赤)
+    [0, 255, 0],   # 1: Floor (緑)
+    [0, 0, 255],   # 2: Wall (青)
+    [255, 255, 0], # 3: Beam
+    [255, 0, 255], # 4: Column
+    [0, 255, 255], # 5: Window
+    [128, 128, 0], # 6: Door
+    [255, 128, 0], # 7: Table (オレンジ)
+    [0, 128, 255], # 8: Chair (水色)
+    [128, 0, 255], # 9: Sofa
+    [255, 0, 128], # 10: Bookcase
+    [128, 128, 128], # 11: Board
+    [50, 50, 50]    # 12: Clutter (濃いグレー)
+], dtype=np.uint8)
+
+LABEL_NAMES = {
+    0:"Ceiling", 1:"Floor", 2:"Wall", 3:"Beam", 4:"Column", 
+    5:"Window", 6:"Door", 7:"Table", 8:"Chair", 9:"Sofa", 
+    10:"Bookcase", 11:"Board", 12:"Clutter"
+}
+
+def analyze_shape(pts):
+    """PCAを用いて物体の形状特性（平面性、細長軸）を返す"""
+    if len(pts) < 3: return 0, 0
+    covariance_matrix = np.cov(pts.T)
+    eigenvalues, _ = np.linalg.eig(covariance_matrix)
+    sort_indices = np.argsort(eigenvalues)[::-1]
+    ev = eigenvalues[sort_indices]
+    # 平面性 (Planarity): (λ2 - λ3) / λ1
+    planarity = (ev[1] - ev[2]) / (ev[0] + 1e-9)
+    return planarity, ev
+
+def universal_semantic_analysis(input_ply, output_laz):
+    print(f"--- 解析開始: {os.path.basename(input_ply)} ---")
+    pcd = o3d.io.read_point_cloud(input_ply)
+    
+    # 1. 前処理: ダウンサンプリングとノイズ除去
+    pcd = pcd.voxel_down_sample(voxel_size=0.03)
+    xyz = np.asarray(pcd.points)
+    
+    # 部屋の高さ方向(Z軸)を自動取得
+    ptp = np.ptp(xyz, axis=0)
+    z_axis = np.argmax(ptp) # 最も広がりがあるのが水平面なら、最小が高さ
+    z_axis = np.argmin(ptp) if ptp[np.argmin(ptp)] > 1.0 else 2 # 安全策
+    
+    z = xyz[:, z_axis]
+    z_min, z_max = z.min(), z.max()
+    room_h = z_max - z_min
+
+    # 法線推定
+    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    normals = np.asarray(pcd.normals)
+    labels = np.full(len(xyz), 12, dtype=np.uint8)
+
+    # --- 構造物分類 ---
+    # 床と天井 (水平面かつ端)
+    is_horiz = np.abs(normals[:, z_axis]) > 0.85
+    labels[(z < z_min + room_h * 0.05) & is_horiz] = 1 # Floor
+    labels[(z > z_max - room_h * 0.05) & is_horiz] = 0 # Ceiling
+    
+    # 壁 (垂直面)
+    is_vert = np.abs(normals[:, z_axis]) < 0.15
+    labels[(labels == 12) & is_vert] = 2
+
+    # --- 家具クラスタリング ---
+    rem_mask = (labels == 12)
+    if np.any(rem_mask):
+        rem_pcd = pcd.select_by_index(np.where(rem_mask)[0])
+        # 密度に応じてepsを調整 (0.05 - 0.1)
+        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.08, min_points=10))
+        
+        for c_id in set(clusters):
+            if c_id == -1: continue
+            idx = np.where(rem_mask)[0][clusters == c_id]
+            c_pts = xyz[idx]
+            
+            # 塊の幾何学的特徴
+            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
+            width = np.sqrt(bbox[0]**2 + bbox[1]**2)
+            height = bbox[z_axis]
+            mean_z = c_pts[:, z_axis].mean()
+            dist_from_floor = np.abs(mean_z - z_min)
+            
+            planarity, ev = analyze_shape(c_pts)
+
+            # --- 判定ロジック ---
+            # 1. テーブル: 床から0.6m~1.0mに重心があり、水平に広がっている
+            if 0.5 < dist_from_floor < 1.1 and width > 0.5 and planarity > 0.4:
+                labels[idx] = 7
+            
+            # 2. 椅子: 床に近い、または床に接しており、サイズが小さい
+            elif dist_from_floor < 0.8 and width < 0.8 and height < 1.2:
+                labels[idx] = 8
+            
+            # 3. ドア: 垂直に長く、壁に近い
+            elif height > 1.8 and width < 1.2:
+                labels[idx] = 6
+                
+            # 4. 本棚: 壁際にあり、背が高い
+            elif height > 1.5 and planarity > 0.6:
+                labels[idx] = 10
+
+    # 保存処理
+    header = laspy.LasHeader(point_format=3, version="1.2")
+    header.offsets = np.min(xyz, axis=0)
+    header.scales = [0.001, 0.001, 0.001]
+    las = laspy.LasData(header)
+    las.x, las.y, las.z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
+    las.classification = labels
+    
+    # 色付け
+    colors = S3DIS_COLORS[labels]
+    las.red = colors[:, 0].astype(np.uint16) * 256
+    las.green = colors[:, 1].astype(np.uint16) * 256
+    las.blue = colors[:, 2].astype(np.uint16) * 256
+    
+    las.write(output_laz)
+    
+    print("\n" + "="*30)
+    for i, name in LABEL_NAMES.items():
+        print(f"{name:10}: {np.sum(labels == i):8} pts")
+    print("="*30)
+
+if __name__ == "__main__":
+    input_f = "cloud_bin_0.ply" # 実際のファイル名に合わせてください
+    output_f = "semantic_result.laz"
+    universal_semantic_analysis(input_f, output_f)
+
+
+
+
 
 --- 精密解析開始: cloud_bin_0.ply ---
 
