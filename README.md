@@ -1,3 +1,21 @@
+--- 解析開始: cloud_bin_0.ply ---
+
+==============================
+Ceiling   :     2892 pts
+Floor     :        0 pts
+Wall      :     6544 pts
+Beam      :        0 pts
+Column    :        0 pts
+Window    :        0 pts
+Door      :        0 pts
+Table     :        0 pts
+Chair     :      561 pts
+Sofa      :        0 pts
+Bookcase  :        0 pts
+Board     :        0 pts
+Clutter   :     2372 pts
+==============================
+
 import os
 import numpy as np
 import open3d as o3d
