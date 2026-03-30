@@ -1,3 +1,17 @@
+--- 修正版解析開始: cloud_bin_0.ply ---
+Room Height: 3.41m
+
+========================================
+Ceiling   :     9728 pts
+Floor     :      104 pts
+Wall      :    67855 pts
+Door      :        0 pts
+Table     :        0 pts
+Chair     :        0 pts
+Clutter   :   118446 pts
+========================================
+結果を保存しました:
+
 import os
 import numpy as np
 import open3d as o3d
