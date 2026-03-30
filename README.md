@@ -15,6 +15,9 @@ Clutter   :    39527 pts
 Table 0 ptsになっています。椅子の右側にある家具はテーブルじゃないですか。どうしてテーブルとして認識できないですか？
 後は椅子のポイントは椅子の上の分だけで色が付いています。残ったポイントは椅子の形では他の部分で色が付いています。
 修正してください。
+LABEL_NAMESも全部のLABEL_NAMESを修正してください。
+
+どんな屋内データでもこのコードで色、ラベル付け出来るように修正してください。
 
 <img width="1801" height="948" alt="image" src="https://github.com/user-attachments/assets/34f2aedc-4ef4-4cd0-b43e-d44ed4d3a401" />
 import os
