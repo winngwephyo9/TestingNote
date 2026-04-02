@@ -1,578 +1,567 @@
-実はね妻は労働visaで働きて、夫は現在日本には配偶者VISAで住んでいて、Usの仕事をremoteとして働いています。そのことを職務経歴書に書いて日本の会社に就職して配偶者VISAから就労VISAに変更して、その後に妻がPR申し込んで夫も一緒に申請したら、ルールを破るということですか。そのため、日本に配偶者VISAで住んでいるとき働いていることを履歴書にに書かないで、母国に働いていることだけ書いて、日本の会社に入社してその後に妻と一緒に申請したら、いいでしょうか。
-どうすればいいでしょうか。
-
---- 解析開始: cloud_bin_0.ply ---
-
-==============================
-Ceiling   :     2892 pts
-Floor     :        0 pts
-Wall      :     6544 pts
-Beam      :        0 pts
-Column    :        0 pts
-Window    :        0 pts
-Door      :        0 pts
-Table     :        0 pts
-Chair     :      561 pts
-Sofa      :        0 pts
-Bookcase  :        0 pts
-Board     :        0 pts
-Clutter   :     2372 pts
-==============================
-
-import os
-import numpy as np
-import open3d as o3d
-import laspy
-
-# S3DISカラー定義 (RGB) - 全クラス
-S3DIS_COLORS = np.array([
-    [255, 0, 0],   # 0: Ceiling (赤)
-    [0, 255, 0],   # 1: Floor (緑)
-    [0, 0, 255],   # 2: Wall (青)
-    [255, 255, 0], # 3: Beam
-    [255, 0, 255], # 4: Column
-    [0, 255, 255], # 5: Window
-    [128, 128, 0], # 6: Door
-    [255, 128, 0], # 7: Table (オレンジ)
-    [0, 128, 255], # 8: Chair (水色)
-    [128, 0, 255], # 9: Sofa
-    [255, 0, 128], # 10: Bookcase
-    [128, 128, 128], # 11: Board
-    [50, 50, 50]    # 12: Clutter (濃いグレー)
-], dtype=np.uint8)
-
-LABEL_NAMES = {
-    0:"Ceiling", 1:"Floor", 2:"Wall", 3:"Beam", 4:"Column", 
-    5:"Window", 6:"Door", 7:"Table", 8:"Chair", 9:"Sofa", 
-    10:"Bookcase", 11:"Board", 12:"Clutter"
-}
-
-def analyze_shape(pts):
-    """PCAを用いて物体の形状特性（平面性、細長軸）を返す"""
-    if len(pts) < 3: return 0, 0
-    covariance_matrix = np.cov(pts.T)
-    eigenvalues, _ = np.linalg.eig(covariance_matrix)
-    sort_indices = np.argsort(eigenvalues)[::-1]
-    ev = eigenvalues[sort_indices]
-    # 平面性 (Planarity): (λ2 - λ3) / λ1
-    planarity = (ev[1] - ev[2]) / (ev[0] + 1e-9)
-    return planarity, ev
-
-def universal_semantic_analysis(input_ply, output_laz):
-    print(f"--- 解析開始: {os.path.basename(input_ply)} ---")
-    pcd = o3d.io.read_point_cloud(input_ply)
-    
-    # 1. 前処理: ダウンサンプリングとノイズ除去
-    pcd = pcd.voxel_down_sample(voxel_size=0.03)
-    xyz = np.asarray(pcd.points)
-    
-    # 部屋の高さ方向(Z軸)を自動取得
-    ptp = np.ptp(xyz, axis=0)
-    z_axis = np.argmax(ptp) # 最も広がりがあるのが水平面なら、最小が高さ
-    z_axis = np.argmin(ptp) if ptp[np.argmin(ptp)] > 1.0 else 2 # 安全策
-    
-    z = xyz[:, z_axis]
-    z_min, z_max = z.min(), z.max()
-    room_h = z_max - z_min
-
-    # 法線推定
-    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    normals = np.asarray(pcd.normals)
-    labels = np.full(len(xyz), 12, dtype=np.uint8)
-
-    # --- 構造物分類 ---
-    # 床と天井 (水平面かつ端)
-    is_horiz = np.abs(normals[:, z_axis]) > 0.85
-    labels[(z < z_min + room_h * 0.05) & is_horiz] = 1 # Floor
-    labels[(z > z_max - room_h * 0.05) & is_horiz] = 0 # Ceiling
-    
-    # 壁 (垂直面)
-    is_vert = np.abs(normals[:, z_axis]) < 0.15
-    labels[(labels == 12) & is_vert] = 2
-
-    # --- 家具クラスタリング ---
-    rem_mask = (labels == 12)
-    if np.any(rem_mask):
-        rem_pcd = pcd.select_by_index(np.where(rem_mask)[0])
-        # 密度に応じてepsを調整 (0.05 - 0.1)
-        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.08, min_points=10))
-        
-        for c_id in set(clusters):
-            if c_id == -1: continue
-            idx = np.where(rem_mask)[0][clusters == c_id]
-            c_pts = xyz[idx]
-            
-            # 塊の幾何学的特徴
-            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
-            width = np.sqrt(bbox[0]**2 + bbox[1]**2)
-            height = bbox[z_axis]
-            mean_z = c_pts[:, z_axis].mean()
-            dist_from_floor = np.abs(mean_z - z_min)
-            
-            planarity, ev = analyze_shape(c_pts)
-
-            # --- 判定ロジック ---
-            # 1. テーブル: 床から0.6m~1.0mに重心があり、水平に広がっている
-            if 0.5 < dist_from_floor < 1.1 and width > 0.5 and planarity > 0.4:
-                labels[idx] = 7
-            
-            # 2. 椅子: 床に近い、または床に接しており、サイズが小さい
-            elif dist_from_floor < 0.8 and width < 0.8 and height < 1.2:
-                labels[idx] = 8
-            
-            # 3. ドア: 垂直に長く、壁に近い
-            elif height > 1.8 and width < 1.2:
-                labels[idx] = 6
-                
-            # 4. 本棚: 壁際にあり、背が高い
-            elif height > 1.5 and planarity > 0.6:
-                labels[idx] = 10
-
-    # 保存処理
-    header = laspy.LasHeader(point_format=3, version="1.2")
-    header.offsets = np.min(xyz, axis=0)
-    header.scales = [0.001, 0.001, 0.001]
-    las = laspy.LasData(header)
-    las.x, las.y, las.z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
-    las.classification = labels
-    
-    # 色付け
-    colors = S3DIS_COLORS[labels]
-    las.red = colors[:, 0].astype(np.uint16) * 256
-    las.green = colors[:, 1].astype(np.uint16) * 256
-    las.blue = colors[:, 2].astype(np.uint16) * 256
-    
-    las.write(output_laz)
-    
-    print("\n" + "="*30)
-    for i, name in LABEL_NAMES.items():
-        print(f"{name:10}: {np.sum(labels == i):8} pts")
-    print("="*30)
-
-if __name__ == "__main__":
-    input_f = "cloud_bin_0.ply" # 実際のファイル名に合わせてください
-    output_f = "semantic_result.laz"
-    universal_semantic_analysis(input_f, output_f)
-
-
-
-
-
---- 精密解析開始: cloud_bin_0.ply ---
-
-========================================
-Ceiling   :      160 pts
-Floor     :    44860 pts
-Wall      :   110378 pts
-Door      :        0 pts
-Table     :        0 pts
-Chair     :     1208 pts
-Clutter   :    39527 pts
-========================================
-結果を保存しました:
-
-Table 0 ptsになっています。椅子の右側にある家具はテーブルじゃないですか。どうしてテーブルとして認識できないですか？
-後は椅子のポイントは椅子の上の分だけで色が付いています。残ったポイントは椅子の形では他の部分で色が付いています。
-修正してください。
-LABEL_NAMESも全部のLABEL_NAMESを修正してください。
-
-どんな屋内データでもこのコードで色、ラベル付け出来るように修正してください。
-
-<img width="1801" height="948" alt="image" src="https://github.com/user-attachments/assets/34f2aedc-4ef4-4cd0-b43e-d44ed4d3a401" />
-import os
-import numpy as np
-import open3d as o3d
-import laspy
-
-# S3DISカラー定義 (RGB)
-S3DIS_COLORS = np.array([
-    [255, 0, 0],   # 0: Ceiling (赤)
-    [0, 255, 0],   # 1: Floor (緑)
-    [0, 0, 255],   # 2: Wall (青)
-    [0, 255, 255], # 3: Beam
-    [255, 255, 0], # 4: Column
-    [255, 0, 255], # 5: Window
-    [100, 100, 255], # 6: Door (明るい青)
-    [255, 128, 0], # 7: Table (オレンジ)
-    [0, 128, 255], # 8: Chair (水色)
-    [128, 0, 255], # 9: Sofa
-    [255, 0, 128], # 10: Bookcase
-    [128, 128, 128], # 11: Board
-    [0, 0, 0]      # 12: Clutter (黒)
-], dtype=np.uint8)
-
-# クラスIDと名前のマップ
-LABEL_NAMES = {0:"Ceiling", 1:"Floor", 2:"Wall", 6:"Door", 7:"Table", 8:"Chair", 12:"Clutter"}
-
-def final_refined_analysis(input_ply, output_laz):
-    print(f"--- 精密解析開始: {os.path.basename(input_ply)} ---")
-    pcd = o3d.io.read_point_cloud(input_ply)
-    xyz = np.asarray(pcd.points)
-    
-    up_axis = np.argmin(np.ptp(xyz, axis=0))
-    h = xyz[:, up_axis]
-    h_min, h_max = h.min(), h.max()
-    room_height = h_max - h_min
-
-    # 法線推定
-    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    normals = np.asarray(pcd.normals)
-    is_horiz = np.abs(normals[:, up_axis]) > 0.80 
-    is_vert = np.abs(normals[:, up_axis]) < 0.20
-
-    labels = np.full(len(xyz), 12, dtype=np.uint8) # 初期値はClutter
-
-    # 1. 構造物（天井・床・壁）の初期分類
-    labels[(h < h_min + room_height*0.1) & is_horiz] = 0 # Ceiling
-    labels[(h > h_max - room_height*0.1) & is_horiz] = 1 # Floor
-    labels[(labels == 12) & is_vert] = 2 # Wall
-
-    # 2. 家具解析（残りの点群から）
-    rem_mask = (labels == 12)
-    if np.any(rem_mask):
-        rem_pcd = pcd.select_by_index(np.where(rem_mask)[0])
-        # DBSCANによるクラスタリング
-        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.07, min_points=20))
-        
-        for c_id in set(clusters):
-            if c_id == -1: continue # ノイズは無視
-            idx = np.where(rem_mask)[0][clusters == c_id]
-            c_pts = xyz[idx]
-            c_normals = normals[idx]
-            
-            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
-            horiz_diag = np.sqrt(np.sum(np.delete(bbox, up_axis)**2)) # 水平方向の対角線長
-            dist_from_floor = np.abs(c_pts[:, up_axis].mean() - h_max) # 床からの平均高さ
-            
-            # 水平面の割合
-            horiz_ratio = np.sum(np.abs(c_normals[:, up_axis]) > 0.8) / len(c_pts)
-
-            # --- 判定ロジックの修正 ---
-
-            # テーブル (Table):
-            # 高い水平面比率、床から浮いている、一定以上の大きさ
-            if horiz_ratio > 0.8 and 0.5 < dist_from_floor < 1.1 and horiz_diag > 0.6:
-                labels[idx] = 7 
-            
-            # 椅子 (Chair): 
-            # 塊のサイズが小さく、床から適切な高さにある（水平面比率は緩める）
-            elif 0.2 < horiz_diag < 0.7 and 0.3 < dist_from_floor < 1.0:
-                 # さらに、塊の中にいくらか水平面があるか確認（背もたれや座面）
-                 if np.sum(np.abs(c_normals[:, up_axis]) > 0.6) / len(c_pts) > 0.2:
-                    labels[idx] = 8
-
-            # ドア (Door): 
-            # 壁に近く、背が高く、床に接している
-            elif bbox[up_axis] > 1.5 and dist_from_floor < 0.3:
-                # 完全に壁（2）と判定されないように調整
-                labels[idx] = 6 
-            
-            # それ以外はClutterのまま
-            else:
-                labels[idx] = 12
-
-    # 結果表示
-    print("\n" + "="*40)
-    for i, name in LABEL_NAMES.items():
-        count = np.sum(labels == i)
-        print(f"{name:10}: {count:8} pts")
-    print("="*40)
-
-    # 保存処理
-    header = laspy.LasHeader(point_format=3, version="1.2")
-    header.offsets, header.scales = np.min(xyz, axis=0), [0.001, 0.001, 0.001]
-    las = laspy.LasData(header)
-    las.x, las.y, las.z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
-    las.classification = labels
-    c8 = S3DIS_COLORS[labels]
-    # LAZフォーマットは16ビットカラーを想定しているため、256倍する
-    las.red, las.green, las.blue = c8[:,0].astype(np.uint16)*256, c8[:,1].astype(np.uint16)*256, c8[:,2].astype(np.uint16)*256
-    las.write(output_laz)
-    print(f"結果を保存しました: {output_laz}")
-
-if __name__ == "__main__":
-    # 入力ファイルと出力ファイルのパス。適宜変更してください。
-    input_file = "path/to/your/input_cloud.ply" # 入力PLYファイルのパス
-    output_file = "path/to/your/output_semantic.laz" # 出力LAZファイルのパス
-    
-    final_refined_analysis(input_file, output_file)
-
-
---- 修正版解析開始: cloud_bin_0.ply ---
-Room Height: 3.41m
-
-========================================
-Ceiling   :     9728 pts
-Floor     :      104 pts
-Wall      :    67855 pts
-Door      :        0 pts
-Table     :        0 pts
-Chair     :        0 pts
-Clutter   :   118446 pts
-========================================
-結果を保存しました:
-
-import os
-import numpy as np
-import open3d as o3d
-import laspy
-
-# S3DISカラーマップの定義
-S3DIS_COLORS = np.array([
-    [255, 0, 0],   # 0: Ceiling (赤)
-    [0, 255, 0],   # 1: Floor (緑)
-    [0, 0, 255],   # 2: Wall (青)
-    [255, 255, 0], # 3: Beam (黄)
-    [255, 0, 255], # 4: Column (マゼンタ)
-    [0, 255, 255], # 5: Window (シアン)
-    [128, 255, 255], # 6: Door (薄水色)
-    [255, 128, 0],   # 7: Table (オレンジ)
-    [0, 128, 255],   # 8: Chair (濃い水色)
-    [128, 0, 255],   # 9: Sofa (紫)
-    [255, 0, 128],   # 10: Bookcase (ピンク)
-    [128, 128, 128], # 11: Board (グレー)
-    [0, 0, 0]        # 12: Clutter (黒)
-], dtype=np.uint8)
-
-# クラスIDと名前の対応
-LABEL_NAMES = {
-    0: "Ceiling", 1: "Floor", 2: "Wall", 6: "Door", 
-    7: "Table", 8: "Chair", 12: "Clutter"
-}
-
-def refined_furniture_analysis(input_ply, output_laz):
-    print(f"--- 修正版解析開始: {os.path.basename(input_ply)} ---")
-    
-    # 1. データの読み込みと準備
-    pcd = o3d.io.read_point_cloud(input_ply)
-    xyz = np.asarray(pcd.points)
-    num_points = len(xyz)
-
-    # 2. 高さ軸の特定と範囲計算
-    # S3DISデータは通常Z軸が高さ方向。ptp(range)が最も大きい軸を高さとする。
-    up_axis = np.argmax(np.ptp(xyz, axis=0))
-    h = xyz[:, up_axis]
-    h_min, h_max = h.min(), h.max()
-    room_height = h_max - h_min
-    print(f"Room Height: {room_height:.2f}m")
-
-    # 3. 法線ベクトルの計算
-    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    normals = np.asarray(pcd.normals)
-
-    # 4. 法線方向による分類の準備
-    # Z成分が大きい点（水平面）
-    is_horiz = np.abs(normals[:, up_axis]) > 0.85 
-    # Z成分が小さい点（垂直面）
-    is_vert = np.abs(normals[:, up_axis]) < 0.15
-
-    # 全点をClutter(12)で初期化
-    labels = np.full(num_points, 12, dtype=np.uint8)
-
-    # 5. 天井と床の認識（高さと法線方向を組み合わせる）
-    labels[(h < h_min + room_height * 0.1) & is_horiz] = 0  # Ceiling
-    labels[(h > h_max - room_height * 0.1) & is_horiz] = 1  # Floor
-    
-    # 壁の認識（垂直面）
-    labels[(labels == 12) & is_vert] = 2  # Wall
-
-    # 6. 家具解析（椅子・テーブル・ドアの認識）
-    # 床、天井、壁以外の点を対象にする
-    mask_to_analyze = (labels == 12)
-    if np.any(mask_to_analyze):
-        rem_pcd = pcd.select_by_index(np.where(mask_to_analyze)[0])
-        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.06, min_points=15)) # パラメータ微調整
-
-        for c_id in set(clusters):
-            if c_id == -1: continue # ノイズを除外
-            idx = np.where(mask_to_analyze)[0][clusters == c_id]
-            c_pts = xyz[idx]
-            c_normals = normals[idx]
-            
-            # バウンディングボックスの計算
-            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
-            horiz_diag = np.sqrt(np.sum(np.delete(bbox, up_axis)**2)) # 水平方向の対角線
-            
-            # 床(h_min)からの高さを計算（S3DISはZが上を向いている）
-            dist_from_floor = c_pts[:, up_axis].mean() - h_min
-            
-            # クラスタ内の水平面の割合
-            horiz_ratio = np.sum(np.abs(c_normals[:, up_axis]) > 0.8) / len(c_pts)
-
-            # === 判定ロジックの修正 ===
-
-            # 椅子: 小さな塊、床から少し浮いている。水平面の割合が高め。
-            # テーブルより先に判定することで、椅子の誤認識を防ぐ。
-            if 0.2 < dist_from_floor < 0.7 and horiz_diag < 0.8 and horiz_ratio > 0.3:
-                labels[idx] = 8 # Chair
-            
-            # テーブル: 床から一定の高さに浮いている、水平方向の広がりが大きい、水平面の割合が高い。
-            elif 0.5 < dist_from_floor < 1.1 and horiz_diag > 0.7 and horiz_ratio > 0.5:
-                # 高さと水平面の条件を厳格に
-                labels[idx] = 7 # Table
-            
-            # ドア: 壁に近い高さ、床に接している、垂直面の塊
-            elif bbox[up_axis] > 1.8 and dist_from_floor < 0.4:
-                # 床への接触を厳格に判定
-                labels[idx] = 6 # Door
-
-    # 7. 壁の再判定（テーブルやドアとして認識されなかった垂直面）
-    # 壁の近くにある垂直面を再度壁に戻す。
-    rem_mask = (labels == 12)
-    if np.any(rem_mask):
-        rem_pcd = pcd.select_by_index(np.where(rem_mask)[0])
-        # 再度クラスタリングして大きな壁の塊を特定
-        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.1, min_points=50))
-        for c_id in set(clusters):
-            if c_id == -1: continue
-            idx = np.where(rem_mask)[0][clusters == c_id]
-            c_pts = xyz[idx]
-            c_normals = normals[idx]
-            
-            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
-            
-            # 壁は垂直方向に大きく伸びる
-            if bbox[up_axis] > 2.0 and np.mean(np.abs(c_normals[:, up_axis])) < 0.2:
-                labels[idx] = 2 # Wall
-
-    # 解析結果の出力
-    print("\n" + "="*40)
-    for i, name in LABEL_NAMES.items():
-        count = np.sum(labels == i)
-        print(f"{name:10}: {count:8} pts")
-    print("="*40)
-
-    # LAZファイルとして保存
-    header = laspy.LasHeader(point_format=3, version="1.2")
-    header.offsets, header.scales = np.min(xyz, axis=0), [0.001, 0.001, 0.001]
-    las = laspy.LasData(header)
-    las.x, las.y, las.z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
-    las.classification = labels
-    
-    # 色を付与（uint16型に変換、0-65535の範囲）
-    c8 = S3DIS_COLORS[labels]
-    las.red, las.green, las.blue = c8[:,0].astype(np.uint16)*256, c8[:,1].astype(np.uint16)*256, c8[:,2].astype(np.uint16)*256
-    las.write(output_laz)
-    print(f"結果を保存しました: {output_laz}")
-
-if __name__ == "__main__":
-    # ファイルパスを適切に設定してください
-    # Windowsの場合は r"C:\path\to\your\file.ply" のように r を付けると安全です
-    input_file = r"F:\PointCloudProcessing\3d_point_data\cloud_bin_0.ply" 
-    output_file = r"F:\PointCloudProcessing\3d_point_data\cloud_bin_0_semantic_refined.laz"
-    
-    refined_furniture_analysis(input_file, output_file)
-
-
-
-import os
-import numpy as np
-import open3d as o3d
-import laspy
-
-S3DIS_COLORS = np.array([
-    [255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [255, 0, 255],
-    [0, 255, 255], [128, 255, 255], [255, 128, 0], [0, 128, 255],
-    [128, 0, 255], [255, 0, 128], [128, 128, 128], [0, 0, 0]
-], dtype=np.uint8)
-
-LABEL_NAMES = {0:"Ceiling", 1:"Floor", 2:"Wall", 6:"Door", 7:"Table", 8:"Chair", 12:"Clutter"}
-
-def final_refined_analysis(input_ply, output_laz):
-    print(f"--- 精密解析開始: {os.path.basename(input_ply)} ---")
-    pcd = o3d.io.read_point_cloud(input_ply)
-    xyz = np.asarray(pcd.points)
-    
-    up_axis = np.argmin(np.ptp(xyz, axis=0))
-    h = xyz[:, up_axis]
-    h_min, h_max = h.min(), h.max()
-    room_height = h_max - h_min
-
-    pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
-    normals = np.asarray(pcd.normals)
-    is_horiz = np.abs(normals[:, up_axis]) > 0.80 
-    is_vert = np.abs(normals[:, up_axis]) < 0.20
-
-    labels = np.full(len(xyz), 12, dtype=np.uint8)
-
-    # 1. 構造物（天井・床・壁）
-    labels[(h < h_min + room_height*0.1) & is_horiz] = 0 # Ceiling
-    labels[(h > h_max - room_height*0.1) & is_horiz] = 1 # Floor
-    labels[(labels == 12) & is_vert] = 2 # Wall
-
-    # 2. 家具解析（水平面を持つ物体を優先）
-    rem_mask = (labels == 12)
-    if np.any(rem_mask):
-        rem_pcd = pcd.select_by_index(np.where(rem_mask)[0])
-        clusters = np.array(rem_pcd.cluster_dbscan(eps=0.07, min_points=20))
-        
-        for c_id in set(clusters):
-            if c_id == -1: continue
-            idx = np.where(rem_mask)[0][clusters == c_id]
-            c_pts = xyz[idx]
-            c_normals = normals[idx]
-            
-            bbox = c_pts.max(axis=0) - c_pts.min(axis=0)
-            horiz_diag = np.sqrt(np.sum(np.delete(bbox, up_axis)**2))
-            # 床(h_max)からの高さを計算（反転考慮）
-            dist_from_floor = np.abs(c_pts[:, up_axis].mean() - h_max)
-            
-            # 水平面の割合をチェック
-            horiz_ratio = np.sum(np.abs(c_normals[:, up_axis]) > 0.8) / len(c_pts)
-
-            # --- 判定ロジックの入れ替え ---
-            # テーブル: 水平面が多く、床から浮いている一定の大きさ
-            if horiz_ratio > 0.4 and 0.5 < dist_from_floor < 1.1 and horiz_diag > 0.6:
-                labels[idx] = 7 # Table
-            # 椅子: 小さな塊で、床から少し浮いている
-            elif horiz_diag < 0.6 and dist_from_floor < 0.8:
-                labels[idx] = 8 # Chair
-            # ドア: 壁に近く、垂直方向が長く、かつ「床に接している」
-            elif bbox[up_axis] > 1.5 and dist_from_floor < 0.5:
-                # 完全に壁（2）の一部として判定されないように、少し浮いている垂直面をドアに
-                labels[idx] = 6 # Door
-            else:
-                labels[idx] = 12
-
-    # 結果表示
-    print("\n" + "="*40)
-    for i, name in LABEL_NAMES.items():
-        count = np.sum(labels == i)
-        print(f"{name:10}: {count:8} pts")
-    print("="*40)
-
-    # 保存処理
-    header = laspy.LasHeader(point_format=3, version="1.2")
-    header.offsets, header.scales = np.min(xyz, axis=0), [0.001, 0.001, 0.001]
-    las = laspy.LasData(header)
-    las.x, las.y, las.z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
-    las.classification = labels
-    c8 = S3DIS_COLORS[labels]
-    las.red, las.green, las.blue = c8[:,0].astype(np.uint16)*256, c8[:,1].astype(np.uint16)*256, c8[:,2].astype(np.uint16)*256
-    las.write(output_laz)
-
-if __name__ == "__main__":
-    # パスは適宜書き換えてください
-    input_file = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/cloud_bin_0.ply"
-    output_file = "/mnt/d/PointCloudLibrary/Open3D-ML/3d_point_data/cloud_bin_0_semantic.laz"
-    # process_to_laz = "cloud_bin_0_complete.laz"
-    final_refined_analysis(input_file, output_file)
-
---- 精密解析開始: cloud_bin_0.ply ---
-
-========================================
-Ceiling   :      160 pts
-Floor     :    44860 pts
-Wall      :   110378 pts
-Door      :        0 pts
-Table     :    10964 pts
-Chair     :      733 pts
-Clutter   :    29038 pts
-========================================
-色の分析について正しく分析できるように修正してください。
-椅子の形なのに椅子の色が椅子に付けていません。
-テーブルの色はテーブルの表面ぐらい色が付いています。壁のsomeareaにもテーブルの色が付いています。
-修正してください。
-<img width="1688" height="890" alt="image" src="https://github.com/user-attachments/assets/4c1d7725-fa6d-4e75-bafa-8b6369635179" />
+【1】 自己分析・パーソナリティ（10問）
+自己紹介を1分程度でお願いします。
+
+あなたのエンジニアとしての最大の強みは何ですか？
+
+あなたの弱み（課題）は何ですか？それをどう克服しようとしていますか？
+
+周囲からどのような人だと言われることが多いですか？
+
+どのような時に仕事でストレスを感じますか？
+
+感情的になってしまった経験はありますか？その時どう対処しましたか？
+
+あなたが大切にしている「価値観」は何ですか？
+
+学生時代（または前職）で一番頑張ったこと（ガクチカ）を教えてください。
+
+趣味や休日の過ごし方を教えてください。
+
+人生のなかで最大の困難は何でしたか？
+
+【2】 楽天への志望動機・カルチャー（10問）
+なぜ楽天を志望したのですか？（楽天でなければならない理由）
+
+楽天の「5つの成功のコンセプト」で共感するものはどれですか？
+
+楽天のサービスで改善点があると思うものはありますか？
+
+楽天の社内公用語が英語であることについて、どう考えていますか？
+
+入社までにTOEIC 800点を取るための、具体的な学習スケジュールを教えてください。
+
+楽天でどのようなプロダクトに携わりたいですか？
+
+楽天主義（アントレプレナーシップなど）をどう理解していますか？
+
+競合他社（Amazon, メルカリ等）と比較して、楽天の魅力は何ですか？
+
+楽天に入社して、1年目にどのような貢献ができますか？
+
+志望職種（バックエンド）を選んだ理由は何ですか？
+
+【3】 技術的経験・深掘り（10問）
+今まで開発した中で、一番心に残っている（自慢できる）実装は何ですか？
+
+逆に、技術的に一番苦労した・失敗した経験は何ですか？
+
+「10万件のデータ表示を数秒に短縮」した具体的な手法を教えてください。
+
+フレームワーク（Laravel / Spring Boot）を選定する際の基準は何ですか？
+
+コードの品質を保つために、普段どのような工夫をしていますか？
+
+ユニットテストを書く際に意識していることは何ですか？
+
+技術的なトラブル（バグや障害）が発生した際、どう動きますか？
+
+20種類以上のAPI連携で、仕様変更への強さをどう確保しましたか？
+
+未経験の技術を短期間で習得した経験はありますか？
+
+最近気になっているITニュースや技術トレンドは何ですか？
+
+【4】 チームワーク・リーダーシップ（10問）
+チームで開発する際、一番大切にしていることは何ですか？
+
+意見が対立した際、どのように合意形成（納得させる）しますか？
+
+メンバーのモチベーションが低い時、あなたならどうしますか？
+
+リーダーシップを発揮した経験、またはリーダーを支えた経験を教えてください。
+
+他部署（非エンジニア）とのコミュニケーションで工夫していることは？
+
+納期が遅れそうな時、マネージャーやチームにどう報告しますか？
+
+コードレビューで指摘を受けた際、どのような姿勢で対応しますか？
+
+日本の商習慣やチーム文化で驚いたことや、苦労したことはありますか？
+
+リモートワークと出社、どちらがパフォーマンスが出ますか？
+
+あなたにとって理想のチームとはどのようなものですか？
+
+【5】 キャリア・将来・逆質問（10問）
+3年後、5年後のキャリアビジョンを教えてください。
+
+スペシャリスト（技術志向）とマネージャー、どちらを目指していますか？
+
+どのようなエンジニアと一緒に働きたいですか？
+
+就職活動の軸を3つ教えてください。
+
+現在の会社（大林組のプロジェクト等）を辞めようと思った理由は何ですか？
+
+他に受けている企業と、楽天の優先順位を教えてください。
+
+（逆質問）御社のバックエンドチームが今、一番解決したい課題は何ですか？
+
+（逆質問）入社までに準備しておくべき特定の技術スタックはありますか？
+
+（逆質問）ウィンさんのような外国人エンジニアが活躍するために、会社としてサポートしていることはありますか？
+
+最後に言い残したこと、アピールしたいことはありますか？
+
+⚠️ 面接直前の注意点（口コミより）
+「なぜWeb系か？」 という質問への準備：ウィンさんは建設（大林組）などの業務系も経験していますが、なぜ「楽天のようなBtoCのWebサービス」に行きたいのかを明確にしてください。
+
+「好きなソートアルゴリズム」：画像にありました。基礎的なCS（コンピュータサイエンス）の知識（クイックソート、マージソート等）を一つ説明できるようにしておくと安心です。
+
+笑顔とアイコンタクト：口コミに「和やか」「フランク」という言葉が多かったです。緊張しすぎず、ニコニコとコミュニケーションを取る姿勢が評価に直結します。職 務 経 歴 書 
+
+2026年03月22日現在
+氏名 : WIN NGWE PHYO 
+
+■職務要約 
+	エンジニアとして合計5年の実務経験があります。Java、PHP、Pythonを使い、Webシステムの開発をメインに行ってきました。
+「b-dash」の開発経験 ミャンマーの日系企業にて、日本で有名なデータ分析ツール「b-dash」の開発に約2年間携わりました。Google広告やSalesforceなど、20種類以上のサービスとデータを連携（れんけい）させる仕組みをJavaで作りました。
+最新技術（AI・3Dデータ）の実績 現在は大林組のプロジェクトにて、PHPやPythonを使っています。AIを活用したチャットボット（Copilot）の構築や、最新の「3D点群データ（Point Cloud）」をWebで表示・解析するシステムを開発しています。
+問題を解決する力 10万個以上の大きなデータを扱うシステムでは、表示にかかる時間を「数十分から数秒」に短縮（たんしゅく）した実績があります。
+	これまでの経験を活かし、難しいデータの連携から最新のAI技術まで、即戦力として貴社（きしゃ）に貢献いたします。
+
+■得意とする分野・スキル 
+Web開発（Java / PHP / Python） Java、PHP(Laravel)を用いた基幹システム開発に加え、PythonによるAI活用や3Dデータ表示の実績があります。
+
+大規模データ統合・分析（Big Data Analysis） b-dashやDWHの構築を通じ、多様なAPI（Google/Salesforce等）を活用した大規模データの収集・統合・分析基盤の開発を得意としています。
+
+最新技術の活用と実務への導入 Microsoft Copilot Agentを用いたAIエージェント構築や、点群データ（Point Cloud）の可視化など、先端技術を業務効率化に繋げる力があります。
+
+日本語コミュニケーション（JLPT N2保持） 実務での仕様調整やドキュメント作成を日本語で行い、チーム開発において円滑な連携を図ることができます（現在N1学習中）。
+
+	■PCスキル/テクニカルスキル
+カテゴリ 
+種別 
+経験年数 
+スキルレベル・備考
+経験分野（言語） 
+
+Java
+PHP
+Python
+JavaScript
+HTML5
+CSS3
+2年 
+2年 
+  1年未満
+2年未満 
+2年未満 
+2年未満 
+多言語での開発、API連携実装、スクレイピング、AI活用
+ライブラリー フレー ムワーク
+Spring Boot
+Spring MVC
+Laravel
+PyTorch
+RandLA-Net
+2年
+1年未満
+2年 
+1年未満
+1年未満
+MVCモデルによるWebアプリ開発、点群データ解析（3D可視化）
+データベース
+MySQL
+Firebase
+3年
+1年未満
+
+RDBの設計・運用、NoSQL（Firebase）の活用
+クラウド
+AWS (S3)
+Azure
+Google Cloud 
+1年未満
+2年未満
+1年未満
+パブリッククラウド環境での開発
+OS 
+Windows
+Mac
+Android
+7年
+2年未満
+1年未満
+
+開発環境 / ツール
+VS Code
+Eclipse
+SpringToolSuite 
+Git
+Azure DevOps
+3年 
+2年 
+2年 
+2年 
+2年
+
+外部サービス連携・API活用
+【広告・SNS】 Google広告、 Yahoo!広告, Facebook広告
+【CRM/ビジネス】 Salesforce, kintone, SharePoint, Teams, Slack, BOX
+【EC/データ】 Shopify, Shopserve, エビスマート, CData, b-dash
+2年
+
+国内外20種類以上の主要API調査・データ取得・統合開発の実績
+
+AI・自動化
+Microsoft Copilot Agent
+  Power Automate
+1年未満 
+
+1年未満 
+
+LLMを活用した社内向けAIエージェント構築、業務自動化
+
+
+
+
+
+
+
+
+
+
+■職務経歴 
+             勤務先 : ヒューマンリソシア株式会社（就業先：大林組）(勤務期間 : 2024年5月～現在) 
+
+期間
+
+プロジェクト内容
+使用技術（システム環境）
+役割・規模
+1
+2025年2月~現在
+3D点群データ（Point Cloud）を活用した屋内外環境の可視化・解析システム開発
+【担当業務】
+
+ハイブリッド開発環境の構築と最適化
+Windows上にLinux環境（WSL2）を構築、Windows側のGPUリソース（NVIDIA等）をLinux環境から利用可能にするCUDA設定を行い、AI学習・解析のための高パフォーマンスな開発基盤を自ら整備。
+PCLおよびPythonを用いた点群データの解析・Web表示
+屋内外の3D点群データを読み込み、Webブラウザ上で高速に描画・表示するシステムを構築。
+ディープラーニングを用いた物体認識の実装 RandLA-NetやPyTorchを活用し、点群データから特定の構造物を自動判別するセマンティックセグメンテーションを実装。
+大規模3Dデータの軽量化処理 
+膨大な点群データを間引き・構造化し、スムーズなデータ操作を可能にする前処理パイプラインを開発。
+【言語】 
+Python
+
+【OS】
+Linux(Ubuntu), Windows 
+
+【フレームワーク・ライブラリ】
+ PyTorch, RandLA-Net, PCL (Point Cloud Library), Open3D
+
+【組織】
+チーム:4名
+【役割】
+調査・環境構築・開発・テスター・仕様作成
+2
+2026年1月~2026年2月(1ヶ月）
+Autodesk Construction Cloud (ACC) 統合データ抽出システム開発
+【担当業務】
+
+ACC APIを用いたデータ連携基盤の構築 クラウド上のプロジェクト管理データを取得し、CSV形式で自動出力するパイプラインを開発。
+Data Management APIによる非同期データ抽出の実装 標準APIで取得困難な大規模データに対し、エクスポート機能を活用した非同期取得・解析処理を実装。
+データ集計・出力プロセスの自動化 外部送付されるCSVデータを自動パースし、必要な情報を構造化して出力する業務効率化を実現。
+【言語】
+PHP、JavaScript、CSS、
+HTML
+【OS】
+Windows, Visual Studio Code
+【DB】
+MySQL Server
+【フレームワーク】
+Laravel
+【Server】
+Azure
+【組織】
+チーム:4名
+
+【役割】
+調査・開発・テスター
+・仕様作成
+3
+2025年10月~2025年12月(2ヶ月）
+
+Microsoft Copilot Studioを活用した社内向けAIエージェントの構築
+
+【担当業務】
+プロンプトエンジニアリングによる検索精度の最適化
+ Copilot Studioにて、ユーザーの質問から「検索対象の列名（Column Name）」や「抽出キーワード」を正確に特定するためのプロンプトを設計。
+Power Automateによる大規模データ検索・抽出処理の実装
+ Copilotから渡されたパラメータに基づき、SharePoint上の膨大なデータセットから該当箇所を高速に特定し、回答の根拠となるデータを抽出する自動化フローを構築。
+データ構造の定義とAI連携（RAGの概念を応用） SharePoint上のデータ構造を解析し、AIが効率的に情報を読み取れるようデータ項目とプロンプトの接続・マッピングを実装。
+エンドツーエンドの対話型UIの実装 検索結果をCopilot Studioへフィードバックし、ユーザーに対して自然言語で回答を表示する一連の対話フローを完結させ、社内ナレッジ活用の効率化を実現。
+【ツール】
+ Copilot Studio, Power Automate, SharePoint Online
+
+【組織】
+チーム:4名
+【役割】
+調査・環境構築・テスター
+
+4
+2025年06月~2025年10月(5ヶ月）
+
+大規模3Dモデル統合表示システム（Webブラウザベース）の開発
+
+【担当業務】
+ハイパフォーマンスなデータ同期基盤の構築 Box APIを活用し、クラウド上に保管された10万件を超える個別3DモデルファイルをWebブラウザ上でリアルタイムに統合・表示するシステムを開発。
+
+大規模データキャッシングによる高速化の実装 MySQLを用いた独自のデータキャッシング戦略を導入。APIタイムアウトやメモリ不足の課題を解消し、従来数十分を要していたモデル表示を数秒へと劇的に短縮。
+
+Azure環境へのデプロイおよびサーバー最適化 Azureを用いたスケーラブルなサーバー環境の構築およびデプロイを担当。将来的なデータ増加やトラフィック増大に耐えうる、安定したサーバーサイドロジック（Laravel）を実装。
+
+堅牢なAPI連携およびセッション管理の実装 Box APIトークンの自動更新処理やバックグラウンドでの非同期データ同期を実装し、大規模データの安定的なリアルタイム処理を実現。
+【言語】
+PHP、JavaScript、CSS、
+HTML
+【OS】
+Windows, Visual Studio Code
+【DB】
+MySQL Server
+【フレームワーク】
+Laravel
+【Server】
+Azure,BOX
+
+【組織】
+チーム:5名
+【役割】
+調査・開発・テスター
+
+5
+2025年02月~2025
+年05月(3ヶ月）
+
+メールアドレス検索・データ自動収集システム（スクレイピング）
+【担当業務】
+自動化： 社内他システムから必要なデータを自動収集（スクレイピング）し、月1回自動でBoxへ保存する機能を開発。
+同期フロー： Power Automateを用い、Boxに保存されたデータをSharePointへ自動同期するスケジュール実行フローを構築。
+
+
+
+【言語】
+PHP
+【OS】
+Windows, Visual Studio
+Code
+【フレームワーク】
+Laravel
+【Server】
+Power Automate,
+SharePoint, Box
+
+【組織】
+チーム:4名
+【役割】
+調査・開発・テスター
+6
+2025年02月~2025年07月(6ヶ月）
+
+データウェアハウス（DWH）システム開発
+【担当業務】
+Box API連携による自動データ収集バッチの開発
+外部ストレージ（Box）に保存された膨大なCSVデータを、毎日決まった時間に自動取得・同期するバッチ処理をLaravelを用いて構築。
+大規模データの正規化およびDB構造の設計
+複数のデータソースから届く非定型なCSVデータを、分析に適した形式に正規化してMySQLへ格納するETLプロセスを実装。
+クエリ最適化とパフォーマンスチューニング
+将来的なデータ増分（数百万件規模）を見据え、インデックスの最適化やクエリの書き換えを実施。大量データ検索時のレスポンス速度を維持する管理体制を確立。
+【言語】
+PHP、JavaScript、CSS、
+HTML
+【OS】
+Windows, Visual Studio Code
+【DB】
+MySQL Server
+【フレームワーク】
+Laravel
+【Server】
+Azure,BOX
+
+【組織】
+チーム:6名
+【役割】
+開発・テスター
+・仕様作成
+
+7
+2024年7月~2025年01月(6ヶ月）
+
+パートナー会社（協力会社）管理システム開発
+
+【担当業務】
+UI/UX設計およびフロントエンド実装
+ユーザーの利便性を考慮したデザイン案の作成から、データベースの情報を動的に反映・操作できるフロントエンド画面（Laravel Blade/JavaScript）を構築。
+バックエンド・DB設計および外部連携
+Box APIを用いた関連書類の自動取得機能や、協力会社の詳細情報を管理する複雑なリレーションを持つデータベース設計・保存処理を実装。
+
+サーバー環境構築とデプロイの完遂
+Azureを用いたアプリケーションのサーバー環境構築から、実際のリリース（デプロイ）作業までを一貫して担当し、プロジェクトを完遂。
+
+【言語】
+PHP、JavaScript、CSS、
+HTML
+【OS】
+Windows, Visual Studio Code
+【DB】
+MySQL Server
+【フレームワーク】
+Laravel
+【Server】
+Azure,BOX
+
+【組織】
+チーム:5名
+【役割】
+開発・UI/UX設計・テスター
+
+
+
+
+	勤務先 : META TEAM株式会社@ミャンマー(勤務期間 : 2021年12月~2024年1月)
+期間
+
+プロジェクト内容
+使用技術（システム環境）
+役割・規模
+1
+2022年04月~2024年01月(1年10ヶ月）
+
+データマーケティング基盤「b-dash」のデータ統合・連携開発
+【担当業務】
+APIの調査とデータ連携実装
+Google広告、Facebook広告、Yahoo!広告、Salesforce、kintone、Shopify等、20種類以上の外部サービスAPIを調査。各仕様の違いを吸収し、データを一元化するパイプラインを構築。
+データクレンジングとETL処理の最適化
+収集した膨大なログデータを分析可能な形式に整形（クレンジング）し、MySQLへ格納するバッチ処理をJavaで実装。ノーコードでのデータ操作を支える基盤を開発。
+システムの安定性向上
+APIの仕様変更に柔軟に対応できる設計を導入し、データ欠損のない安定的な自動収集を実現。
+【言語】
+Java
+【OS】
+Windows,macOS,
+Eclipse,
+【DB】
+MySQL Server
+【フレームワーク】
+SpringBoot
+【Server】
+AWS, Apache HTTP
+Server, GitHub
+
+【組織】
+チーム:10名
+【役割】
+API調査、開発、テスター・仕様作成
+
+2
+2022年02月~2022年04月(2ヶ月）
+
+自社社員管理システム（勤怠・給与管理）の機能改善
+
+【担当業務】
+既存システムの機能拡張とリファクタリング
+社員の勤怠管理、通勤交通費申請、給与支払情報の管理機能（CRUD）を新規開発および改修。ユーザーの利便性を高めるUI改善も実施。
+バックエンドロジックの最適化
+Spring MVCを用いた堅牢なサーバーサイド実装を行い、複雑な給与計算ロジックの正確性を担保。
+【言語】
+Java
+【OS】
+Windows,macOS,
+Eclipse,
+【DB】
+MySQL Server
+【フレームワーク】
+SpringMVC
+【Server】
+AWS, Apache HTTP
+Server, GitHub
+
+【組織】
+チーム:5名
+【役割】
+メンバー
+
+
+
+
+	インターンシップの経験 @ミャンマー
+期間
+
+プロジェクト内容
+使用技術（システム環境）
+役割・規模
+1
+2021/09～2021/12(３ヶ月）
+
+映画館チケット予約アプリケーションの新規開発
+【担当業務】
+映画情報の閲覧から座席予約、決済確認までを一貫して行えるWebアプリを新規構築。アジャイル手法を用い、短期間でのプロトタイプ作成と改善を繰り返しました。
+●言語：
+PHP, HTML, CSS
+●フレームワーク/ライブラリ：
+Laravel
+●システム環境：Window10, MySQL,
+VS Code,
+GitHub, Apache Server
+
+【組織】
+チーム:5名
+【役割】
+プログラマ
+
+
+	■資格・免許
+2017年04月　ITパスポート試験 合格
+2023年07月　日本語能力試験（JLPT） N4 合格
+2023年12月　日本語能力試験（JLPT） N3 合格
+2024年12月　日本語能力試験（JLPT） N2 合格
+2026年01月　Microsoft Certified: Azure Fundamentals (AZ-900) 
+
+	■ 取得予定
+2026年07月　日本語能力試験（JLPT） N1
+2026年09月　AWS Certified Cloud Practitioner
+
+
+
+	■ 自己PR
+【結論：私の強み】
+	私の強みは、新しい技術をすぐに覚えて、難しい問題を解決する力」です。Java、PHP、Pythonを使い、データの設計からサーバーの準備まで一人で一通り行うことができます。
+【根拠：具体的な経験】
+	ミャンマーの日系企業にて、日本で多くの会社が使っているデータプラットフォーム「b-dash」の開発に約2年間携わりました。Google広告やSalesforceなど、20種類以上の有名なサービス（API）と連携するシステムをJavaで構築しました。この経験により、複雑なデータ連携の仕組みを深く理解しています。
+技術による大幅な改善実績
+	現在の大林組のプロジェクトでは、10万個以上のデータを扱うシステムを担当しています。表示に数十分かかっていた問題を、プログラミングとデータベースの工夫で「数秒」に短縮しました。また、AIを使った3Dデータの解析など、最新の技術も自分で調べて実務に取り入れています。
+日本語でのチームワーク
+	日本語能力試験（JLPT）N2を持っており、会議や書類作成も日本語で行っています。現在はN1合格を目指して勉強しており、日本のチームの中で責任を持って最後まで仕事をやり遂げることができます。
+【貢献：入社後のイメージ】
+	「b-dash」の開発で培った高度なデータ連携の知識と、現在大林組で取り組んでいる「3D点群データのAI解析（RandLA-Net）」や「生成AI（Copilot）」などの最先端技術**を組み合わせて、貴社のプロジェクトに即戦力として貢献したいと考えています。 バックエンドの開発だけでなく、最新技術を実務に落とし込む実装力を活かし、業務の効率化や新しい価値の創造に全力を尽くします。
+
+これは私の職歴書です。
+Here are the details of the Rakuten opportunity through TEKsystems as discussed.
+Action requested: Please review the details of this opportunity and reply with a confirmation that you would like to proceed further.
+POSITION DETAILS
+Company Name: Rakuten Group Inc.
+Position: Backend developer
+Rate: 6M JPY per annual
+*You will be compensated on hourly and will be paid for each hour you worked for overtime.
+  Salary will be transferred to your account on the 25th of the following month. Residence Tax: Not deducted from the monthly salary.
+Commutation: In addition to your salary, a monthly transportation fee will be provided.
+Rate increases: Rate increases are discussed leading up to the anniversary of your contract. At the anniversary mark, you have the potential for a raise based on performance, responsibilities, etc. Increases are not given automatically and are up to you to be proactive about. 
+Submitted: You have not been submitted to this position by any other company.
+Contract: This is a contract position in which you are an employee of TEKsystems.
+Contract length: 2-month initial contract, followed by a 3-month rolling contract, high possibility to convert to permanent.
+Location: Rakuten Office Location: Rakuten Crimson House, 1-14-1 Tamagawa, Setagaya-ku, Tokyo
+Start Date Availability: ASAP
+Work hours: 9:00-17:30 (1 hour break) Mon-Fri (1 day work from home)
+Health Insurance/Unemployment Insurance/Pension (Kosei Nenkin): Covered
+Annual Leave: 10 days after 6 months, an additional 5 days of annual leave after 1 year after the start date.
+Paid Annual Health Check: after 6 months.
+Paid Sick Day off: 10 days after 6 months (in addition to annual paid leave).
+Unlimited access to Udemy Training
+このpositionのため面接練習したい。
+このpositionの言語はPHPですが、PHPの質問もJAVAの質問も質問して
+そしてRakutenの会社なら頻繁に質問している質問も教えて
+
+ウィンさん、この50問の中で、特に「答えにくいな」と思う質問はどれですか？その質問の回答を一緒に作りましょう！
 
 
