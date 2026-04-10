@@ -1,7 +1,7 @@
 https://www.homes.co.jp/chintai/room/ed12216e13f897bb4b56a99bbf4718acbba6847a/?bid=1215200031937
 https://suumo.jp/chintai/jnc_000106354510/?bc=100500879608
 https://suumo.jp/chintai/jnc_000106291842/?bc=100500414909
-
+下丸子駅
 
 お疲れ様です、（自分の氏名）です。
 昨日は厳しいお言葉をいただき、私自身も契約期間について重く受け止めております。
