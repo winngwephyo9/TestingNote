@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" pages="7">
+<mxfile host="app.diagrams.net" pages="11">
   <diagram name="ページ-1" id="KgeF5uE1_62KxnWGN33f">
     <mxGraphModel dx="1178" dy="648" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="1">
       <root>
@@ -1030,6 +1030,293 @@
         </mxCell>
         <mxCell id="b6QWlgAlvO-31GAFXT2K-34" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#BAC8D3;fontColor=#EEEEEE;fillColor=light-dark(transparent,#B5739D);arcSize=12;backgroundOutline=0;" value="&lt;span&gt;[return latestTimestamp等]&lt;/span&gt;" vertex="1">
           <mxGeometry height="40" width="120" x="645" y="760" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="esI8NOhxVyWvwfbRcm6P" name="ページ-8">
+    <mxGraphModel dx="1414" dy="811" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-3" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="Start: 生点群データe57" vertex="1">
+          <mxGeometry height="40" width="180" x="260" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-13" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;Step1 データ準備: E57 → BIN 変換&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="270" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-14" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-15" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;出力: 点群データ(.bin)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="270" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-16" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;Step2 AI分類: BIN → LABEL 生成&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="350" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-17" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;出力: ラベルデータ(.label)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="350" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-18" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;Step3 データ合体: BIN + LABEL → LAZ&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="210" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-19" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;出力: 圧縮ラベル付き点群(.laz)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="210" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-20" edge="1" parent="1" source="0HW7hBPE0TwHhvVYnFIu-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#008a00;strokeColor=#005700;" target="0HW7hBPE0TwHhvVYnFIu-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;span&gt;Step4 Web変換: LAZ → Potree / HTML&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="210" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="0HW7hBPE0TwHhvVYnFIu-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" value="&lt;div style=&quot;text-align: left;&quot;&gt;&lt;span&gt;End: ブラウザ表示可能な3Dデータ&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="140" x="220" y="770" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="wXwRsv_hI0_RpXoa9BLK" name="ページ-9">
+    <mxGraphModel dx="1414" dy="811" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-18" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-1" parent="1" style="rounded=1;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="Start" vertex="1">
+          <mxGeometry height="40" width="110" x="340" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-2" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;初期設定: パス設定・入力E57/出力BIN決定&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="200" x="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-20" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-21" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-31" connectable="0" parent="qfHxa7sP_7rcWnkvdk_P-21" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="はい" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-30" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-6" value="いいえ">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-5" parent="1" style="rhombus;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;入力E57&lt;br&gt;ファイルは存在する？&lt;/span&gt;" vertex="1">
+          <mxGeometry height="120" width="110" x="340" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-6" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;終了: エラー表示(ファイルなし)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="160" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-22" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-7" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;E57読み込み: scan rawデータ取得(try)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="530" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-23" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-32" connectable="0" parent="qfHxa7sP_7rcWnkvdk_P-23" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="いいえ" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-24" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-33" connectable="0" parent="qfHxa7sP_7rcWnkvdk_P-24" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="はい" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1" y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-8" parent="1" style="rhombus;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;読み込み成功？&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="110" x="550" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-9" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;終了: エラー表示(読み込み失敗)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="340" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-25" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-10" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;座標取得: XYZ抽出(直交 or 球面→直交変換)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="180" x="750" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-26" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-34" connectable="0" parent="qfHxa7sP_7rcWnkvdk_P-26" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="いいえ" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-27" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-13" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-35" connectable="0" parent="qfHxa7sP_7rcWnkvdk_P-27" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="はい" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-11" parent="1" style="rhombus;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;XYZ取得&lt;br&gt;できた？&lt;/span&gt;" vertex="1">
+          <mxGeometry height="100" width="90" x="770" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-12" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;終了: エラー表示(XYZ不明)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="570" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-28" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-14" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-13" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;Intensity取得: 無ければ0、あれば正規化(0-1)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="920" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-29" edge="1" parent="1" source="qfHxa7sP_7rcWnkvdk_P-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;fontColor=light-dark(default, #eb0a0a);" target="qfHxa7sP_7rcWnkvdk_P-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-14" parent="1" style="rounded=0;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;BIN保存: [x y z intensity] をfloat32で書き出し&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="180" x="880" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="qfHxa7sP_7rcWnkvdk_P-16" parent="1" style="rounded=1;html=1;fillColor=#E4B1FF;fontSize=14;fontFamily=Times New Roman;strokeColor=default;whiteSpace=wrap;fontColor=light-dark(default, #eb0a0a);" value="&lt;span&gt;End&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="320" y="560" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="IzBo07k3pbfcO1Qu5wQX" name="ページ-10">
+    <mxGraphModel dx="1414" dy="811" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-14" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;Start&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="100" x="40" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-15" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;設定: 入力(bin/label) と 出力(laz) のパス決定&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="200" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-16" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;出力フォルダ作成 (mkdirs)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="140" x="430" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-17" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-6">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="170" as="sourcePoint" />
+            <mxPoint x="330" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;データ読込: BIN→点群(x,y,z,intensity) / LABEL→セマンティックID抽出&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="630" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-18" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;ルール補正: 高さ条件で誤分類(植物→建物)を修正&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="195" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-19" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;軽量化: ボクセルダウンサンプリングで点数削減&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="430" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-20" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="730" y="330" />
+              <mxPoint x="275" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;LAS準備: ヘッダー作成 / 座標格納&lt;/span&gt;" vertex="1">
+          <mxGeometry height="55" width="180" x="640" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-21" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;分類変換: SemanticKITTIラベル→ASPRS classification にマッピング&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="190" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-22" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;色付け: classification→RGB割当 (16bit格納)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="430" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-23" edge="1" parent="1" source="mEf4wBSmhxFDtBwOs5t0-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" target="mEf4wBSmhxFDtBwOs5t0-13">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="642.75" y="450" as="sourcePoint" />
+            <mxPoint x="414" y="580" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="&lt;span&gt;書き出し: LAZ更新して保存&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="172.5" x="640" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="mEf4wBSmhxFDtBwOs5t0-13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF6666;fontSize=13;fontStyle=0;fontFamily=Times New Roman;" value="End" vertex="1">
+          <mxGeometry height="30" width="102.5" x="360" y="520" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="pUUJYg1jMNA44JfnEU5l" name="ページ-11">
+    <mxGraphModel dx="1414" dy="811" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="TRwxQH1cEselOiTmNKGe-6" edge="1" parent="1" source="TRwxQH1cEselOiTmNKGe-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#67AB9F;fontSize=13;" target="TRwxQH1cEselOiTmNKGe-2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#67AB9F;fontSize=13;" value="&lt;span&gt;Start: 入力点群データ .ply&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="160" x="315" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-7" edge="1" parent="1" source="TRwxQH1cEselOiTmNKGe-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#67AB9F;fontSize=13;" target="TRwxQH1cEselOiTmNKGe-3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#67AB9F;fontSize=13;" value="&lt;span&gt;&lt;span&gt;Step1 AI分類: &lt;br&gt;PLY → LAZ 生成(自動ラベリング + 色付け&lt;/span&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="170" x="310" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-8" edge="1" parent="1" source="TRwxQH1cEselOiTmNKGe-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#67AB9F;fontSize=13;" target="TRwxQH1cEselOiTmNKGe-4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#67AB9F;fontSize=13;" value="&lt;span&gt;出力: 色付き点群(.laz)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="310" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-9" edge="1" parent="1" source="TRwxQH1cEselOiTmNKGe-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#67AB9F;fontSize=13;" target="TRwxQH1cEselOiTmNKGe-5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#67AB9F;fontSize=13;" value="&lt;span&gt;Step2 Web変換:&lt;br&gt;&amp;nbsp;LAZ → Potree / HTML 変換&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="160" x="315" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="TRwxQH1cEselOiTmNKGe-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#67AB9F;fontSize=13;" value="&lt;span&gt;End: ブラウザで閲覧可能な3D点群&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="170" x="310" y="480" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
