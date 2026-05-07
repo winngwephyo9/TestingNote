@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" pages="11">
+<mxfile host="app.diagrams.net" pages="12">
   <diagram name="ページ-1" id="KgeF5uE1_62KxnWGN33f">
     <mxGraphModel dx="1178" dy="648" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="1">
       <root>
@@ -1317,6 +1317,155 @@
         </mxCell>
         <mxCell id="TRwxQH1cEselOiTmNKGe-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#67AB9F;fontSize=13;" value="&lt;span&gt;End: ブラウザで閲覧可能な3D点群&lt;/span&gt;" vertex="1">
           <mxGeometry height="50" width="170" x="310" y="480" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="Ayv-ezfk2feyR_07Km4Y" name="ページ-12">
+    <mxGraphModel dx="1414" dy="811" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="XX40WwoI7tra9lVAEnoN-23" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;font style=&quot;color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;start&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="100" x="50" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-24" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;入力: PLY読み込み (open3d)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="140" x="210" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-25" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;前処理: 外れ値除去 (statistical outlier)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="146" x="414" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-26" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.75;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="XX40WwoI7tra9lVAEnoN-5">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="630" y="139" as="sourcePoint" />
+            <mxPoint x="220" y="241.25" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;" value="&lt;span&gt;座標取得: xyz配列化&lt;/span&gt;" vertex="1">
+          <mxGeometry height="55" width="180" x="630" y="57.5" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-27" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;部屋の上下軸推定: 範囲が最小の軸=up_axis&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="210" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-28" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;床/天井推定: 高さ分布から floor_h と ceil_h 決定&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="186" x="414" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-30" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="XX40WwoI7tra9lVAEnoN-8">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="240" as="sourcePoint" />
+            <mxPoint x="130" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;法線推定: estimate_normals&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="140" x="670" y="165" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-31" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;面判定: 水平(is_horiz) / 垂直(is_vert) を計算&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="210" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-32" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;初期ラベル付与: 全点 Clutter(12)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="156" x="414" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-33" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="XX40WwoI7tra9lVAEnoN-11">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="620" y="365" as="sourcePoint" />
+            <mxPoint x="210" y="495" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;構造物ラベリング: 床(Floor)・天井(Ceiling)・壁(Wall)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="180" x="630" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-34" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;&lt;span&gt;残り点抽出: labels==12 を対象&lt;/span&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="45" width="120" x="220" y="405" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-35" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-13" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;DBSCANクラスタリング: eps=0.04 で家具候補クラスタ作成&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="150" x="430" y="402.5" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-36" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="XX40WwoI7tra9lVAEnoN-14">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="720" y="490" />
+              <mxPoint x="195" y="490" />
+              <mxPoint x="195" y="555" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-13" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;クラスタ毎の特徴量計算: bbox高さ/対角/面積/床距離/天板有無&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="170" x="635" y="397.5" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-37" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-15" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-14" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;ルールベース分類: Window/Table/&lt;br&gt;Sofa/Chair/&lt;br&gt;Bookcase/Clutter など&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="155" x="215" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-38" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-17" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-15" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;ラベル集計ログ出力&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="130" x="430" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-39" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="XX40WwoI7tra9lVAEnoN-18">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="710" y="620" />
+              <mxPoint x="180" y="620" />
+              <mxPoint x="180" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-17" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;LAZ出力準備: laspyヘッダー作成・座標設定&lt;/span&gt;" vertex="1">
+          <mxGeometry height="65.5" width="150" x="655" y="524.5" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-40" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-20" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-18" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;classification設定: labels をLAS分類に格納&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="200" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-41" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="XX40WwoI7tra9lVAEnoN-21" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-20" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;色付け: ラベル→&lt;br&gt;S3DIS_COLORS→&lt;br&gt;RGB(16bit)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="400" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-42" edge="1" parent="1" source="XX40WwoI7tra9lVAEnoN-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="XX40WwoI7tra9lVAEnoN-22">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="620" y="750" as="sourcePoint" />
+            <mxPoint x="80" y="830" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;書き出し: output_laz へ保存&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="620" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="XX40WwoI7tra9lVAEnoN-22" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8000;fontSize=13;fontFamily=Times New Roman;" value="&lt;span&gt;End&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="100" x="50" y="790" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
