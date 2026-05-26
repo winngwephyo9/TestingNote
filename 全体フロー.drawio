@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" pages="16">
+<mxfile host="app.diagrams.net" pages="17">
   <diagram name="ページ-1" id="KgeF5uE1_62KxnWGN33f">
     <mxGraphModel dx="1178" dy="648" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#ffffff" math="0" shadow="1">
       <root>
@@ -1832,6 +1832,59 @@
         </mxCell>
         <mxCell id="nnIS4jNqXDr_0StXdcwo-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(#FFFFFF,#009900);" value="&lt;span style=&quot;white-space: pre-wrap;&quot;&gt;ブラウザ表示&lt;/span&gt;" vertex="1">
           <mxGeometry height="40" width="157.5" x="320" y="370" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="KqtG1XLdpVbJToEXNhfv" name="ページ-17">
+    <mxGraphModel dx="1030" dy="596" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-9" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-1" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="Start" vertex="1">
+          <mxGeometry height="40" width="90" x="351.25" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-10" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="&lt;span&gt;Step1: &lt;br&gt;対象クラス選定&lt;/span&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="336.25" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-11" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="&lt;span&gt;Step2: &lt;br&gt;クラスごとに点抽出&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="136.25" x="333.75" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-12" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="&lt;span&gt;Step3: &lt;br&gt;クラスタリング&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="137.5" x="332.5" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-13" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="&lt;span&gt;Step4: &lt;br&gt;OBB生成&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="138.75" x="331.25" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-14" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-7" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="&lt;span&gt;Step5: &lt;br&gt;JSON出力&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="135.62" x="334.38" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-15" edge="1" parent="1" source="b1EmjJ6NN9Vq0aH4kHPw-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=light-dark(transparent,#00994D);" target="b1EmjJ6NN9Vq0aH4kHPw-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="&lt;span&gt;Step6:&lt;br&gt;&amp;nbsp;Potree可視化&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="138.75" x="332.82" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="b1EmjJ6NN9Vq0aH4kHPw-8" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=light-dark(transparent,#00994D);" value="End" vertex="1">
+          <mxGeometry height="50" width="98.74" x="351.88" y="650" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
